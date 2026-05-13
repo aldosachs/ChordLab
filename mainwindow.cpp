@@ -18,7 +18,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     // 1. Scale to 60% of available screen
     QScreen *screen = QGuiApplication::primaryScreen();
     QSize size = screen->availableGeometry().size();
-    resize(size.width() * 0.75, size.height() * 0.6);
+    resize(size.width() * 0.8, size.height() * 0.8);
 
     setupMenus();
     setupToolBar();
