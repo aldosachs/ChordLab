@@ -187,7 +187,8 @@ QString MainWindow::runInitialParse(const QString &rawInput) {
                                    "</style></head><body>";
 */
     // 1. Pre-pass for Metadata Header
-    QRegularExpression titleRegex("\\{title:\\s*(.*)\\}", QRegularExpression::CaseInsensitiveOption);
+//    QRegularExpression titleRegex("\\{title:\\s*(.*)\\}", QRegularExpression::CaseInsensitiveOption);
+    QRegularExpression titleRegex(R"(\{(?:title|t):\s*(.*?)\})", QRegularExpression::CaseInsensitiveOption);
     QRegularExpression artistRegex("\\{artist:\\s*(.*)\\}", QRegularExpression::CaseInsensitiveOption);
     QRegularExpression keyRegex("\\{key:\\s*(.*)\\}", QRegularExpression::CaseInsensitiveOption);
     QRegularExpression tempoRegex("\\{tempo:\\s*(.*)\\}", QRegularExpression::CaseInsensitiveOption);
@@ -223,10 +224,12 @@ QString MainWindow::runInitialParse(const QString &rawInput) {
 
         // 1. Skip Metadata & Comments
         if (trimmedLine.startsWith("{title:", Qt::CaseInsensitive) ||
-            trimmedLine.startsWith("{artist:", Qt::CaseInsensitive) ||
-            trimmedLine.startsWith("{key:", Qt::CaseInsensitive) ||
-            trimmedLine.startsWith("{tempo:", Qt::CaseInsensitive) ||
+            trimmedLine.startsWith("{t:", Qt::CaseInsensitive) ||
+            trimmedLine.startsWith("{artist:", Qt::CaseInsensitive) ||            
+            trimmedLine.startsWith("{key:", Qt::CaseInsensitive) ||            
+            trimmedLine.startsWith("{tempo:", Qt::CaseInsensitive) ||            
             trimmedLine.startsWith("{capo:", Qt::CaseInsensitive) ||
+
             trimmedLine.startsWith("#")) {
             continue;
         }
