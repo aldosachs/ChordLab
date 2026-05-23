@@ -32,8 +32,10 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 
 void MainWindow::setupMenus() {
     QMenu *fileMenu = menuBar()->addMenu("&File");
-    fileMenu->addAction("&Open...", this, &MainWindow::handleFileOpen, QKeySequence::Open);
-    fileMenu->addAction("&Save Standardized", this, &MainWindow::handleFileSave, QKeySequence::Save);
+    fileMenu->addAction("&Open...", QKeySequence::Open, this, &MainWindow::handleFileOpen);
+    fileMenu->addAction("&Save Standardized", QKeySequence::Save, this, &MainWindow::handleFileSave);
+//    fileMenu->addAction("&Open...", this, &MainWindow::handleFileOpen, QKeySequence::Open);
+//    fileMenu->addAction("&Save Standardized", this, &MainWindow::handleFileSave, QKeySequence::Save);
     fileMenu->addSeparator();
     fileMenu->addAction("E&xit", this, &QWidget::close);
 }
@@ -217,9 +219,14 @@ QString MainWindow::runInitialParse(const QString &rawInput) {
     bool inChorus = false;
     bool inVerse = false;
 
-    for (QString line : lines) {
-        line.remove('\r');
-        QString trimmedLine = line.trimmed();
+    for (const QString &line : lines) {
+//    for (QString line : lines) {
+//        line.remove('\r');
+//        QString trimmedLine = line.trimmed();
+
+    QString workingLine = line; // Make a local, changeable copy of just this line
+    workingLine.remove('\r');   // This is good now!
+    QString trimmedLine = workingLine.trimmed();
         bool lineHandled = false; // The gatekeeper
 
         // 1. Skip Metadata & Comments
