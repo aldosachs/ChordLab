@@ -35,6 +35,11 @@ private:
     void setupToolBar();
     void toggleDisplayMode();
     void shiftTransposition(int delta);
+    void setAppState();
+
+    void updateFunctionKeys(); // Helper to switch text and connections
+
+    QString m_currentFilePath; // Tracks the currently open 'raw, ChoPro' file path
 
     QString runInitialParse(const QString &rawInput);
     QString transposeChord(const QString &chord, int semitones);
@@ -59,6 +64,12 @@ private:
     QPushButton *m_opt4Btn;
     // Future buttons: m_themeBtn, m_listBtn, etc.
     QPushButton *m_btnTheme;
+
+    // reassignable Fn-x buttons
+    QPushButton *m_btnFn1;
+    QPushButton *m_btnFn2;
+    QPushButton *m_btnFn3;
+    QPushButton *m_btnFn4;
 
     // A helper to get the current CSS based on the theme
     QString getThemeStyles();

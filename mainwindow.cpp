@@ -20,6 +20,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     QSize size = screen->availableGeometry().size();
     resize(size.width() * 0.8, size.height() * 0.8);
 
+    m_currentFilePath = ""; // Initialize 'raw ChoPro' file path var. as empty string, first up.
+
     setupMenus();
     setupToolBar();
     setupLayout();
@@ -58,13 +60,32 @@ void MainWindow::setupToolBar() {
     m_btnTransposeUp->setStyleSheet(style);
     m_btnTransposeDown->setStyleSheet(style);
 
-    // Add "Placeholder" Grey Function Key Buttons
-    QString buttonStyle = "QPushButton { background-color: #808080; color: white; border-radius: 4px; padding: 5px; min-width: 40px; }";
-    for(int i = 0; i < 4; ++i) {
-        QPushButton *btn = new QPushButton(QString("Fn-%1").arg(i + 1));
-        btn->setStyleSheet(buttonStyle);
-        layout->addWidget(btn);
-    }
+    // Add "Placeholder" Grey Function Key Buttons as class members
+    QString buttonStyle = "QPushButton { background-color: #555555; color: white; border-radius: 4px; padding: 5px; min-width: 65px; font-weight: bold; }";
+
+    m_btnFn1 = new QPushButton("Fn-1");
+    m_btnFn2 = new QPushButton("Fn-2");
+    m_btnFn3 = new QPushButton("Fn-3");
+    m_btnFn4 = new QPushButton("Fn-4");
+
+    m_btnFn1->setStyleSheet(buttonStyle);
+    m_btnFn2->setStyleSheet(buttonStyle);
+    m_btnFn3->setStyleSheet(buttonStyle);
+    m_btnFn4->setStyleSheet(buttonStyle);
+
+    layout->addWidget(m_btnFn1);
+    layout->addWidget(m_btnFn2);
+    layout->addWidget(m_btnFn3);
+    layout->addWidget(m_btnFn4);
+
+//    // Add "Placeholder" Grey Function Key Buttons
+//    QString buttonStyle = "QPushButton { background-color: #808080; color: white; border-radius: 4px; padding: 5px; min-width: 40px; }";
+//    for(int i = 0; i < 4; ++i) {
+//        QPushButton *btn = new QPushButton(QString("Fn-%1").arg(i + 1));
+//        btn->setStyleSheet(buttonStyle);
+//        layout->addWidget(btn);
+//    }
+
 
     QPushButton *btnReset = new QPushButton("Reset Key");
     btnReset->setStyleSheet("QPushButton { background-color: #0047ff; color: white; padding: 5px; }"); // Reset back to original key!
@@ -94,6 +115,47 @@ void MainWindow::setupToolBar() {
 
 }
 
+void MainWindow::updateFunctionKeys() {
+    // Safely disconnect any previous lambda actions so they don't stack up
+    m_btnFn1->disconnect();
+    m_btnFn2->disconnect();
+    m_btnFn3->disconnect();
+    m_btnFn4->disconnect();
+
+    if (currentState == OpenEdit || currentState == Idle) {
+        // --- EDIT MODE CONFIGURATION ---
+        m_btnFn1->setText("📂 Open");
+        m_btnFn2->setText("💾 Save");
+        m_btnFn3->setText("💾 As...");
+        m_btnFn4->setText("🔄 Parse"); // Back-up explicit parse button!
+
+        connect(m_btnFn1, &QPushButton::clicked, this, &MainWindow::handleFileOpen);
+        connect(m_btnFn2, &QPushButton::clicked, this, &MainWindow::handleFileSave);
+        connect(m_btnFn3, &QPushButton::clicked, this, [=]() {
+            QString oldPath = m_currentFilePath;
+            m_currentFilePath.clear(); // Force getSaveFileName prompt
+            handleFileSave();
+            if (m_currentFilePath.isEmpty()) m_currentFilePath = oldPath; // Restore if canceled
+        });
+        connect(m_btnFn4, &QPushButton::clicked, this, [=]() {
+            parsedEditor->setHtml(runInitialParse(originalEditor->toPlainText()));
+        });
+
+    } else if (currentState == PlayAlong) {
+        // --- PLAYBACK MODE CONFIGURATION ---
+        m_btnFn1->setText("⏮ Rewind");
+        m_btnFn2->setText("▶ Play");
+        m_btnFn3->setText("⏸ Pause");
+        m_btnFn4->setText("⏭ End");
+
+        // Stubs for future MP3 / MIDI engine integrations!
+        connect(m_btnFn1, &QPushButton::clicked, this, [=]() { statusBar()->showMessage("Rewinding track..."); });
+        connect(m_btnFn2, &QPushButton::clicked, this, [=]() { statusBar()->showMessage("Playing track..."); });
+        connect(m_btnFn3, &QPushButton::clicked, this, [=]() { statusBar()->showMessage("Track Paused."); });
+        connect(m_btnFn4, &QPushButton::clicked, this, [=]() { statusBar()->showMessage("Skipped to end."); });
+    }
+}
+
 void MainWindow::setupLayout() {
     mainSplitter = new QSplitter(Qt::Horizontal, this);
 
@@ -112,6 +174,12 @@ void MainWindow::setupLayout() {
 
     mainSplitter->addWidget(originalEditor);
     mainSplitter->addWidget(parsedEditor);
+
+    // --- THE LIVE REFRESH LINK ---
+    // Whenever the text on the left changes, instantly re-parse and display on the right
+    connect(originalEditor, &QPlainTextEdit::textChanged, this, [=]() {
+        parsedEditor->setHtml(runInitialParse(originalEditor->toPlainText()));
+    });
 
     setCentralWidget(mainSplitter);
 }
@@ -135,8 +203,35 @@ void MainWindow::setAppState(AppState state) {
 }
 
 // This is the implementation for the Save action
+//void MainWindow::handleFileSave() {
+//    statusBar()->showMessage("Save triggered - awaiting logic.");
+//    }
 void MainWindow::handleFileSave() {
-    statusBar()->showMessage("Save triggered - awaiting logic.");
+    // 1. If no file is currently open, act like a "Save As" dialog
+    if (m_currentFilePath.isEmpty()) {
+        QString saveName = QFileDialog::getSaveFileName(this,
+                                                        tr("Save ChordPro File"), "", tr("ChordPro Files (*.chopro *.pro *.txt *.crd)"));
+
+        if (saveName.isEmpty()) {
+            return; // User canceled the save dialog
+        }
+        m_currentFilePath = saveName;
+    }
+
+    // 2. Open the file for writing
+    QFile file(m_currentFilePath);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        QMessageBox::warning(this, tr("Save Error"), tr("Could not write to file: ") + file.errorString());
+        return;
+    }
+
+    // 3. Stream the raw data directly from the left editor
+    QTextStream out(&file);
+    out << originalEditor->toPlainText();
+    file.close();
+
+    // 4. Update the status bar to show it worked perfectly
+    statusBar()->showMessage(tr("Saved successfully: ") + m_currentFilePath, 3000); // Display for 3 seconds
 }
 
 void MainWindow::handleFileOpen() {
