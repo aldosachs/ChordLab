@@ -240,23 +240,23 @@ void MainWindow::updateFunctionKeys() {
     }
 }
 
-    void MainWindow::handlePlaybackStateChanged(QMediaPlayer::PlaybackState state) {
-        switch (state) {
-        case QMediaPlayer::PlayingState:
-            statusBar()->showMessage(tr("▶ Playing: %1").arg(QFileInfo(m_selectedAudioPath).fileName()));
-            break;
-        case QMediaPlayer::PausedState:
-            statusBar()->showMessage("⏸ Playback Paused.");
-            break;
-        case QMediaPlayer::StoppedState:
-            if (m_mediaPlayer->position() >= m_mediaPlayer->duration() && m_mediaPlayer->duration() > 0) {
-                statusBar()->showMessage("Track finished.");
-            } else {
-                statusBar()->showMessage("Playback Stopped.");
-            }
-            break;
+void MainWindow::handlePlaybackStateChanged(QMediaPlayer::PlaybackState state) {
+    switch (state) {
+    case QMediaPlayer::PlayingState:
+        statusBar()->showMessage(tr("▶ Playing: %1").arg(QFileInfo(m_selectedAudioPath).fileName()));
+        break;
+    case QMediaPlayer::PausedState:
+        statusBar()->showMessage("⏸ Playback Paused.");
+        break;
+    case QMediaPlayer::StoppedState:
+        if (m_mediaPlayer->position() >= m_mediaPlayer->duration() && m_mediaPlayer->duration() > 0) {
+            statusBar()->showMessage("Track finished.");
+        } else {
+            statusBar()->showMessage("Playback Stopped.");
         }
+        break;
     }
+}
 
 void MainWindow::setupLayout() {
     mainSplitter = new QSplitter(Qt::Horizontal, this);
@@ -282,7 +282,7 @@ void MainWindow::setupLayout() {
     connect(originalEditor, &QPlainTextEdit::textChanged, this, [=]() {
         m_rawSongContent = originalEditor->toPlainText();
         parsedEditor->setHtml(runInitialParse(m_rawSongContent));
-//        parsedEditor->setHtml(runInitialParse(originalEditor->toPlainText()));
+        parseChordProToGrid(m_rawSongContent); // Run structural compiler to populate the grid data payload
     });
 
     setCentralWidget(mainSplitter);
@@ -433,6 +433,7 @@ void MainWindow::handleFileOpen() {
     parsedEditor->setHtml(expertVersion);
     statusBar()->showMessage(tr("Loaded: ") + fileName);
     checkForCompanionAudio(m_currentFilePath); // <-- This initiates the audio scan!
+    parseChordProToGrid(m_rawSongContent);
 }
 
 QString MainWindow::runInitialParse(const QString &rawInput) {
@@ -773,3 +774,136 @@ void MainWindow::selectAudioTrack(QPushButton *clickedButton, const QString &fil
     m_mediaPlayer->setSource(QUrl::fromLocalFile(filePath));
     statusBar()->showMessage(tr("Audio Ready [%1]: %2").arg(trackType, QFileInfo(filePath).fileName()));
 }
+
+void MainWindow::parseChordProToGrid(const QString &rawText) {
+    m_parsedSongContentGrid.clear();
+
+    QStringList lines = rawText.split('\n');
+    QString currentSectionHtml;
+    bool inSection = false;
+    bool inMonospaceBlock = false;
+
+    // Directives Regex Patterns
+    QRegularExpression commentRegex(R"(\{(?:c|comment):\s*([^}]+)\})", QRegularExpression::CaseInsensitiveOption);
+    QRegularExpression metadataRegex(R"(\{(title|subtitle|tempo|time|key):\s*([^}]+)\})", QRegularExpression::CaseInsensitiveOption);
+
+    // Formatting tracking tags
+    QString metadataBlock = "";
+
+    for (QString line : lines) {
+        line = line.trimmed();
+        if (line.isEmpty() && !inMonospaceBlock) continue;
+
+        // 1. Handle Metadata Tags (Title, Subtitle, Tempo, etc.)
+        QRegularExpressionMatch metaMatch = metadataRegex.match(line);
+        if (metaMatch.hasMatch()) {
+            QString tag = metaMatch.captured(1).toLower();
+            QString value = metaMatch.captured(2);
+
+            if (tag == "title") {
+                metadataBlock += QString("<h1 style='margin: 0 0 5px 0; color: #111;'>%1</h1>").arg(value);
+            } else if (tag == "subtitle") {
+                metadataBlock += QString("<h3 style='margin: 0 0 10px 0; color: #666; font-style: italic;'>%1</h3>").arg(value);
+            } else {
+                // Capitalize first letter of tag for pretty display
+                tag[0] = tag[0].toUpper();
+                metadataBlock += QString("<span style='font-size: 10pt; color: #555;'><b>%1:</b> %2</span>&nbsp;&nbsp;").arg(tag, value);
+            }
+            continue;
+        }
+
+        // 2. Handle Monospace Environment Boundaries ({sog}/{eog}, {sot}/{eot})
+        if (line.contains("{sog", Qt::CaseInsensitive) || line.contains("{sot", Qt::CaseInsensitive)) {
+            if (!inSection) {
+                // Start an anonymous block if a tab appears before a {c:} marker
+                currentSectionHtml += "<div class='song-section'>";
+                inSection = true;
+            }
+            currentSectionHtml += "<div class='tab-block'>";
+            inMonospaceBlock = true;
+            continue;
+        }
+        if (line.contains("{eog", Qt::CaseInsensitive) || line.contains("{eot", Qt::CaseInsensitive)) {
+            currentSectionHtml += "</div>";
+            inMonospaceBlock = false;
+            continue;
+        }
+
+        // If inside a tab loop, pipe text exactly as-is to protect spacing
+        if (inMonospaceBlock) {
+            // Convert simple chord tags inside tabs if they exist, or escape HTML tags safely
+            QString escapedLine = line.toHtmlEscaped();
+            // Optional: make chord letters bold inside your tabs
+            escapedLine.replace(QRegularExpression(R"(\[([A-G][b#]?[mM]?[0-9]*)\])"), "<b>\\1</b>");
+            currentSectionHtml += escapedLine + "\n";
+            continue;
+        }
+
+        // 3. Handle Section Heading Commmands ({c: Section Name})
+        QRegularExpressionMatch commentMatch = commentRegex.match(line);
+        if (commentMatch.hasMatch()) {
+            // If we are already building a section block, close it out now!
+            if (inSection) {
+                currentSectionHtml += "</div>";
+            }
+
+            QString sectionName = commentMatch.captured(1);
+            currentSectionHtml += "<div class='song-section'>";
+
+            // Inject metadata alongside the very first header if present
+            if (!metadataBlock.isEmpty()) {
+                currentSectionHtml += metadataBlock + "<br><br>";
+                metadataBlock.clear(); // Clear so it only prints once at the top-left!
+            }
+
+            currentSectionHtml += QString("<h2 style='color: #007acc; margin: 0 0 10px 0; font-family: sans-serif; border-bottom: 2px solid #eef;'>%1</h2>").arg(sectionName);
+            inSection = true;
+            continue;
+        }
+
+        // 4. Handle Standard Inline Lyric & Chord Lines
+        if (inSection) {
+            // Separate line processing: create a clear stack of chords above lyrics
+            QString chordLine = "";
+            QString lyricLine = "";
+
+            // Simple inline parser loop to extract chords from brackets [...]
+            int pos = 0;
+            while (pos < line.length()) {
+                if (line[pos] == '[') {
+                    int closePos = line.indexOf(']', pos);
+                    if (closePos != -1) {
+                        QString chord = line.mid(pos + 1, closePos - pos - 1);
+                        // Pad out chord line to align with current lyric position
+                        while (chordLine.length() < lyricLine.length()) {
+                            chordLine += "&nbsp;";
+                        }
+                        chordLine += QString("<span class='chord-line'>%1</span>").arg(chord);
+                        pos = closePos + 1;
+                        continue;
+                    }
+                }
+
+                // Add to lyric baseline character by character
+                if (line[pos] == ' ') lyricLine += "&nbsp;";
+                else lyricLine += line[pos];
+                pos++;
+            }
+
+            if (!chordLine.isEmpty()) {
+                currentSectionHtml += "<div>" + chordLine + "</div>";
+            }
+            if (!lyricLine.isEmpty() && lyricLine != "&nbsp;") {
+                currentSectionHtml += "<div style='margin-bottom: 8px; color: #333;'>" + lyricLine + "</div>";
+            }
+        }
+    }
+
+    // Close final trailing section container cleanly if left open
+    if (inSection) {
+        currentSectionHtml += "</div>";
+    }
+
+    m_parsedSongContentGrid = currentSectionHtml;
+}
+

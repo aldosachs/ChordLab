@@ -78,6 +78,8 @@ private:
         QString header; // e.g., "Verse 1", "Chorus"
         QString body;   // The raw or intermediate text content inside that section
     };
+    // Slices raw text into visual HTML section pillars
+    void parseChordProToGrid(const QString &rawText);
 
     // Stores the fully prepared HTML layout grid for full-screen display
     QString m_parsedSongContentGrid;
