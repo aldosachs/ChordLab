@@ -87,6 +87,11 @@ private:
     // Master wrapper that injects CSS flexbox styling for full-screen mode
     QString generateFullScreenHtml(const QString& parsedSongContent);
 
+    int m_zoomScaleLevel; // Tracks current zoom step (e.g., -3 to +5)
+
+    void onZoomInTriggered(); // UI Action Slots for your Zoom Buttons
+    void onZoomOutTriggered();
+
     QString runInitialParse(const QString &rawInput);
     QString processLineContent(const QString &line);
     QString transposeChord(const QString &chord, int semitones);

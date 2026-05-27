@@ -41,6 +41,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     m_currentFilePath = ""; // Initialize 'raw ChoPro' file path var. as empty string, first up.
     m_parsedSongContentGrid = ""; // <-- Initialize layout tracker string here
 
+    m_zoomScaleLevel = 0; // Baseline zoom level
+
     setupMenus();
     setupToolBar();
     setupLayout();
@@ -878,7 +880,7 @@ void MainWindow::parseChordProToGrid(const QString &rawText) {
         }
 
         // 4. Handle Standard Inline Lyric & Chord Lines (Upgraded Matrix Grid)
-        if (inSection) {
+/*        if (inSection) {
             QString rowHtml = "<div style='line-height: 1.6; margin-bottom: 6px; white-space: nowrap;'>";
 
             int pos = 0;
@@ -906,7 +908,49 @@ void MainWindow::parseChordProToGrid(const QString &rawText) {
                 if (line[pos] == ' ') currentText += "&nbsp;";
                 else currentText += line[pos];
                 pos++;
+            } */
+
+        // 4. Handle Standard Inline Lyric & Chord Lines (Protected Matrix Grid)
+        if (inSection) {
+            QString rowHtml = "<div style='margin-bottom: 6px; white-space: nowrap;'>";
+
+            int pos = 0;
+            QString currentChord = "";
+            QString currentPhrase = "";
+
+            while (pos < line.length()) {
+                if (line[pos] == '[') {
+                    if (!currentChord.isEmpty() || !currentPhrase.isEmpty()) {
+                        rowHtml += QString("<div style='display: inline-block; vertical-align: bottom; text-align: left; margin-right: 3px;'>") +
+                                   QString("<div class='chord-line'>%1</div>").arg(currentChord.isEmpty() ? "&nbsp;" : currentChord) +
+                                   QString("<div class='lyric-text'>%1</div>").arg(currentPhrase.isEmpty() ? "&nbsp;" : currentPhrase) +
+                                   QString("</div>");
+                        currentPhrase.clear();
+                    }
+
+                    int closePos = line.indexOf(']', pos);
+                    if (closePos != -1) {
+                        currentChord = line.mid(pos + 1, closePos - pos - 1);
+                        pos = closePos + 1;
+                        continue;
+                    }
+                }
+
+                if (line[pos] == ' ') currentPhrase += "&nbsp;";
+                else currentPhrase += line[pos];
+                pos++;
             }
+
+            if (!currentChord.isEmpty() || !currentPhrase.isEmpty()) {
+                rowHtml += QString("<div style='display: inline-block; vertical-align: bottom; text-align: left; margin-right: 3px;'>") +
+                           QString("<div class='chord-line'>%1</div>").arg(currentChord.isEmpty() ? "&nbsp;" : currentChord) +
+                           QString("<div class='lyric-text'>%1</div>").arg(currentPhrase.isEmpty() ? "&nbsp;" : currentPhrase) +
+                           QString("</div>");
+            }
+
+            rowHtml += "</div>";
+            currentSectionHtml += rowHtml;
+        }
 
             if (!lastChord.isEmpty() || !currentText.isEmpty()) {
                 rowHtml += QString("<div style='display: inline-block; vertical-align: bottom; text-align: left;'>") +
@@ -926,4 +970,90 @@ void MainWindow::parseChordProToGrid(const QString &rawText) {
     }
 
     m_parsedSongContentGrid = currentSectionHtml;
+}
+
+void MainWindow::onZoomInTriggered() {
+    if (m_zoomScaleLevel < 6) { // Upper zoom cap
+        m_zoomScaleLevel++;
+        updatePlayAlongLayoutDensity();
+    }
+}
+
+void MainWindow::onZoomOutTriggered() {
+    if (m_zoomScaleLevel > -4) { // Lower zoom floor
+        m_zoomScaleLevel--;
+        updatePlayAlongLayoutDensity();
+    }
+}
+
+void MainWindow::updatePlayAlongLayoutDensity() {
+    // 1. Calculate base layout sizing choices based on zoom increments
+    int baseFontSize = 12 + (m_zoomScaleLevel * 2); // Shifts font size smoothly
+    int columnWidth = 360 + (m_zoomScaleLevel * 30); // Column width scales up with text size
+
+    QString cssLayoutMode;
+
+    // 2. THE THRESHOLD CHECK: If the text gets too big, abandon columns!
+    if (m_zoomScaleLevel >= 3) {
+        // Single column scrolling sheet layout (SBP High-Zoom Mode)
+        cssLayoutMode = ".song-canvas {"
+                        "  display: block;" // Standard sequential block layout
+                        "  height: auto;"   // Let it overflow naturally for scrolling
+                        "  margin: 0 auto;"
+                        "  max-width: 800px;"
+                        "} "
+                        ".song-section {"
+                        "  width: 100%;"   // Section takes full width
+                        "  margin-bottom: 30px;"
+                        "}";
+    } else {
+        // Multi-column side-by-side fitting canvas (SBP Normal-Zoom Mode)
+        cssLayoutMode = QString(
+                            ".song-canvas {"
+                            "  display: flex;"
+                            "  flex-direction: column;"
+                            "  flex-wrap: wrap;"
+                            "  height: 82vh;" // Pin height to force horizontal columnizing
+                            "  align-content: flex-start;"
+                            "  gap: 30px;"
+                            "} "
+                            ".song-section {"
+                            "  width: %1px;" // Set calculated scaling column boundary
+                            "  break-inside: avoid;"
+                            "  page-break-inside: avoid;"
+                            "}").arg(columnWidth);
+    }
+
+    // 3. Generate fully updated HTML document with new layout specifications
+    QString baseHtml = "<html><head><style>"
+                       "body {"
+                       "  background-color: #ffffff;"
+                       "  font-family: sans-serif;"
+                       "  margin: 25px; padding: 0;"
+                       "}"
+                       + cssLayoutMode +
+                       ".chord-line {"
+                       "  font-weight: bold; color: #b22222;"
+                       "  font-family: sans-serif;"
+                       "  font-size: " + QString::number(baseFontSize + 1) + "pt;"
+                                                             "}"
+                                                             ".lyric-text {"
+                                                             "  color: #222; font-family: sans-serif;"
+                                                             "  font-size: " + QString::number(baseFontSize) + "pt;"
+                                                         "}"
+                                                         ".tab-block {"
+                                                         "  display: block; clear: both;"
+                                                         "  font-family: 'Consolas', 'Courier New', monospace !important;"
+                                                         "  font-size: " + QString::number(baseFontSize - 1) + "pt;"
+                                                             "  white-space: pre !important;"
+                                                             "  background-color: #f4f6f9;"
+                                                             "  padding: 12px; border-left: 4px solid #007acc; margin: 10px 0;"
+                                                             "}"
+                                                             "</style></head><body>"
+                                                             "<div class='song-canvas'>"
+                       + m_parsedSongContentGrid +
+                       "</div></body></html>";
+
+    // 4. Update view pane instantly
+    parsedEditor->setHtml(baseHtml);
 }
