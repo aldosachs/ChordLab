@@ -766,6 +766,54 @@ void MainWindow::parseChordProToGrid(const QString &rawText) {
         }
 
         if (inSection) {
+            // Treat the whole line as an unbreakable visual horizontal row
+            QString rowHtml = "<div style='margin-bottom: 6px; white-space: nowrap;'>";
+
+            int pos = 0;
+            QString currentChord = "";
+            QString currentPhrase = "";
+
+            while (pos < line.length()) {
+                if (line[pos] == '[') {
+                    // We hit a new chord, flush whatever lyrics/spaces accumulated up to this point
+                    if (!currentChord.isEmpty() || !currentPhrase.isEmpty()) {
+                        rowHtml += QString("<div style='display: inline-block; vertical-align: bottom; text-align: left; margin-right: 2px;'>") +
+                                   QString("<div class='chord-line'>%1</div>").arg(currentChord.isEmpty() ? "&nbsp;" : currentChord) +
+                                   QString("<div style='color: #222; font-family: sans-serif;'>%1</div>").arg(currentPhrase.isEmpty() ? "&nbsp;" : currentPhrase) +
+                                   QString("</div>");
+                        currentPhrase.clear();
+                    }
+
+                    int closePos = line.indexOf(']', pos);
+                    if (closePos != -1) {
+                        currentChord = line.mid(pos + 1, closePos - pos - 1);
+                        pos = closePos + 1;
+                        continue;
+                    }
+                }
+
+                // Convert normal spacing to non-breaking spaces so words don't collapse
+                if (line[pos] == ' ') {
+                    currentPhrase += "&nbsp;";
+                } else {
+                    currentPhrase += line[pos];
+                }
+                pos++;
+            }
+
+            // CRITICAL FIX: Flush any remaining trailing words or spaces at the end of the line!
+            if (!currentChord.isEmpty() || !currentPhrase.isEmpty()) {
+                rowHtml += QString("<div style='display: inline-block; vertical-align: bottom; text-align: left; margin-right: 2px;'>") +
+                           QString("<div class='chord-line'>%1</div>").arg(currentChord.isEmpty() ? "&nbsp;" : currentChord) +
+                           QString("<div style='color: #222; font-family: sans-serif;'>%1</div>").arg(currentPhrase.isEmpty() ? "&nbsp;" : currentPhrase) +
+                           QString("</div>");
+            }
+
+            rowHtml += "</div>";
+            currentSectionHtml += rowHtml;
+        }
+
+    /*    if (inSection) {
             QString rowHtml = "<div style='margin-bottom: 6px; white-space: nowrap;'>";
 
             int pos = 0;
@@ -804,7 +852,7 @@ void MainWindow::parseChordProToGrid(const QString &rawText) {
 
             rowHtml += "</div>";
             currentSectionHtml += rowHtml;
-        }
+        }*/
     }
 
     if (inSection) {
@@ -835,17 +883,20 @@ void MainWindow::updatePlayAlongLayoutDensity() {
     QString cssLayoutMode;
 
     if (m_zoomScaleLevel >= 3) {
+        // High-Zoom: Single Column scrolling sheet (SBP style)
         cssLayoutMode = ".song-canvas {"
                         "  display: block;"
                         "  height: auto;"
                         "  margin: 0 auto;"
-                        "  max-width: 800px;"
+                        "  max-width: 900px;"
                         "} "
                         ".song-section {"
                         "  width: 100%;"
                         "  margin-bottom: 30px;"
+                        "  white-space: nowrap !important;" // Protects full lyric lines from breaking
                         "}";
     } else {
+        // Multi-Column: Side-by-side fitting canvas
         cssLayoutMode = QString(
                             ".song-canvas {"
                             "  display: flex;"
@@ -853,12 +904,13 @@ void MainWindow::updatePlayAlongLayoutDensity() {
                             "  flex-wrap: wrap;"
                             "  height: 82vh;"
                             "  align-content: flex-start;"
-                            "  gap: 30px;"
+                            "  gap: 35px;"
                             "} "
                             ".song-section {"
                             "  width: %1px;"
                             "  break-inside: avoid;"
                             "  page-break-inside: avoid;"
+                            "  white-space: nowrap !important;" // Keeps lines intact in column views
                             "}").arg(columnWidth);
     }
 
@@ -873,6 +925,7 @@ void MainWindow::updatePlayAlongLayoutDensity() {
                        "  font-weight: bold; color: #b22222;"
                        "  font-family: sans-serif;"
                        "  font-size: " + QString::number(baseFontSize + 1) + "pt;"
+                                                             "  min-height: 1.2em;"
                                                              "}"
                                                              ".lyric-text {"
                                                              "  color: #222; font-family: sans-serif;"
