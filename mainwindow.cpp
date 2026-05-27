@@ -21,7 +21,16 @@
 #include <QUrl>
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
-    // 1. Scale to 60% of available screen
+    // 1. ALLOCATE THE AUDIO ENGINE FIRST UP (Crucial for pointers!)
+    m_mediaPlayer = new QMediaPlayer(this);
+    m_audioOutput = new QAudioOutput(this);
+    m_mediaPlayer->setAudioOutput(m_audioOutput);
+    m_audioOutput->setVolume(0.8f);
+
+    // Now connect the state change listener safely
+    connect(m_mediaPlayer, &QMediaPlayer::playbackStateChanged, this, &MainWindow::handlePlaybackStateChanged);
+
+    // 2. Scale to 60% of available screen
     QScreen *screen = QGuiApplication::primaryScreen();
     QSize size = screen->availableGeometry().size();
     resize(size.width() * 0.8, size.height() * 0.8);
@@ -29,12 +38,9 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     QMediaPlayer *m_mediaPlayer = nullptr;
     QAudioOutput *m_audioOutput = nullptr;
 
-    void handlePlaybackStateChanged(QMediaPlayer::PlaybackState state);
+//    void handlePlaybackStateChanged(QMediaPlayer::PlaybackState state);
 
-    // Wire up a signal listener so our toolbar keys can dynamically adapt to the player's behavior
-    connect(m_mediaPlayer, &QMediaPlayer::playbackStateChanged, this, &MainWindow::handlePlaybackStateChanged);
-
-    m_currentFilePath = ""; // Initialize 'raw ChoPro' file path var. as empty string, first up.
+//    m_currentFilePath = ""; // Initialize 'raw ChoPro' file path var. as empty string, first up.
 
     setupMenus();
     setupToolBar();
@@ -676,7 +682,7 @@ void MainWindow::checkForCompanionAudio(const QString &chordProPath) {
         if (check.exists() && check.isFile()) {
             m_audioTracks.backingPath = targetFile;
             m_btnTrackBkg->setEnabled(true);
-            qDebug() << "** Verified FULL Track on disk:" << check.fileName() << " **"; // →
+            qDebug() << "** Verified BACKING Track on disk:" << check.fileName() << " **"; // →
             break;
         }
     }
@@ -688,7 +694,7 @@ void MainWindow::checkForCompanionAudio(const QString &chordProPath) {
         if (check.exists() && check.isFile()) {
             m_audioTracks.slowPath = targetFile;
             m_btnTrackSlow->setEnabled(true);
-            qDebug() << "** Verified FULL Track on disk:" << check.fileName() << " **"; // →
+            qDebug() << "** Verified SLOW Track on disk:" << check.fileName() << " **"; // →
             break;
         }
     }
