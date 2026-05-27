@@ -46,17 +46,19 @@ private:
     void setupToolBar();
     void setupLayout();
 
-    // 2. The Declaration for your state manager function!
+    // 2. Declaration for state manager function
     void setAppState(AppState state);
 
     // 3. Helper to refresh your dynamic Fn-buttons
     void updateFunctionKeys();
+    void shiftTransposition(int delta);
 
     QString runInitialParse(const QString &rawInput);
     QString processLineContent(const QString &line);
     QString transposeChord(const QString &chord, int semitones);
-    void shiftTransposition(int delta);
+
     QString getThemeStyles();
+    QString m_rawSongContent; // Stores the master text copy
 
     // UI Layout Components
     QSplitter *mainSplitter;

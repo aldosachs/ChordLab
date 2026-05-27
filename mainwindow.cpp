@@ -286,6 +286,8 @@ void MainWindow::handleFileOpen() {
     QString content = in.readAll();
     file.close();
 
+    m_rawSongContent = content; // <-- Save the master copy here!
+
     // 3. Populate the 'Original' editor and update State
     originalEditor->setPlainText(content);
     setAppState(OpenEdit);
