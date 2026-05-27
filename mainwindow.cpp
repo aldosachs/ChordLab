@@ -811,12 +811,11 @@ void MainWindow::parseChordProToGrid(const QString &rawText) {
             rowHtml += "</p>";
             currentSectionHtml += rowHtml;
         }
-
-    if (inSection) {
-        currentSectionHtml += "</div>";
+        if (inSection) {
+            currentSectionHtml += "</div>";
+        }
+        m_parsedSongContentGrid = currentSectionHtml;
     }
-
-    m_parsedSongContentGrid = currentSectionHtml;
 }
 
 void MainWindow::onZoomInTriggered() {
