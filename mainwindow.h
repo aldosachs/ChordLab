@@ -96,8 +96,8 @@ private:
 
     // Internal State Variables
     AppState currentState;
-    ChordDisplayMode m_currentMode = CIL;
-    Theme m_currentTheme = Dark; // Or Light, depending on your default choice
+    ChordDisplayMode m_currentMode = CAL; // Set to chords above lyrics (CAL) as default expert mode
+    Theme m_currentTheme = Light; // Or Light, depending on your default choice
     int m_transposeShift = 0;
     QString m_currentFilePath;
 };
