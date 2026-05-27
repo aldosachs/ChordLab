@@ -16,12 +16,23 @@
 #include <QFileInfo>
 #include <QDir>
 #include <QDebug>
+#include <QMediaPlayer>
+#include <QAudioOutput>
+#include <QUrl>
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     // 1. Scale to 60% of available screen
     QScreen *screen = QGuiApplication::primaryScreen();
     QSize size = screen->availableGeometry().size();
     resize(size.width() * 0.8, size.height() * 0.8);
+
+    QMediaPlayer *m_mediaPlayer = nullptr;
+    QAudioOutput *m_audioOutput = nullptr;
+
+    void handlePlaybackStateChanged(QMediaPlayer::PlaybackState state);
+
+    // Wire up a signal listener so our toolbar keys can dynamically adapt to the player's behavior
+    connect(m_mediaPlayer, &QMediaPlayer::playbackStateChanged, this, &MainWindow::handlePlaybackStateChanged);
 
     m_currentFilePath = ""; // Initialize 'raw ChoPro' file path var. as empty string, first up.
 
@@ -195,11 +206,36 @@ void MainWindow::updateFunctionKeys() {
     } else if (currentState == PlayAlong) {
         // --- PLAYBACK MODE CONFIGURATION ---
         m_btnFn1->setText("⏮ Rewind");
-        m_btnFn2->setText("[>] Play");
+        m_btnFn2->setText("▶ Play");
         m_btnFn3->setText("⏸ Pause");
         m_btnFn4->setText("⏭ End");
 
-        // Inside MainWindow::updateFunctionKeys() -> if (currentState == PlayAlong) block:
+        // Fn-1: Rewind to the very beginning (0 milliseconds)
+        connect(m_btnFn1, &QPushButton::clicked, this, [=]() {
+            m_mediaPlayer->setPosition(0);
+            statusBar()->showMessage("Rewound to beginning.");
+        });
+
+        // Fn-2: Dynamic Play / Smart Resume
+        connect(m_btnFn2, &QPushButton::clicked, this, [=]() {
+            if (m_selectedAudioPath.isEmpty()) {
+                statusBar()->showMessage("No audio track selected or available for playback.");
+                return;
+            }
+            m_mediaPlayer->play(); // Let's rock!
+        });
+
+        // Fn-3: Pause track right where it is
+        connect(m_btnFn3, &QPushButton::clicked, this, [=]() {
+            m_mediaPlayer->pause();
+        });
+
+        // Fn-4: Fast-forward/skip straight to the end
+        connect(m_btnFn4, &QPushButton::clicked, this, [=]() {
+            m_mediaPlayer->setPosition(m_mediaPlayer->duration());
+        });
+
+/*        // Inside MainWindow::updateFunctionKeys() -> if (currentState == PlayAlong) block:
         connect(m_btnFn2, &QPushButton::clicked, this, [=]() {
             if (m_selectedAudioPath.isEmpty()) {
                 statusBar()->showMessage("No audio track selected or available for playback.");
@@ -214,8 +250,26 @@ void MainWindow::updateFunctionKeys() {
         connect(m_btnFn2, &QPushButton::clicked, this, [=]() { statusBar()->showMessage("Playing track..."); });
         connect(m_btnFn3, &QPushButton::clicked, this, [=]() { statusBar()->showMessage("Track Paused."); });
         connect(m_btnFn4, &QPushButton::clicked, this, [=]() { statusBar()->showMessage("Skipped to end."); });
-    }
+    } */
 }
+
+    void MainWindow::handlePlaybackStateChanged(QMediaPlayer::PlaybackState state) {
+        switch (state) {
+        case QMediaPlayer::PlayingState:
+            statusBar()->showMessage(tr("▶ Playing: %1").arg(QFileInfo(m_selectedAudioPath).fileName()));
+            break;
+        case QMediaPlayer::PausedState:
+            statusBar()->showMessage("⏸ Playback Paused.");
+            break;
+        case QMediaPlayer::StoppedState:
+            if (m_mediaPlayer->position() >= m_mediaPlayer->duration() && m_mediaPlayer->duration() > 0) {
+                statusBar()->showMessage("Track finished.");
+            } else {
+                statusBar()->showMessage("Playback Stopped.");
+            }
+            break;
+        }
+    }
 
 void MainWindow::setupLayout() {
     mainSplitter = new QSplitter(Qt::Horizontal, this);
@@ -626,7 +680,7 @@ void MainWindow::checkForCompanionAudio(const QString &chordProPath) {
         if (check.exists() && check.isFile()) { // Explicitly verify it is a REAL file
             m_audioTracks.fullPath = targetFile;
             m_btnTrackFull->setEnabled(true);
-            qDebug() << "→ Verified FULL Track on disk:" << check.fileName();
+            qDebug() << "** Verified FULL Track on disk:" << check.fileName() << " **"; // →
             break;
         }
     }
@@ -638,7 +692,7 @@ void MainWindow::checkForCompanionAudio(const QString &chordProPath) {
         if (check.exists() && check.isFile()) {
             m_audioTracks.backingPath = targetFile;
             m_btnTrackBkg->setEnabled(true);
-            qDebug() << "→ Verified BACKING Track on disk:" << check.fileName();
+            qDebug() << "** Verified FULL Track on disk:" << check.fileName() << " **"; // →
             break;
         }
     }
@@ -650,7 +704,7 @@ void MainWindow::checkForCompanionAudio(const QString &chordProPath) {
         if (check.exists() && check.isFile()) {
             m_audioTracks.slowPath = targetFile;
             m_btnTrackSlow->setEnabled(true);
-            qDebug() << "→ Verified SLOW Track on disk:" << check.fileName();
+            qDebug() << "** Verified FULL Track on disk:" << check.fileName() << " **"; // →
             break;
         }
     }
@@ -693,5 +747,7 @@ void MainWindow::selectAudioTrack(QPushButton *clickedButton, const QString &fil
     }
 
     m_selectedAudioPath = filePath;
+    // Pass the file cleanly to the engine as a native local file URL
+    m_mediaPlayer->setSource(QUrl::fromLocalFile(filePath));
     statusBar()->showMessage(tr("Audio Ready [%1]: %2").arg(trackType, QFileInfo(filePath).fileName()));
 }

@@ -7,6 +7,9 @@
 #include <QTextEdit>
 #include <QPushButton>
 #include <QStringList>
+#include <QMediaPlayer>
+#include <QAudioOutput>
+#include <QUrl>
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -64,6 +67,11 @@ private:
 
     AudioTracks m_audioTracks;
     QString m_selectedAudioPath; // The active track waiting for the Play button
+
+    QMediaPlayer *m_mediaPlayer = nullptr;
+    QAudioOutput *m_audioOutput = nullptr;
+
+    void handlePlaybackStateChanged(QMediaPlayer::PlaybackState state);
 
     QString runInitialParse(const QString &rawInput);
     QString processLineContent(const QString &line);
