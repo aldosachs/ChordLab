@@ -146,12 +146,6 @@ void MainWindow::setupToolBar() {
     connect(m_btnTransposeUp, &QPushButton::clicked, this, [=](){ shiftTransposition(1); });
     connect(m_btnTransposeDown, &QPushButton::clicked, this, [=](){ shiftTransposition(-1); });
     connect(m_btnTheme, &QPushButton::clicked, this, &MainWindow::toggleTheme);
-
-/*    layout->addWidget(m_btnTheme);
-    layout->addWidget(m_btnTransposeDown);
-    layout->addWidget(btnReset);
-    layout->addWidget(m_btnTransposeUp);
-*/ //old...
 }
 
 void MainWindow::togglePlaybackMode() {
