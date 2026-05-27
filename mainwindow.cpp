@@ -759,8 +759,8 @@ void MainWindow::parseChordProToGrid(const QString &rawText) {
                 currentSectionHtml += metadataBlock + "<br><br>";
                 metadataBlock.clear();
             }
-
-            currentSectionHtml += QString("<h2 style='color: #007acc; margin: 0 0 10px 0; font-family: sans-serif; border-bottom: 2px solid #eef;'>%1</h2>").arg(sectionName);
+            currentSectionHtml += QString("<div class='section-heading'>%1</div>").arg(sectionName);
+            // currentSectionHtml += QString("<h2 style='color: #007acc; margin: 0 0 10px 0; font-family: sans-serif; border-bottom: 2px solid #eef;'>%1</h2>").arg(sectionName);
             inSection = true;
             continue;
         }
