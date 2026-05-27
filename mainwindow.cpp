@@ -16,41 +16,27 @@
 #include <QFileInfo>
 #include <QDir>
 #include <QDebug>
-#include <QMediaPlayer>
-#include <QAudioOutput>
-#include <QUrl>
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
-    // 1. ALLOCATE THE AUDIO ENGINE FIRST UP (Crucial for pointers!)
     m_mediaPlayer = new QMediaPlayer(this);
     m_audioOutput = new QAudioOutput(this);
     m_mediaPlayer->setAudioOutput(m_audioOutput);
     m_audioOutput->setVolume(0.8f);
 
-    // Now connect the state change listener safely
     connect(m_mediaPlayer, &QMediaPlayer::playbackStateChanged, this, &MainWindow::handlePlaybackStateChanged);
 
-    // 2. Scale to 60% of available screen
     QScreen *screen = QGuiApplication::primaryScreen();
     QSize size = screen->availableGeometry().size();
     resize(size.width() * 0.8, size.height() * 0.8);
 
-    QMediaPlayer *m_mediaPlayer = nullptr;
-    QAudioOutput *m_audioOutput = nullptr;
-
-    m_currentFilePath = ""; // Initialize 'raw ChoPro' file path var. as empty string, first up.
-    m_parsedSongContentGrid = ""; // <-- Initialize layout tracker string here
-
-    m_zoomScaleLevel = 0; // Baseline zoom level
+    m_currentFilePath = "";
+    m_parsedSongContentGrid = "";
+    m_zoomScaleLevel = 0;
 
     setupMenus();
     setupToolBar();
     setupLayout();
-    setAppState(Idle); // Start in "Neutral" mode
-
-    // Reserved Toolbar Space
-    //    addToolBar("Transport & Controls");
-    // --> btn->setIcon(QIcon(":/icons/gig-list.png"));
+    setAppState(Idle);
 }
 
 void MainWindow::setupMenus() {
@@ -68,18 +54,15 @@ void MainWindow::setupToolBar() {
     m_btnTheme = new QPushButton("Light theme...");
     m_btnTheme->setStyleSheet("QPushButton { background-color: #0047AB; color: white; padding: 5px; min-width: 80px; }");
 
-    // Create a container for our buttons
     QWidget *container = new QWidget();
     QHBoxLayout *layout = new QHBoxLayout(container);
     layout->setContentsMargins(5, 2, 5, 2);
     layout->setSpacing(10);
 
-    // Apply your signature blue style
     QString style = "QPushButton { background-color: #004060; color: white; padding: 5px; min-width: 80px; }";
     m_btnTransposeUp->setStyleSheet(style);
     m_btnTransposeDown->setStyleSheet(style);
 
-    // Add "Placeholder" Grey Function Key Buttons as class members
     QString buttonStyle = "QPushButton { background-color: #555555; color: white; border-radius: 4px; padding: 5px; min-width: 65px; font-weight: bold; }";
 
     m_btnFn1 = new QPushButton("Fn-1");
@@ -97,16 +80,14 @@ void MainWindow::setupToolBar() {
     layout->addWidget(m_btnFn3);
     layout->addWidget(m_btnFn4);
 
-    // Audio Track Selector Styling
     QString audioBtnStyle = "QPushButton { background-color: #2D2D2D; color: #777777; border: 1px solid #444; border-radius: 4px; padding: 5px; min-width: 50px; font-weight: bold; }"
                             "QPushButton:enabled { color: #E0E0E0; border-color: #555; }"
-                            "QPushButton:checked { background-color: #006644; color: white; border-color: #00FF88; }"; // Forest green for active track!
+                            "QPushButton:checked { background-color: #006644; color: white; border-color: #00FF88; }";
 
     m_btnTrackFull = new QPushButton("Full");
     m_btnTrackBkg  = new QPushButton("Bkg");
     m_btnTrackSlow = new QPushButton("Slow");
 
-    // Make them checkable so they behave like radio buttons
     m_btnTrackFull->setCheckable(true);
     m_btnTrackBkg->setCheckable(true);
     m_btnTrackSlow->setCheckable(true);
@@ -115,7 +96,6 @@ void MainWindow::setupToolBar() {
     m_btnTrackBkg->setStyleSheet(audioBtnStyle);
     m_btnTrackSlow->setStyleSheet(audioBtnStyle);
 
-    // Start disabled until a file scan proves they exist
     m_btnTrackFull->setEnabled(false);
     m_btnTrackBkg->setEnabled(false);
     m_btnTrackSlow->setEnabled(false);
@@ -124,13 +104,12 @@ void MainWindow::setupToolBar() {
     layout->addWidget(m_btnTrackBkg);
     layout->addWidget(m_btnTrackSlow);
 
-    // Wire up the button selection clicks
     connect(m_btnTrackFull, &QPushButton::clicked, this, [=]() { selectAudioTrack(m_btnTrackFull, m_audioTracks.fullPath, "Full Track"); });
     connect(m_btnTrackBkg,  &QPushButton::clicked, this, [=]() { selectAudioTrack(m_btnTrackBkg, m_audioTracks.backingPath, "Backing Track"); });
     connect(m_btnTrackSlow, &QPushButton::clicked, this, [=]() { selectAudioTrack(m_btnTrackSlow, m_audioTracks.slowPath, "Slow Practice Track"); });
 
     QPushButton *btnReset = new QPushButton("Reset Key");
-    btnReset->setStyleSheet("QPushButton { background-color: #0047ff; color: white; padding: 5px; }"); // Reset back to original key!
+    btnReset->setStyleSheet("QPushButton { background-color: #0047ff; color: white; padding: 5px; }");
     connect(btnReset, &QPushButton::clicked, this, [=](){
         m_transposeShift = 0;
         statusBar()->showMessage("Key Reset to Original");
@@ -140,10 +119,8 @@ void MainWindow::setupToolBar() {
     QPushButton *btnModeToggle = new QPushButton("Mode: Edit 📝");
     btnModeToggle->setStyleSheet("QPushButton { background-color: #004060; color: white; padding: 5px; min-width: 100px; }");
 
-    // Connect to our new toggle function
     connect(btnModeToggle, &QPushButton::clicked, this, &MainWindow::togglePlaybackMode);
 
-    // Add it to the layout right next to the other primary settings
     layout->addWidget(btnModeToggle);
     layout->addWidget(m_btnTheme);
     layout->addWidget(m_btnTransposeDown);
@@ -152,20 +129,18 @@ void MainWindow::setupToolBar() {
 
     settingsToolBar->addWidget(container);
 
-    // Initialize the member variable
     m_viewToggleBtn = new QPushButton("View: ChordPro (CIL)");
     m_viewToggleBtn->setStyleSheet("QPushButton { background-color: #0047AB; color: white; }");
 
     connect(m_viewToggleBtn, &QPushButton::clicked, this, &MainWindow::toggleDisplayMode);
     layout->addWidget(m_viewToggleBtn);
-    // Connect to the logic
+
     connect(m_btnTransposeUp, &QPushButton::clicked, this, [=](){ shiftTransposition(1); });
     connect(m_btnTransposeDown, &QPushButton::clicked, this, [=](){ shiftTransposition(-1); });
     connect(m_btnTheme, &QPushButton::clicked, this, &MainWindow::toggleTheme);
 }
 
 void MainWindow::togglePlaybackMode() {
-    // We only want to toggle if a file is actually loaded (OpenEdit or PlayAlong)
     if (currentState == Idle) {
         statusBar()->showMessage("Please open a song file before entering Play-Along mode.");
         return;
@@ -175,67 +150,60 @@ void MainWindow::togglePlaybackMode() {
 
     if (currentState == OpenEdit) {
         if (btn) btn->setText("Mode: Play 🎤");
-        setAppState(PlayAlong); // This automatically hides raw text and updates Fn keys!
+        setAppState(PlayAlong);
     } else {
         if (btn) btn->setText("Mode: Edit 📝");
-        setAppState(OpenEdit);  // Brings back the dual-pane editor view
+        setAppState(OpenEdit);
     }
 }
 
 void MainWindow::updateFunctionKeys() {
-    // Safely disconnect any previous lambda actions so they don't stack up
     disconnect(m_btnFn1, &QPushButton::clicked, nullptr, nullptr);
     disconnect(m_btnFn2, &QPushButton::clicked, nullptr, nullptr);
     disconnect(m_btnFn3, &QPushButton::clicked, nullptr, nullptr);
     disconnect(m_btnFn4, &QPushButton::clicked, nullptr, nullptr);
 
     if (currentState == OpenEdit || currentState == Idle) {
-        // --- EDIT MODE CONFIGURATION ---
         m_btnFn1->setText("📂 Open");
         m_btnFn2->setText("💾 Save");
         m_btnFn3->setText("💾 As...");
-        m_btnFn4->setText("🔄 Parse"); // Back-up explicit parse button!
+        m_btnFn4->setText("🔄 Parse");
 
         connect(m_btnFn1, &QPushButton::clicked, this, &MainWindow::handleFileOpen);
         connect(m_btnFn2, &QPushButton::clicked, this, &MainWindow::handleFileSave);
         connect(m_btnFn3, &QPushButton::clicked, this, [=]() {
             QString oldPath = m_currentFilePath;
-            m_currentFilePath.clear(); // Force getSaveFileName prompt
+            m_currentFilePath.clear();
             handleFileSave();
-            if (m_currentFilePath.isEmpty()) m_currentFilePath = oldPath; // Restore if canceled
+            if (m_currentFilePath.isEmpty()) m_currentFilePath = oldPath;
         });
         connect(m_btnFn4, &QPushButton::clicked, this, [=]() {
             parsedEditor->setHtml(runInitialParse(originalEditor->toPlainText()));
         });
 
     } else if (currentState == PlayAlong) {
-        // --- PLAYBACK MODE CONFIGURATION ---
         m_btnFn1->setText("⏮ Rewind");
         m_btnFn2->setText("▶ Play");
         m_btnFn3->setText("⏸ Pause");
         m_btnFn4->setText("⏭ End");
 
-        // Fn-1: Rewind to the very beginning (0 milliseconds)
         connect(m_btnFn1, &QPushButton::clicked, this, [=]() {
             m_mediaPlayer->setPosition(0);
             statusBar()->showMessage("Rewound to beginning.");
         });
 
-        // Fn-2: Dynamic Play / Smart Resume
         connect(m_btnFn2, &QPushButton::clicked, this, [=]() {
             if (m_selectedAudioPath.isEmpty()) {
                 statusBar()->showMessage("No audio track selected or available for playback.");
                 return;
             }
-            m_mediaPlayer->play(); // Let's rock!
+            m_mediaPlayer->play();
         });
 
-        // Fn-3: Pause track right where it is
         connect(m_btnFn3, &QPushButton::clicked, this, [=]() {
             m_mediaPlayer->pause();
         });
 
-        // Fn-4: Fast-forward/skip straight to the end
         connect(m_btnFn4, &QPushButton::clicked, this, [=]() {
             m_mediaPlayer->setPosition(m_mediaPlayer->duration());
         });
@@ -263,28 +231,23 @@ void MainWindow::handlePlaybackStateChanged(QMediaPlayer::PlaybackState state) {
 void MainWindow::setupLayout() {
     mainSplitter = new QSplitter(Qt::Horizontal, this);
 
-    // Left Side: Original/Raw ChoPro
     originalEditor = new QPlainTextEdit(this);
     originalEditor->setPlaceholderText("Original File Content...");
-    // Use Monospaced font for alignment of [|] [/] [.]
     QFont monoFont("Consolas", 10);
     originalEditor->setFont(monoFont);
 
-    // Right Side: Expert/Parsed Content
     parsedEditor = new QTextEdit(this);
     parsedEditor->setPlaceholderText("Parsed & Standardized Output...");
     parsedEditor->setFont(monoFont);
-    parsedEditor->setReadOnly(true); // Expert view starts as read-only
+    parsedEditor->setReadOnly(true);
 
     mainSplitter->addWidget(originalEditor);
     mainSplitter->addWidget(parsedEditor);
 
-    // --- THE LIVE REFRESH LINK ---
-    // Whenever the text on the left changes, instantly re-parse and display on the right
     connect(originalEditor, &QPlainTextEdit::textChanged, this, [=]() {
         m_rawSongContent = originalEditor->toPlainText();
         parsedEditor->setHtml(runInitialParse(m_rawSongContent));
-        parseChordProToGrid(m_rawSongContent); // Run structural compiler to populate the grid data payload
+        parseChordProToGrid(m_rawSongContent);
     });
 
     setCentralWidget(mainSplitter);
@@ -292,7 +255,7 @@ void MainWindow::setupLayout() {
 
 void MainWindow::setAppState(AppState state) {
     currentState = state;
-    updateFunctionKeys(); // Re-map the buttons immediately
+    updateFunctionKeys();
 
     switch(state) {
     case Idle:
@@ -304,50 +267,25 @@ void MainWindow::setAppState(AppState state) {
         statusBar()->showMessage("Editing Mode: Analyzing ChordPro syntax...");
         mainSplitter->show();
 
-        // 1. Fully reset default fonts to wipe the cached CSS flex grids when returning from Play Along mode...
         parsedEditor->document()->clear(); {
             QFont normalFont = parsedEditor->document()->defaultFont();
-            normalFont.setFamily("Consolas"); // Fall back to clean monospaced layout tracking
+            normalFont.setFamily("Consolas");
             parsedEditor->document()->setDefaultFont(normalFont);
         }
 
-        // 2. Restore standard visibility layout components
         mainSplitter->setSizes(QList<int>({400, 400}));
         originalEditor->show();
         parsedEditor->show();
-
-        // 3. Re-populate clean text views
         parsedEditor->setHtml(runInitialParse(m_rawSongContent));
-
         break;
-        // --- THE SPLITTER FIX ---
-        // Give both editors equal width (e.g., 400 pixels each).
-        // The splitter will automatically scale these to match your 80% screen size!
-//        mainSplitter->setSizes(QList<int>({400, 400}));
-
-//        break;
 
     case PlayAlong:
-        statusBar()->showMessage("Play-along Mode Active.");
-        originalEditor->hide(); // Reclaim 50% screen real estate instantly
-        parsedEditor->show();   // Expand to fill the remaining void
+        statusBar()->showMessage("Play-along Mode Active. Space: Toggle Play | Ctrl +/-: Zoom");
+        originalEditor->hide();
+        parsedEditor->show();
 
-        // 1. Force the layout container system to take maximum width
         mainSplitter->setSizes(QList<int>({0, this->width()}));
-
-        // 2. Adjust font baseline size based on display height to maximize data density
-        // If your window height is large, we can bump the default scale up comfortably
-        int targetFontSize = (this->height() > 900) ? 14 : 11;
-
-        // Apply the base font configuration directly to the text document layout host
-        QTextDocument *doc = parsedEditor->document();
-        QFont docFont = doc->defaultFont();
-        docFont.setPointSize(targetFontSize);
-        doc->setDefaultFont(docFont);
-
-        // 3. Re-render the song canvas with the updated multi-column wrapper
-        // (Assuming you pass the pre-segmented HTML block)
-        parsedEditor->setHtml(generateFullScreenHtml(m_parsedSongContentGrid));
+        updatePlayAlongLayoutDensity();
         break;
     }
 }
@@ -385,7 +323,7 @@ QString MainWindow::generateFullScreenHtml(const QString& parsedSongContent) {
                    "  margin: 8px 0;"
                    "  line-height: 1.3;"
                    "}"
-                   "</style></head><body>"; // <-- Single, pristine entry gate!
+                   "</style></head><body>";
 
     html += "<div class='song-canvas'>";
     html += parsedSongContent;
@@ -394,37 +332,31 @@ QString MainWindow::generateFullScreenHtml(const QString& parsedSongContent) {
     return html;
 }
 
-// This is the implementation for the Save action
 void MainWindow::handleFileSave() {
-    // 1. If no file is currently open, act like a "Save As" dialog
     if (m_currentFilePath.isEmpty()) {
         QString saveName = QFileDialog::getSaveFileName(this,
                                                         tr("Save ChordPro File"), "", tr("ChordPro Files (*.chopro *.pro *.txt *.crd)"));
 
         if (saveName.isEmpty()) {
-            return; // User canceled the save dialog
+            return;
         }
         m_currentFilePath = saveName;
     }
 
-    // 2. Open the file for writing
     QFile file(m_currentFilePath);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
         QMessageBox::warning(this, tr("Save Error"), tr("Could not write to file: ") + file.errorString());
         return;
     }
 
-    // 3. Stream the raw data directly from the left editor
     QTextStream out(&file);
     out << originalEditor->toPlainText();
     file.close();
 
-    // 4. Update the status bar to show it worked perfectly
-    statusBar()->showMessage(tr("Saved successfully: ") + m_currentFilePath, 3000); // Display for 3 seconds
+    statusBar()->showMessage(tr("Saved successfully: ") + m_currentFilePath, 3000);
 }
 
 void MainWindow::handleFileOpen() {
-    // 1. Get the file path from the user
     QString fileName = QFileDialog::getOpenFileName(this,
                                                     tr("Open ChordPro File"), "", tr("ChordPro Files (*.chopro *.pro *.txt *.crd)"));
 
@@ -434,7 +366,6 @@ void MainWindow::handleFileOpen() {
 
     m_currentFilePath = fileName;
 
-    // 2. Attempt to open and read the file
     QFile file(fileName);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
         QMessageBox::warning(this, tr("Error"), tr("Could not open file: ") + file.errorString());
@@ -445,31 +376,24 @@ void MainWindow::handleFileOpen() {
     QString content = in.readAll();
     file.close();
 
-    m_rawSongContent = content; // <-- Save the master copy here!
+    m_rawSongContent = content;
 
-    // 3. Populate the 'Original' editor and update State
     originalEditor->setPlainText(content);
     setAppState(OpenEdit);
 
-    // 4. Run the initial 'Expert' Parser (The Meta-data Pass)
-    // Call a helper function to populate the right-hand side
     QString expertVersion = runInitialParse(content);
     parsedEditor->setHtml(expertVersion);
     statusBar()->showMessage(tr("Loaded: ") + fileName);
-    checkForCompanionAudio(m_currentFilePath); // <-- This initiates the audio scan!
+    checkForCompanionAudio(m_currentFilePath);
     parseChordProToGrid(m_rawSongContent);
 }
 
 QString MainWindow::runInitialParse(const QString &rawInput) {
     QString result = "<html><head><style>"
                      "body { font-family: 'Consolas', monospace; white-space: pre; }"
-                     + getThemeStyles() + // <--- Inject our dynamic theme here!
+                     + getThemeStyles() +
                      "</style></head><body>";
-    QString colorChord = "darkblue";
-    QString chorusBg = "#f0f7ff";
-    QString commentBg = "#eeeeee";
 
-    // 1. Pre-pass for Metadata Header
     QRegularExpression titleRegex(R"(\{(?:title|t):\s*(.*?)\})", QRegularExpression::CaseInsensitiveOption);
     QRegularExpression artistRegex("\\{artist:\\s*(.*)\\}", QRegularExpression::CaseInsensitiveOption);
     QRegularExpression keyRegex("\\{key:\\s*(.*)\\}", QRegularExpression::CaseInsensitiveOption);
@@ -484,13 +408,13 @@ QString MainWindow::runInitialParse(const QString &rawInput) {
 
     if (!title.isEmpty()) {
         result += "<div class='header-block'>";
-        result += "<h1 style='margin:0;'>" + title + "</h1>"; // h1 makes it pop more!
+        result += "<h1 style='margin:0;'>" + title + "</h1>";
         if (!artist.isEmpty())   result += "Artist: <b>" + artist + "</b><br>";
         if (!key.isEmpty())   result += "Key: <b>" + key + "</b><br>";
         if (!tempo.isEmpty()) result += "Tempo: <b>" + tempo + "</b><br>";
-        if (!capo.isEmpty())  result += "Capo: <b>" + capo + "</b>"; // No extra div closures here
+        if (!capo.isEmpty())  result += "Capo: <b>" + capo + "</b>";
 
-        result += "</div>"; // Just ONE closure at the end of the metadata
+        result += "</div>";
     }
 
     QStringList lines = rawInput.split('\n');
@@ -500,34 +424,28 @@ QString MainWindow::runInitialParse(const QString &rawInput) {
     bool inVerse = false;
 
     for (const QString &line : lines) {
-
-        QString workingLine = line; // Make a local, changeable copy of just this line
-        workingLine.remove('\r');   // This is good now!
+        QString workingLine = line;
+        workingLine.remove('\r');
         QString trimmedLine = workingLine.trimmed();
-        bool lineHandled = false; // The gatekeeper
+        bool lineHandled = false;
 
-        // 1. Skip Metadata & Comments
         if (trimmedLine.startsWith("{title:", Qt::CaseInsensitive) ||
             trimmedLine.startsWith("{t:", Qt::CaseInsensitive) ||
-            trimmedLine.startsWith("{artist:", Qt::CaseInsensitive) ||            
-            trimmedLine.startsWith("{key:", Qt::CaseInsensitive) ||            
-            trimmedLine.startsWith("{tempo:", Qt::CaseInsensitive) ||            
+            trimmedLine.startsWith("{artist:", Qt::CaseInsensitive) ||
+            trimmedLine.startsWith("{key:", Qt::CaseInsensitive) ||
+            trimmedLine.startsWith("{tempo:", Qt::CaseInsensitive) ||
             trimmedLine.startsWith("{capo:", Qt::CaseInsensitive) ||
-
             trimmedLine.startsWith("#")) {
             continue;
         }
 
-        // 2. Handle Empty Lines
         if (trimmedLine.isEmpty()) {
             if (lastLineWasEmpty) continue;
-            //            result += "<br>";
             lastLineWasEmpty = true;
             continue;
         }
         lastLineWasEmpty = false;
 
-        // 3. Directives (Headers) - These close and open boxes
         bool isChorusStart = trimmedLine.startsWith("{start_of_chorus}") ||
                              trimmedLine.startsWith("{soc") ||
                              (trimmedLine.startsWith("{c:") && trimmedLine.contains("Chorus", Qt::CaseInsensitive));
@@ -544,7 +462,6 @@ QString MainWindow::runInitialParse(const QString &rawInput) {
             lineHandled = true;
         }
         else if (trimmedLine.startsWith("{c:") || trimmedLine.startsWith("{comment:")) {
-            // This now only handles non-chorus comments (Verse, Outro, Bridge)
             if (inVerse) result += "</div>";
             if (inChorus) { result += "</div>"; inChorus = false; }
 
@@ -556,7 +473,6 @@ QString MainWindow::runInitialParse(const QString &rawInput) {
         else if (trimmedLine.startsWith("{sot")) { inProtectedBlock = true; lineHandled = true; }
         else if (trimmedLine.startsWith("{eot")) { inProtectedBlock = false; lineHandled = true; }
 
-        // 4. Content Processing - Only runs if the line wasn't a Directive
         if (!lineHandled) {
             if (inProtectedBlock) {
                 result += line + "<br>";
@@ -565,7 +481,6 @@ QString MainWindow::runInitialParse(const QString &rawInput) {
                 result += processLineContent(line) + "<br>";
             }
             else {
-                // Verse Logic: Auto-start if needed, then process
                 if (!inVerse) {
                     inVerse = true;
                     result += "<div class='verse-box'>";
@@ -582,35 +497,29 @@ void MainWindow::toggleDisplayMode() {
     m_currentMode = (m_currentMode == ChordDisplayMode::CIL) ?
                         ChordDisplayMode::CAL : ChordDisplayMode::CIL;
 
-    // Change the button text based on the new state
     if (m_currentMode == ChordDisplayMode::CIL) {
         m_viewToggleBtn->setText("View: ChordPro (CIL)");
     } else {
         m_viewToggleBtn->setText("View: LeadSheet (CAL)");
     }
 
-    // Refresh the view
     parsedEditor->setHtml(runInitialParse(m_rawSongContent));
-//    parsedEditor->setHtml(runInitialParse(originalEditor->toPlainText()));
 }
 
 void MainWindow::shiftTransposition(int delta) {
     m_transposeShift += delta;
 
-    // The "Octave Wrap": Reset to 0 when we hit 12 or -12
     if (m_transposeShift >= 12 || m_transposeShift <= -12) {
         m_transposeShift = 0;
     }
 
     statusBar()->showMessage(QString("Transposition: %1 semitones").arg(m_transposeShift));
     parsedEditor->setHtml(runInitialParse(m_rawSongContent));
-    //    parsedEditor->setHtml(runInitialParse(originalEditor->toPlainText()));
 }
 
 QString MainWindow::transposeChord(const QString &chord, int semitones) {
     static const QStringList notes = {"C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"};
 
-    // Regex to split root (e.g., "F#") from suffix (e.g., "m7")
     QRegularExpression re("^([A-G][b#]?)");
     auto match = re.match(chord);
     if (!match.hasMatch()) return chord;
@@ -619,10 +528,10 @@ QString MainWindow::transposeChord(const QString &chord, int semitones) {
     QString suffix = chord.mid(root.length());
 
     int idx = notes.indexOf(root);
-    if (idx == -1) return chord; // Not in our basic list
+    if (idx == -1) return chord;
 
     int newIdx = (idx + semitones) % 12;
-    if (newIdx < 0) newIdx += 12; // Handle negative modulo
+    if (newIdx < 0) newIdx += 12;
 
     return notes[newIdx] + suffix;
 }
@@ -631,13 +540,11 @@ QString MainWindow::getThemeStyles() {
     if (m_currentTheme == Dark) {
         return "body { background-color: #121212; color: #E0E0E0; }"
                ".chord { color: #82AAFF; font-weight: bold; }"
-               // The Title/Header block: Blue-black-biased dark grey
                ".header-block { background-color: #1A1C2E; border-bottom: 2px solid #30364D; padding: 15px; margin-bottom: 20px; }"
                ".chorus-box { background-color: #1E2337; border-left: 5px solid #0047AB; padding: 10px; margin: 5px 0; }"
                ".verse-box { background-color: #121212; padding: 10px; margin: 2px 0; }"
                ".section-header { background-color: #333333; color: #82AAFF; font-weight: bold; }";
     }
-    // Default Light Theme
     return "body { background-color: white; color: black; }"
            ".chord { color: darkblue; font-weight: bold; }"
            ".header-block { background-color: #f8f9fa; border-bottom: 2px solid #ccc; padding: 10px; }"
@@ -647,12 +554,8 @@ QString MainWindow::getThemeStyles() {
 }
 
 void MainWindow::toggleTheme() {
-    // Cycle through themes: Light -> Dark -> Light
     m_currentTheme = (m_currentTheme == Light) ? Dark : Light;
-
     m_btnTheme->setText(m_currentTheme == Light ? "Light theme" : "Dark theme");
-
-    // Refresh the view to apply the new CSS
     parsedEditor->setHtml(runInitialParse(m_rawSongContent));
 }
 
@@ -672,7 +575,7 @@ QString MainWindow::processLineContent(const QString &line) {
         }
         output += line.mid(lastPos);
     }
-    else { // CAL Mode
+    else {
         QString chordLine = "";
         QString lyricLine = "";
         int currentPos = 0;
@@ -693,14 +596,13 @@ QString MainWindow::processLineContent(const QString &line) {
                 currentPos = match.capturedEnd();
             }
             lyricLine += line.mid(currentPos);
-          output = chordLine + "<br>" + lyricLine;
+            output = chordLine + "<br>" + lyricLine;
         }
     }
     return output;
 }
 
 void MainWindow::checkForCompanionAudio(const QString &chordProPath) {
-    // 1. Reset state
     m_audioTracks = AudioTracks();
     m_selectedAudioPath.clear();
 
@@ -710,7 +612,6 @@ void MainWindow::checkForCompanionAudio(const QString &chordProPath) {
 
     if (chordProPath.isEmpty()) return;
 
-    // 2. Clean and normalize paths to prevent OS-level slash confusion
     QFileInfo info(chordProPath);
     QString cleanDir = QDir::cleanPath(info.path());
     QString basePrefix = cleanDir + QDir::separator() + info.completeBaseName();
@@ -720,43 +621,36 @@ void MainWindow::checkForCompanionAudio(const QString &chordProPath) {
 
     QStringList audioExtensions = { ".wav", ".aiff", ".m4a", ".mp3" };
 
-    // 3. Probe Full Track
     for (const QString &ext : audioExtensions) {
         QString targetFile = basePrefix + ext;
         QFileInfo check(targetFile);
-        if (check.exists() && check.isFile()) { // Explicitly verify it is a REAL file
+        if (check.exists() && check.isFile()) {
             m_audioTracks.fullPath = targetFile;
             m_btnTrackFull->setEnabled(true);
-            qDebug() << "** Verified FULL Track on disk:" << check.fileName() << " **"; // →
             break;
         }
     }
 
-    // 4. Probe Backing Track
     for (const QString &ext : audioExtensions) {
         QString targetFile = basePrefix + "_backing" + ext;
         QFileInfo check(targetFile);
         if (check.exists() && check.isFile()) {
             m_audioTracks.backingPath = targetFile;
             m_btnTrackBkg->setEnabled(true);
-            qDebug() << "** Verified BACKING Track on disk:" << check.fileName() << " **"; // →
             break;
         }
     }
 
-    // 5. Probe Slow Track
     for (const QString &ext : audioExtensions) {
         QString targetFile = basePrefix + "_slow" + ext;
         QFileInfo check(targetFile);
         if (check.exists() && check.isFile()) {
             m_audioTracks.slowPath = targetFile;
             m_btnTrackSlow->setEnabled(true);
-            qDebug() << "** Verified SLOW Track on disk:" << check.fileName() << " **"; // →
             break;
         }
     }
 
-    // 6. Assign Default Selection State
     if (m_btnTrackFull->isEnabled()) {
         m_btnTrackFull->setChecked(true);
         m_selectedAudioPath = m_audioTracks.fullPath;
@@ -771,30 +665,27 @@ void MainWindow::checkForCompanionAudio(const QString &chordProPath) {
     }
 
     if (!m_selectedAudioPath.isEmpty()) {
+        m_mediaPlayer->setSource(QUrl::fromLocalFile(m_selectedAudioPath));
         statusBar()->showMessage(tr("Loaded: %1 | Armed: %2")
                                      .arg(info.fileName(), QFileInfo(m_selectedAudioPath).fileName()));
     } else {
         statusBar()->showMessage(tr("Loaded: %1 (No companion audio discovered)").arg(info.fileName()));
     }
-    qDebug() << "==================================";
 }
 
 void MainWindow::selectAudioTrack(QPushButton *clickedButton, const QString &filePath, const QString &trackType) {
-    // Implement standard radio button exclusive behavior manually
     m_btnTrackFull->setChecked(false);
     m_btnTrackBkg->setChecked(false);
     m_btnTrackSlow->setChecked(false);
 
-    clickedButton->setChecked(true); // Keep the active option visually depressed
+    clickedButton->setChecked(true);
 
-    // If a track was already playing, safely cut it off immediately
     if (m_selectedAudioPath != filePath && !m_selectedAudioPath.isEmpty()) {
+        m_mediaPlayer->stop();
         statusBar()->showMessage(tr("Stopped current playback. Loaded: %1").arg(trackType));
-        // Future audioEngine->stop(); stub
     }
 
     m_selectedAudioPath = filePath;
-    // Pass the file cleanly to the engine as a native local file URL
     m_mediaPlayer->setSource(QUrl::fromLocalFile(filePath));
     statusBar()->showMessage(tr("Audio Ready [%1]: %2").arg(trackType, QFileInfo(filePath).fileName()));
 }
@@ -807,18 +698,15 @@ void MainWindow::parseChordProToGrid(const QString &rawText) {
     bool inSection = false;
     bool inMonospaceBlock = false;
 
-    // Directives Regex Patterns
     QRegularExpression commentRegex(R"(\{(?:c|comment):\s*([^}]+)\})", QRegularExpression::CaseInsensitiveOption);
     QRegularExpression metadataRegex(R"(\{(title|subtitle|tempo|time|key):\s*([^}]+)\})", QRegularExpression::CaseInsensitiveOption);
 
-    // Formatting tracking tags
     QString metadataBlock = "";
 
     for (QString line : lines) {
         line = line.trimmed();
         if (line.isEmpty() && !inMonospaceBlock) continue;
 
-        // 1. Handle Metadata Tags (Title, Subtitle, Tempo, etc.)
         QRegularExpressionMatch metaMatch = metadataRegex.match(line);
         if (metaMatch.hasMatch()) {
             QString tag = metaMatch.captured(1).toLower();
@@ -835,7 +723,6 @@ void MainWindow::parseChordProToGrid(const QString &rawText) {
             continue;
         }
 
-        // 2. Handle Monospace Environment Boundaries ({sog}/{eog}, {sot}/{eot})
         if (line.contains("{sog", Qt::CaseInsensitive) || line.contains("{sot", Qt::CaseInsensitive)) {
             if (!inSection) {
                 currentSectionHtml += "<div class='song-section'>";
@@ -851,7 +738,6 @@ void MainWindow::parseChordProToGrid(const QString &rawText) {
             continue;
         }
 
-        // If inside a tab loop, pipe text exactly as-is to protect spacing
         if (inMonospaceBlock) {
             QString escapedLine = line.toHtmlEscaped();
             escapedLine.replace(QRegularExpression(R"(\[([A-G][b#]?[mM]?[0-9]*)\])"), "<b>\\1</b>");
@@ -859,11 +745,10 @@ void MainWindow::parseChordProToGrid(const QString &rawText) {
             continue;
         }
 
-        // 3. Handle Section Heading Commands ({c: Section Name})
         QRegularExpressionMatch commentMatch = commentRegex.match(line);
         if (commentMatch.hasMatch()) {
             if (inSection) {
-                currentSectionHtml += "</div>"; // Close previous section pillar
+                currentSectionHtml += "</div>";
             }
 
             QString sectionName = commentMatch.captured(1);
@@ -879,38 +764,6 @@ void MainWindow::parseChordProToGrid(const QString &rawText) {
             continue;
         }
 
-        // 4. Handle Standard Inline Lyric & Chord Lines (Upgraded Matrix Grid)
-/*        if (inSection) {
-            QString rowHtml = "<div style='line-height: 1.6; margin-bottom: 6px; white-space: nowrap;'>";
-
-            int pos = 0;
-            QString lastChord = "";
-            QString currentText = "";
-
-            while (pos < line.length()) {
-                if (line[pos] == '[') {
-                    if (!lastChord.isEmpty() || !currentText.isEmpty()) {
-                        rowHtml += QString("<div style='display: inline-block; vertical-align: bottom; text-align: left;'>") +
-                                   QString("<div class='chord-line'>%1</div>").arg(lastChord.isEmpty() ? "&nbsp;" : lastChord) +
-                                   QString("<div style='color: #333; font-family: sans-serif;'>%1</div>").arg(currentText.isEmpty() ? "&nbsp;" : currentText) +
-                                   QString("</div>");
-                        currentText.clear();
-                    }
-
-                    int closePos = line.indexOf(']', pos);
-                    if (closePos != -1) {
-                        lastChord = line.mid(pos + 1, closePos - pos - 1);
-                        pos = closePos + 1;
-                        continue;
-                    }
-                }
-
-                if (line[pos] == ' ') currentText += "&nbsp;";
-                else currentText += line[pos];
-                pos++;
-            } */
-
-        // 4. Handle Standard Inline Lyric & Chord Lines (Protected Matrix Grid)
         if (inSection) {
             QString rowHtml = "<div style='margin-bottom: 6px; white-space: nowrap;'>";
 
@@ -951,20 +804,8 @@ void MainWindow::parseChordProToGrid(const QString &rawText) {
             rowHtml += "</div>";
             currentSectionHtml += rowHtml;
         }
-
-            if (!lastChord.isEmpty() || !currentText.isEmpty()) {
-                rowHtml += QString("<div style='display: inline-block; vertical-align: bottom; text-align: left;'>") +
-                           QString("<div class='chord-line'>%1</div>").arg(lastChord.isEmpty() ? "&nbsp;" : lastChord) +
-                           QString("<div style='color: #333; font-family: sans-serif;'>%1</div>").arg(currentText.isEmpty() ? "&nbsp;" : currentText) +
-                           QString("</div>");
-            }
-
-            rowHtml += "</div>";
-            currentSectionHtml += rowHtml;
-        }
     }
 
-    // 5. Wrap up tracking operations SAFELY outside the loop pass
     if (inSection) {
         currentSectionHtml += "</div>";
     }
@@ -973,58 +814,53 @@ void MainWindow::parseChordProToGrid(const QString &rawText) {
 }
 
 void MainWindow::onZoomInTriggered() {
-    if (m_zoomScaleLevel < 6) { // Upper zoom cap
+    if (m_zoomScaleLevel < 6) {
         m_zoomScaleLevel++;
         updatePlayAlongLayoutDensity();
     }
 }
 
 void MainWindow::onZoomOutTriggered() {
-    if (m_zoomScaleLevel > -4) { // Lower zoom floor
+    if (m_zoomScaleLevel > -4) {
         m_zoomScaleLevel--;
         updatePlayAlongLayoutDensity();
     }
 }
 
 void MainWindow::updatePlayAlongLayoutDensity() {
-    // 1. Calculate base layout sizing choices based on zoom increments
-    int baseFontSize = 12 + (m_zoomScaleLevel * 2); // Shifts font size smoothly
-    int columnWidth = 360 + (m_zoomScaleLevel * 30); // Column width scales up with text size
+    int baseFontSize = 12 + (m_zoomScaleLevel * 2);
+    int columnWidth = 360 + (m_zoomScaleLevel * 30);
 
     QString cssLayoutMode;
 
-    // 2. THE THRESHOLD CHECK: If the text gets too big, abandon columns!
     if (m_zoomScaleLevel >= 3) {
-        // Single column scrolling sheet layout (SBP High-Zoom Mode)
         cssLayoutMode = ".song-canvas {"
-                        "  display: block;" // Standard sequential block layout
-                        "  height: auto;"   // Let it overflow naturally for scrolling
+                        "  display: block;"
+                        "  height: auto;"
                         "  margin: 0 auto;"
                         "  max-width: 800px;"
                         "} "
                         ".song-section {"
-                        "  width: 100%;"   // Section takes full width
+                        "  width: 100%;"
                         "  margin-bottom: 30px;"
                         "}";
     } else {
-        // Multi-column side-by-side fitting canvas (SBP Normal-Zoom Mode)
         cssLayoutMode = QString(
                             ".song-canvas {"
                             "  display: flex;"
                             "  flex-direction: column;"
                             "  flex-wrap: wrap;"
-                            "  height: 82vh;" // Pin height to force horizontal columnizing
+                            "  height: 82vh;"
                             "  align-content: flex-start;"
                             "  gap: 30px;"
                             "} "
                             ".song-section {"
-                            "  width: %1px;" // Set calculated scaling column boundary
+                            "  width: %1px;"
                             "  break-inside: avoid;"
                             "  page-break-inside: avoid;"
                             "}").arg(columnWidth);
     }
 
-    // 3. Generate fully updated HTML document with new layout specifications
     QString baseHtml = "<html><head><style>"
                        "body {"
                        "  background-color: #ffffff;"
@@ -1054,6 +890,45 @@ void MainWindow::updatePlayAlongLayoutDensity() {
                        + m_parsedSongContentGrid +
                        "</div></body></html>";
 
-    // 4. Update view pane instantly
     parsedEditor->setHtml(baseHtml);
+}
+
+void MainWindow::keyPressEvent(QKeyEvent *event) {
+    if (currentState == PlayAlong) {
+
+        // 1. Spacebar Toggle Hooked to your actual m_mediaPlayer instance variable!
+        if (event->key() == Qt::Key_Space) {
+            if (m_mediaPlayer->state() == QMediaPlayer::PlayingState) {
+                m_mediaPlayer->pause();
+            } else {
+                if (!m_selectedAudioPath.isEmpty()) {
+                    m_mediaPlayer->play();
+                }
+            }
+            event->accept();
+            return;
+        }
+
+        // 2. Control Key Layout Zoom Modifiers
+        if (event->modifiers() & Qt::ControlModifier) {
+            if (event->key() == Qt::Key_Plus || event->key() == Qt::Key_Equal) {
+                onZoomInTriggered();
+                event->accept();
+                return;
+            }
+            if (event->key() == Qt::Key_Minus) {
+                onZoomOutTriggered();
+                event->accept();
+                return;
+            }
+            if (event->key() == Qt::Key_0) {
+                m_zoomScaleLevel = 0;
+                updatePlayAlongLayoutDensity();
+                event->accept();
+                return;
+            }
+        }
+    }
+
+    QMainWindow::keyPressEvent(event);
 }

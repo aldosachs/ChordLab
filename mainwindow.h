@@ -10,19 +10,18 @@
 #include <QMediaPlayer>
 #include <QAudioOutput>
 #include <QUrl>
+#include <QKeyEvent>
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
 
 public:
-    // 1. Define the AppState enum type here so the whole class understands it
     enum AppState {
         Idle,
         OpenEdit,
         PlayAlong
     };
 
-    // Define the ChordDisplayMode enum if you haven't already
     enum ChordDisplayMode {
         CIL,
         CAL
@@ -34,7 +33,6 @@ public:
         QString slowPath;
     };
 
-    // Define Theme enum
     enum Theme {
         Light,
         Dark
@@ -42,6 +40,10 @@ public:
 
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow() = default;
+
+protected:
+    // This allows intercepting the Spacebar and Zoom keys anywhere inside the window frame
+    void keyPressEvent(QKeyEvent *event) override;
 
 private slots:
     void handleFileOpen();
@@ -55,10 +57,7 @@ private:
     void setupToolBar();
     void setupLayout();
 
-    // 2. Declaration for state manager function
     void setAppState(AppState state);
-
-    // 3. Helper to refresh your dynamic Fn-buttons
     void updateFunctionKeys();
     void shiftTransposition(int delta);
 
@@ -66,30 +65,26 @@ private:
     void selectAudioTrack(QPushButton *clickedButton, const QString &filePath, const QString &trackType);
 
     AudioTracks m_audioTracks;
-    QString m_selectedAudioPath; // The active track waiting for the Play button
+    QString m_selectedAudioPath;
 
     QMediaPlayer *m_mediaPlayer = nullptr;
     QAudioOutput *m_audioOutput = nullptr;
 
     void handlePlaybackStateChanged(QMediaPlayer::PlaybackState state);
 
-    // A simple container to hold individual song sections as we extract them
     struct ChordProSection {
-        QString header; // e.g., "Verse 1", "Chorus"
-        QString body;   // The raw or intermediate text content inside that section
+        QString header;
+        QString body;
     };
-    // Slices raw text into visual HTML section pillars
     void parseChordProToGrid(const QString &rawText);
+    void updatePlayAlongLayoutDensity();
 
-    // Stores the fully prepared HTML layout grid for full-screen display
     QString m_parsedSongContentGrid;
-
-    // Master wrapper that injects CSS flexbox styling for full-screen mode
     QString generateFullScreenHtml(const QString& parsedSongContent);
 
-    int m_zoomScaleLevel; // Tracks current zoom step (e.g., -3 to +5)
+    int m_zoomScaleLevel;
 
-    void onZoomInTriggered(); // UI Action Slots for your Zoom Buttons
+    void onZoomInTriggered();
     void onZoomOutTriggered();
 
     QString runInitialParse(const QString &rawInput);
@@ -97,7 +92,7 @@ private:
     QString transposeChord(const QString &chord, int semitones);
 
     QString getThemeStyles();
-    QString m_rawSongContent; // Stores the master text copy
+    QString m_rawSongContent;
 
     // UI Layout Components
     QSplitter *mainSplitter;
@@ -123,8 +118,8 @@ private:
 
     // Internal State Variables
     AppState currentState;
-    ChordDisplayMode m_currentMode = CAL; // Set to chords above lyrics (CAL) as default expert mode
-    Theme m_currentTheme = Light; // Or Light, depending on your default choice
+    ChordDisplayMode m_currentMode = CAL;
+    Theme m_currentTheme = Light;
     int m_transposeShift = 0;
     QString m_currentFilePath;
 };
