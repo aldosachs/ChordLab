@@ -456,7 +456,8 @@ void MainWindow::shiftTransposition(int delta) {
     }
 
     statusBar()->showMessage(QString("Transposition: %1 semitones").arg(m_transposeShift));
-    parsedEditor->setHtml(runInitialParse(originalEditor->toPlainText()));
+    parsedEditor->setHtml(runInitialParse(m_rawSongContent));
+    //    parsedEditor->setHtml(runInitialParse(originalEditor->toPlainText()));
 }
 
 QString MainWindow::transposeChord(const QString &chord, int semitones) {
@@ -505,7 +506,8 @@ void MainWindow::toggleTheme() {
     m_btnTheme->setText(m_currentTheme == Light ? "Light theme" : "Dark theme");
 
     // Refresh the view to apply the new CSS
-    parsedEditor->setHtml(runInitialParse(originalEditor->toPlainText()));
+    parsedEditor->setHtml(runInitialParse(m_rawSongContent));
+//    parsedEditor->setHtml(runInitialParse(originalEditor->toPlainText()));
 }
 
 QString MainWindow::processLineContent(const QString &line) {
