@@ -210,13 +210,14 @@ void MainWindow::setupLayout() {
     // Whenever the text on the left changes, instantly re-parse and display on the right
     connect(originalEditor, &QPlainTextEdit::textChanged, this, [=]() {
         m_rawSongContent = originalEditor->toPlainText();
-        parsedEditor->setHtml(runInitialParse(originalEditor->toPlainText()));
+        parsedEditor->setHtml(runInitialParse(m_rawSongContent));
+//        parsedEditor->setHtml(runInitialParse(originalEditor->toPlainText()));
     });
 
     setCentralWidget(mainSplitter);
 }
 
-void MainWindow::setAppState(AppState state) {
+/* void MainWindow::setAppState(AppState state) {
     currentState = state;
     switch(state) {
     case Idle:
@@ -231,6 +232,34 @@ void MainWindow::setAppState(AppState state) {
         statusBar()->showMessage("Play-along Mode Active.");
         // Hide originalEditor, maximize parsed view or renderer
         originalEditor->hide();
+        break;
+    }
+} */
+void MainWindow::setAppState(AppState state) {
+    currentState = state;
+    updateFunctionKeys(); // Re-map the buttons immediately
+
+    switch(state) {
+    case Idle:
+        statusBar()->showMessage("Ready. Open a ChordPro file to begin.");
+        mainSplitter->hide();
+        break;
+
+    case OpenEdit:
+        statusBar()->showMessage("Editing Mode: Analyzing ChordPro syntax...");
+        mainSplitter->show();
+        originalEditor->show(); // Make it visible
+        parsedEditor->show();
+
+        // --- THE SPLITTER FIX ---
+        // Give both editors equal width (e.g., 400 pixels each).
+        // The splitter will automatically scale these to match your 80% screen size!
+        mainSplitter->setSizes(QList<int>({400, 400}));
+        break;
+
+    case PlayAlong:
+        statusBar()->showMessage("Play-along Mode Active.");
+        originalEditor->hide(); // Hide raw text window to reclaim full screen
         break;
     }
 }

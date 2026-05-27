@@ -12,7 +12,6 @@ e|--------------------3---------------|------------------|
 [E]I see the [B]bad [A]moon [E]rising,  [E]I see [B]trouble [A]on the [E]way
 [E]I see [B]earth[A]quakes and [E]lightning, [E]I see [B]bad [A]times [E]today
 
-
 {c: Chorus:}
 [A]Don't go around tonight,  well it's [E]bound to take your life
 [B]There's a [A]bad moon on the [E]rise
@@ -21,13 +20,9 @@ e|--------------------3---------------|------------------|
 [E]I hear [B]hurri[A]canes [E]blowing,  [E]I know the [B]end is [A]coming [E]soon
 [E]I fear [B]rivers [A]over[E]flowing,  [E]I hear the [B]voice of [A]rage and [E]ruin
 
-
 {c: Chorus}
 [A]Don't go around tonight,  well it's [E]bound to take your life
 [B]There's a [A]bad moon on the [E]rise
-
-
-
 
 {c: Chords for the solo}
 {sot}
@@ -35,8 +30,6 @@ e|--------------------3---------------|------------------|
 
 |G    |G     |D   |D   |A   |G    |D   |D   |
 {eot}
-
-
 
 {c: Lead guitar solo}
 {sot}
@@ -48,7 +41,6 @@ D|2/7-7--7-7--7--5---0----------------|-------2/7--7-7--7--5--0-----------|
 A|------------------------------------|-----------------------------------|
 e|------------------------------------|-----------------------------------|
 
-
     G              D                 A         G        D
 E|--3-3-3r0---3r0--------------------5--5-5-5--3--3-3-3---2------
 B|--3-3----3-----3-3-3-3-3-3-3-3-3---5--5-7-5--3--3-5-3---3------
@@ -57,8 +49,6 @@ D|-----------------0-0-0-0-0-0-0-0----|-----------------0--------
 A|------------------------------------|--------------------------
 e|------------------------------------|--------------------------
 {eot}
-
-
 
 {c: Verse 3}
 [E]Hope you [B]got your [A]things [E]together,  [E]hope you are [B]quite [A]prepared to [E]die
