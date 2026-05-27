@@ -41,6 +41,14 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow() = default;
 
+    // ChoPro file metrics storage module
+    struct SongLayoutMetrics {
+        int totalLines = 0;          // cil_lof: Chords-in-line total line count of the file
+        int maxLineCharacters = 0;   // cil_wll: Character width of the single longest line
+        int sectionCount = 0;        // Total number of sections (Verses, Choruses, etc.)
+        int targetColumns = 1;       // Auto-calculated initial columns layout rule (1, 2, or 3)
+    };
+
 protected:
     // This allows intercepting the Spacebar and Zoom keys anywhere inside the window frame
     void keyPressEvent(QKeyEvent *event) override;
@@ -76,6 +84,11 @@ private:
         QString header;
         QString body;
     };
+
+    SongLayoutMetrics m_currentSongMetrics; // Persistent tracker variable for active file context
+
+    void analyzeChordProMetaData(const QString &rawInput); // The predictive pre-analysis engine
+
     void parseChordProToGrid(const QString &rawText);
     void updatePlayAlongLayoutDensity();
 
