@@ -234,23 +234,7 @@ void MainWindow::updateFunctionKeys() {
         connect(m_btnFn4, &QPushButton::clicked, this, [=]() {
             m_mediaPlayer->setPosition(m_mediaPlayer->duration());
         });
-
-/*        // Inside MainWindow::updateFunctionKeys() -> if (currentState == PlayAlong) block:
-        connect(m_btnFn2, &QPushButton::clicked, this, [=]() {
-            if (m_selectedAudioPath.isEmpty()) {
-                statusBar()->showMessage("No audio track selected or available for playback.");
-            } else {
-                statusBar()->showMessage(tr("[>] Playing: %1").arg(QFileInfo(m_selectedAudioPath).fileName())); // ▶
-                // Future audio engine playback hook: m_audioEngine->play(m_selectedAudioPath);
-            }
-        });
-
-        // Stubs for future MP3 / MIDI engine integrations!
-        connect(m_btnFn1, &QPushButton::clicked, this, [=]() { statusBar()->showMessage("Rewinding track..."); });
-        connect(m_btnFn2, &QPushButton::clicked, this, [=]() { statusBar()->showMessage("Playing track..."); });
-        connect(m_btnFn3, &QPushButton::clicked, this, [=]() { statusBar()->showMessage("Track Paused."); });
-        connect(m_btnFn4, &QPushButton::clicked, this, [=]() { statusBar()->showMessage("Skipped to end."); });
-    } */
+    }
 }
 
     void MainWindow::handlePlaybackStateChanged(QMediaPlayer::PlaybackState state) {
