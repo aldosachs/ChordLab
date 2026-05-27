@@ -16,6 +16,7 @@
 #include <QFileInfo>
 #include <QDir>
 #include <QDebug>
+#include <QMediaPlayer>
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     m_mediaPlayer = new QMediaPlayer(this);
@@ -898,7 +899,8 @@ void MainWindow::keyPressEvent(QKeyEvent *event) {
 
         // 1. Spacebar Toggle Hooked to your actual m_mediaPlayer instance variable!
         if (event->key() == Qt::Key_Space) {
-            if (m_mediaPlayer->state() == QMediaPlayer::PlayingState) {
+            // Updated for Qt 6 multimedia architecture
+            if (m_mediaPlayer->playbackState() == QMediaPlayer::PlayingState) {
                 m_mediaPlayer->pause();
             } else {
                 if (!m_selectedAudioPath.isEmpty()) {
