@@ -25,6 +25,12 @@ public:
         CAL
     };
 
+    struct AudioTracks {
+        QString fullPath;
+        QString backingPath;
+        QString slowPath;
+    };
+
     // Define Theme enum
     enum Theme {
         Light,
@@ -53,6 +59,12 @@ private:
     void updateFunctionKeys();
     void shiftTransposition(int delta);
 
+    void checkForCompanionAudio(const QString &chordProPath);
+    void selectAudioTrack(QPushButton *clickedButton, const QString &filePath, const QString &trackType);
+
+    AudioTracks m_audioTracks;
+    QString m_selectedAudioPath; // The active track waiting for the Play button
+
     QString runInitialParse(const QString &rawInput);
     QString processLineContent(const QString &line);
     QString transposeChord(const QString &chord, int semitones);
@@ -70,6 +82,11 @@ private:
     QPushButton *m_btnTransposeDown;
     QPushButton *m_btnTheme;
     QPushButton *m_viewToggleBtn;
+
+    // Audio Selection Buttons
+    QPushButton *m_btnTrackFull;
+    QPushButton *m_btnTrackBkg;
+    QPushButton *m_btnTrackSlow;
 
     // The 4 Context-Aware Function Buttons
     QPushButton *m_btnFn1;

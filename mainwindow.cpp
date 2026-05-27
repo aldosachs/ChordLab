@@ -13,6 +13,8 @@
 #include <QRegularExpression>
 #include <QRegularExpressionMatch>
 #include <QTextCharFormat>
+#include <QFileInfo>
+#include <QDir>
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     // 1. Scale to 60% of available screen
@@ -78,14 +80,37 @@ void MainWindow::setupToolBar() {
     layout->addWidget(m_btnFn3);
     layout->addWidget(m_btnFn4);
 
-//    // Add "Placeholder" Grey Function Key Buttons
-//    QString buttonStyle = "QPushButton { background-color: #808080; color: white; border-radius: 4px; padding: 5px; min-width: 40px; }";
-//    for(int i = 0; i < 4; ++i) {
-//        QPushButton *btn = new QPushButton(QString("Fn-%1").arg(i + 1));
-//        btn->setStyleSheet(buttonStyle);
-//        layout->addWidget(btn);
-//    }
+    // Audio Track Selector Styling
+    QString audioBtnStyle = "QPushButton { background-color: #2D2D2D; color: #777777; border: 1px solid #444; border-radius: 4px; padding: 5px; min-width: 50px; font-weight: bold; }"
+                            "QPushButton:enabled { color: #E0E0E0; border-color: #555; }"
+                            "QPushButton:checked { background-color: #006644; color: white; border-color: #00FF88; }"; // Forest green for active track!
 
+    m_btnTrackFull = new QPushButton("Full");
+    m_btnTrackBkg  = new QPushButton("Bkg");
+    m_btnTrackSlow = new QPushButton("Slow");
+
+    // Make them checkable so they behave like radio buttons
+    m_btnTrackFull->setCheckable(true);
+    m_btnTrackBkg->setCheckable(true);
+    m_btnTrackSlow->setCheckable(true);
+
+    m_btnTrackFull->setStyleSheet(audioBtnStyle);
+    m_btnTrackBkg->setStyleSheet(audioBtnStyle);
+    m_btnTrackSlow->setStyleSheet(audioBtnStyle);
+
+    // Start disabled until a file scan proves they exist
+    m_btnTrackFull->setEnabled(false);
+    m_btnTrackBkg->setEnabled(false);
+    m_btnTrackSlow->setEnabled(false);
+
+    layout->addWidget(m_btnTrackFull);
+    layout->addWidget(m_btnTrackBkg);
+    layout->addWidget(m_btnTrackSlow);
+
+    // Wire up the button selection clicks
+    connect(m_btnTrackFull, &QPushButton::clicked, this, [=]() { selectAudioTrack(m_btnTrackFull, m_audioTracks.fullPath, "Full Track"); });
+    connect(m_btnTrackBkg,  &QPushButton::clicked, this, [=]() { selectAudioTrack(m_btnTrackBkg, m_audioTracks.backingPath, "Backing Track"); });
+    connect(m_btnTrackSlow, &QPushButton::clicked, this, [=]() { selectAudioTrack(m_btnTrackSlow, m_audioTracks.slowPath, "Slow Practice Track"); });
 
     QPushButton *btnReset = new QPushButton("Reset Key");
     btnReset->setStyleSheet("QPushButton { background-color: #0047ff; color: white; padding: 5px; }"); // Reset back to original key!
@@ -175,9 +200,19 @@ void MainWindow::updateFunctionKeys() {
     } else if (currentState == PlayAlong) {
         // --- PLAYBACK MODE CONFIGURATION ---
         m_btnFn1->setText("⏮ Rewind");
-        m_btnFn2->setText("▶ Play");
+        m_btnFn2->setText("[▶] Play");
         m_btnFn3->setText("⏸ Pause");
         m_btnFn4->setText("⏭ End");
+
+        // Inside MainWindow::updateFunctionKeys() -> if (currentState == PlayAlong) block:
+        connect(m_btnFn2, &QPushButton::clicked, this, [=]() {
+            if (m_selectedAudioPath.isEmpty()) {
+                statusBar()->showMessage("No audio track selected or available for playback.");
+            } else {
+                statusBar()->showMessage(tr("[▶] Playing: %1").arg(QFileInfo(m_selectedAudioPath).fileName()));
+                // Future audio engine playback hook: m_audioEngine->play(m_selectedAudioPath);
+            }
+        });
 
         // Stubs for future MP3 / MIDI engine integrations!
         connect(m_btnFn1, &QPushButton::clicked, this, [=]() { statusBar()->showMessage("Rewinding track..."); });
@@ -217,24 +252,6 @@ void MainWindow::setupLayout() {
     setCentralWidget(mainSplitter);
 }
 
-/* void MainWindow::setAppState(AppState state) {
-    currentState = state;
-    switch(state) {
-    case Idle:
-        statusBar()->showMessage("Ready. Open a ChordPro file to begin.");
-        mainSplitter->hide();
-        break;
-    case OpenEdit:
-        statusBar()->showMessage("Editing Mode: Analyzing ChordPro syntax...");
-        mainSplitter->show();
-        break;
-    case PlayAlong:
-        statusBar()->showMessage("Play-along Mode Active.");
-        // Hide originalEditor, maximize parsed view or renderer
-        originalEditor->hide();
-        break;
-    }
-} */
 void MainWindow::setAppState(AppState state) {
     currentState = state;
     updateFunctionKeys(); // Re-map the buttons immediately
@@ -327,6 +344,7 @@ void MainWindow::handleFileOpen() {
     QString expertVersion = runInitialParse(content);
     parsedEditor->setHtml(expertVersion);
     statusBar()->showMessage(tr("Loaded: ") + fileName);
+    checkForCompanionAudio(m_currentFilePath); // <-- This initiates the audio scan!
 }
 
 QString MainWindow::runInitialParse(const QString &rawInput) {
@@ -581,4 +599,65 @@ QString MainWindow::processLineContent(const QString &line) {
         }
     }
     return output;
+}
+
+void MainWindow::checkForCompanionAudio(const QString &chordProPath) {
+    // 1. Clear out any previous track allocations
+    m_audioTracks = AudioTracks();
+    m_selectedAudioPath.clear();
+
+    m_btnTrackFull->setChecked(false); m_btnTrackFull->setEnabled(false);
+    m_btnTrackBkg->setChecked(false);  m_btnTrackBkg->setEnabled(false);
+    m_btnTrackSlow->setChecked(false); m_btnTrackSlow->setEnabled(false);
+
+    if (chordProPath.isEmpty()) return;
+
+    // 2. Get the base file path prefix (e.g., "D:/Songs/Hotel_California")
+    QFileInfo info(chordProPath);
+    QString basePrefix = info.path() + QDir::separator() + info.baseName();
+
+    // 3. Probe the file system for each variant
+    QString fullOption  = basePrefix + ".mp3";
+    QString bkgOption   = basePrefix + "_backing.mp3";
+    QString slowOption  = basePrefix + "_slow.mp3";
+
+    // 4. Enable buttons if files exist
+    if (QFileInfo::exists(fullOption)) {
+        m_audioTracks.fullPath = fullOption;
+        m_btnTrackFull->setEnabled(true);
+    }
+    if (QFileInfo::exists(bkgOption)) {
+        m_audioTracks.backingPath = bkgOption;
+        m_btnTrackBkg->setEnabled(true);
+    }
+    if (QFileInfo::exists(slowOption)) {
+        m_audioTracks.slowPath = slowOption;
+        m_btnTrackSlow->setEnabled(true);
+    }
+
+    // 5. Smart Default: Auto-select the first available track we found
+    if (m_btnTrackFull->isEnabled())      selectAudioTrack(m_btnTrackFull, m_audioTracks.fullPath, "Full Track");
+    else if (m_btnTrackBkg->isEnabled())  selectAudioTrack(m_btnTrackBkg, m_audioTracks.backingPath, "Backing Track");
+    else if (m_btnTrackSlow->isEnabled()) selectAudioTrack(m_btnTrackSlow, m_audioTracks.slowPath, "Slow Track");
+    else {
+        statusBar()->showMessage(tr("Loaded: %1 (No companion audio found)").arg(info.fileName()));
+    }
+}
+
+void MainWindow::selectAudioTrack(QPushButton *clickedButton, const QString &filePath, const QString &trackType) {
+    // Implement standard radio button exclusive behavior manually
+    m_btnTrackFull->setChecked(false);
+    m_btnTrackBkg->setChecked(false);
+    m_btnTrackSlow->setChecked(false);
+
+    clickedButton->setChecked(true); // Keep the active option visually depressed
+
+    // If a track was already playing, safely cut it off immediately
+    if (m_selectedAudioPath != filePath && !m_selectedAudioPath.isEmpty()) {
+        statusBar()->showMessage(tr("Stopped current playback. Loaded: %1").arg(trackType));
+        // Future audioEngine->stop(); stub
+    }
+
+    m_selectedAudioPath = filePath;
+    statusBar()->showMessage(tr("Audio Ready [%1]: %2").arg(trackType, QFileInfo(filePath).fileName()));
 }
