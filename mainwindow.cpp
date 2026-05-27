@@ -766,50 +766,81 @@ void MainWindow::parseChordProToGrid(const QString &rawText) {
         }
 
         if (inSection) {
-            // Keep the entire phrase completely straight across the screen canvas
-            QString rowHtml = "<p style='margin: 0 0 4px 0; padding: 0; white-space: nowrap;'>";
+            QString chordLine = "";
+            QString lyricLine = "";
+            int linePos = 0;
 
-            int pos = 0;
-            QString currentChord = "";
-            QString currentPhrase = "";
+            QRegularExpression chordRegex("\\[(.*?)\\]");
+            auto matches = chordRegex.globalMatch(line);
 
-            while (pos < line.length()) {
-                if (line[pos] == '[') {
-                    if (!currentChord.isEmpty() || !currentPhrase.isEmpty()) {
-                        // Create a tiny inline frame that keeps chord stacked directly over lyric
-                        rowHtml += QString("<table style='display: inline; border-collapse: collapse; margin-right: 1px; padding: 0; vertical-align: bottom;'>") +
-                                   QString("<tr><td class='chord-line' style='padding: 0; margin: 0; line-height: 1;'>%1</td></tr>").arg(currentChord.isEmpty() ? "&nbsp;" : currentChord) +
-                                   QString("<tr><td class='lyric-text' style='padding: 0; margin: 0; line-height: 1;'>%1</td></tr>").arg(currentPhrase.isEmpty() ? "&nbsp;" : currentPhrase) +
-                                   QString("</table>");
-                        currentPhrase.clear();
-                    }
-
-                    int closePos = line.indexOf(']', pos);
-                    if (closePos != -1) {
-                        currentChord = line.mid(pos + 1, closePos - pos - 1);
-                        pos = closePos + 1;
-                        continue;
+            if (!matches.hasNext()) {
+                // Plain line with no chords - parse standard spaces safely
+                for (int i = 0; i < line.length(); ++i) {
+                    QChar ch = line[i];
+                    if (ch == ' ') {
+                        lyricLine += "&nbsp;";
+                    } else {
+                        lyricLine += ch;
                     }
                 }
+            } else {
+                while (matches.hasNext()) {
+                    auto match = matches.next();
+                    int matchStart = match.capturedStart();
 
-                if (line[pos] == ' ') {
-                    currentPhrase += "&nbsp;";
-                } else {
-                    currentPhrase += line[pos];
+                    // Pull the lyric text leading up to this chord match
+                    while (linePos < matchStart) {
+                        QChar ch = line[linePos++];
+                        if (ch == ' ') {
+                            lyricLine += "&nbsp;";
+                        } else {
+                            lyricLine += ch;
+                        }
+                        chordLine += "&nbsp;"; // Exact 1-to-1 character slot alignment padding
+                    }
+
+                    // Extract the chord name inside brackets
+                    QString chordText = match.captured(1);
+                    int chordLen = chordText.length();
+
+                    // Insert chord symbol
+                    chordLine += QString("<span class='chord-line'>%1</span>").arg(chordText);
+
+                    int closePos = match.capturedEnd();
+                    int nextMatchStart = matches.hasNext() ? line.indexOf('[', closePos) : line.length();
+                    int availableLyricGap = nextMatchStart - closePos;
+
+                    // Safely pad the lyric line if the chord name length out-stretches the lyric text gap
+                    if (chordLen > availableLyricGap) {
+                        for (int i = 0; i < (chordLen - availableLyricGap); ++i) {
+                            lyricLine += "&nbsp;";
+                        }
+                    }
+
+                    linePos = closePos;
                 }
-                pos++;
+
+                // Flush out any remaining trailing lyric characters at the end of the line
+                while (linePos < line.length()) {
+                    QChar ch = line[linePos++];
+                    if (ch == ' ') {
+                        lyricLine += "&nbsp;";
+                    } else {
+                        lyricLine += ch;
+                    }
+                    chordLine += "&nbsp;";
+                }
             }
 
-            // Final trailing chunk flush
-            if (!currentChord.isEmpty() || !currentPhrase.isEmpty()) {
-                rowHtml += QString("<table style='display: inline; border-collapse: collapse; margin-right: 1px; padding: 0; vertical-align: bottom;'>") +
-                           QString("<tr><td class='chord-line' style='padding: 0; margin: 0; line-height: 1;'>%1</td></tr>").arg(currentChord.isEmpty() ? "&nbsp;" : currentChord) +
-                           QString("<tr><td class='lyric-text' style='padding: 0; margin: 0; line-height: 1;'>%1</td></tr>").arg(currentPhrase.isEmpty() ? "&nbsp;" : currentPhrase) +
-                           QString("</table>");
+            // Assemble into an un-breakable text block unit using matching line heights
+            QString lineBlockHtml = "<div style='white-space: nowrap; line-height: 1.2;'>";
+            if (!chordLine.trimmed().isEmpty()) {
+                lineBlockHtml += QString("<p style='margin: 0; padding: 0;'>%1</p>").arg(chordLine);
             }
+            lineBlockHtml += QString("<p style='margin: 0 0 6px 0; padding: 0;' class='lyric-text'>%1</p>").arg(lyricLine.isEmpty() ? "&nbsp;" : lyricLine);
+            lineBlockHtml += "</div>";
 
-            rowHtml += "</p>";
-            currentSectionHtml += rowHtml;
+            currentSectionHtml += lineBlockHtml;
         }
         if (inSection) {
             currentSectionHtml += "</div>";
@@ -834,50 +865,50 @@ void MainWindow::onZoomOutTriggered() {
 
 void MainWindow::updatePlayAlongLayoutDensity() {
     int baseFontSize = 12 + (m_zoomScaleLevel * 2);
-    int columnWidth = 380 + (m_zoomScaleLevel * 40);
+    int columnWidth = 360 + (m_zoomScaleLevel * 40);
 
-    qDebug() << "=== CHORDLAB COLUMN ENGINE MONITOR ===";
-    qDebug() << "Zoom Step:" << m_zoomScaleLevel << " | Font Size:" << baseFontSize << "pt | Col Width:" << columnWidth << "px";
+    qDebug() << "=== CHORDLAB MATRIX ENGINE MONITOR ===";
+    qDebug() << "Scale Step:" << m_zoomScaleLevel << " | Base Font Size:" << baseFontSize << "pt";
 
     QString cssLayoutMode;
 
     if (m_zoomScaleLevel >= 3) {
-        // High Zoom: Single Column View
-        cssLayoutMode = ".song-canvas { column-count: 1; } "
-                        ".song-section { margin-bottom: 25px; break-inside: avoid; }";
+        // High Zoom: Single rolling vertical layout canvas
+        cssLayoutMode = ".song-canvas { column-count: 1; }";
     } else {
-        // Multi-Column Mode: Strict CSS column configuration
+        // Multi-Column Mode: Strict CSS column definitions that force horizontal wrapping
         cssLayoutMode = QString(
                             ".song-canvas {"
+                            "  column-count: 3;"
                             "  column-width: %1px;"
-                            "  column-gap: 35px;"
-                            "  height: 80vh;" /* Limits downward spill to force column generation */
-                            "} "
-                            ".song-section {"
-                            "  break-inside: avoid-column;"
-                            "  margin-bottom: 25px;"
+                            "  column-gap: 45px;"
+                            "  height: 540px;" /* Restricts vertical drop to snap content into column columns */
                             "}").arg(columnWidth);
     }
 
     QString baseHtml = "<html><head><style>"
                        "body {"
                        "  background-color: #ffffff;"
-                       "  font-family: sans-serif;"
-                       "  margin: 20px; padding: 0;"
+                       "  margin: 15px; padding: 0;"
                        "}"
                        + cssLayoutMode +
-                       "h1 { font-size: " + QString::number(baseFontSize + 6) + "pt; font-weight: bold; margin: 0 0 5px 0; }"
-                                                                                // FIXED: Headings now directly match your zoom factor scale!
-                                                                                ".section-heading { font-size: " + QString::number(baseFontSize + 3) + "pt; color: #007acc; font-weight: bold; margin: 0 0 8px 0; border-bottom: 2px solid #eef; font-family: sans-serif; }"
-                                                             "h3 { font-size: " + QString::number(baseFontSize + 1) + "pt; margin: 0 0 10px 0; color: #666; }"
+                       "h1 { font-size: " + QString::number(baseFontSize + 6) + "pt; font-weight: bold; font-family: sans-serif; margin: 0 0 5px 0; }"
+                                                                                ".section-heading {"
+                                                                                "  font-size: " + QString::number(baseFontSize + 2) + "pt;"
+                                                             "  color: #007acc;"
+                                                             "  font-weight: bold;"
+                                                             "  margin: 16px 0 6px 0;"
+                                                             "  border-bottom: 2px solid #eef;"
+                                                             "  font-family: sans-serif;"
+                                                             "}"
                                                              ".chord-line {"
                                                              "  font-weight: bold; color: #b22222;"
-                                                             "  font-family: sans-serif;"
+                                                             "  font-family: 'Consolas', 'Courier New', monospace !important;"
                                                              "  font-size: " + QString::number(baseFontSize) + "pt;"
                                                          "}"
                                                          ".lyric-text {"
                                                          "  color: #222;"
-                                                         "  font-family: sans-serif;"
+                                                         "  font-family: 'Consolas', 'Courier New', monospace !important;"
                                                          "  font-size: " + QString::number(baseFontSize) + "pt;"
                                                          "}"
                                                          "</style></head><body>"
