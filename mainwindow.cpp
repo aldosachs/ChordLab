@@ -38,9 +38,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     QMediaPlayer *m_mediaPlayer = nullptr;
     QAudioOutput *m_audioOutput = nullptr;
 
-//    void handlePlaybackStateChanged(QMediaPlayer::PlaybackState state);
-
-//    m_currentFilePath = ""; // Initialize 'raw ChoPro' file path var. as empty string, first up.
+    m_currentFilePath = ""; // Initialize 'raw ChoPro' file path var. as empty string, first up.
+    m_parsedSongContentGrid = ""; // <-- Initialize layout tracker string here
 
     setupMenus();
     setupToolBar();
@@ -56,8 +55,6 @@ void MainWindow::setupMenus() {
     QMenu *fileMenu = menuBar()->addMenu("&File");
     fileMenu->addAction("&Open...", QKeySequence::Open, this, &MainWindow::handleFileOpen);
     fileMenu->addAction("&Save Standardized", QKeySequence::Save, this, &MainWindow::handleFileSave);
-//    fileMenu->addAction("&Open...", this, &MainWindow::handleFileOpen, QKeySequence::Open);
-//    fileMenu->addAction("&Save Standardized", this, &MainWindow::handleFileSave, QKeySequence::Save);
     fileMenu->addSeparator();
     fileMenu->addAction("E&xit", this, &QWidget::close);
 }
@@ -315,15 +312,65 @@ void MainWindow::setAppState(AppState state) {
 
     case PlayAlong:
         statusBar()->showMessage("Play-along Mode Active.");
-        originalEditor->hide(); // Hide raw text window to reclaim full screen
+        originalEditor->hide(); // Reclaim 50% screen real estate instantly
+        parsedEditor->show();   // Expand to fill the remaining void
+
+        // 1. Force the layout container system to take maximum width
+        mainSplitter->setSizes(QList<int>({0, this->width()}));
+
+        // 2. Adjust font baseline size based on display height to maximize data density
+        // If your window height is large, we can bump the default scale up comfortably
+        int targetFontSize = (this->height() > 900) ? 14 : 11;
+
+        // Apply the base font configuration directly to the text document layout host
+        QTextDocument *doc = parsedEditor->document();
+        QFont docFont = doc->defaultFont();
+        docFont.setPointSize(targetFontSize);
+        doc->setDefaultFont(docFont);
+
+        // 3. Re-render the song canvas with the updated multi-column wrapper
+        // (Assuming you pass the pre-segmented HTML block)
+        parsedEditor->setHtml(generateFullScreenHtml(m_parsedSongContentGrid));
         break;
     }
 }
 
+QString MainWindow::generateFullScreenHtml(const QString& parsedSongContent) {
+    QString html = "<html><head><style>"
+                   // The master canvas container spans the full screen width
+                   "body {"
+                   "  background-color: #ffffff;"
+                   "  font-family: sans-serif;"
+                   "  margin: 20px;"
+                   "  padding: 0;"
+                   "}"
+                   // Flexbox column wrap engine handles the dynamic tiling
+                   ".song-canvas {"
+                   "  display: flex;"
+                   "  flex-direction: column;"
+                   "  flex-wrap: wrap;" // Automatically pushes trailing sections into the next column!
+                   "  height: 85vh;"    // Pin the height to the viewport to prevent vertical scrolling
+                   "  align-content: flex-start;"
+                   "  gap: 25px;"
+                   "}"
+                   // Individual song sections form solid, un-sliceable structural blocks
+                   ".song-section {"
+                   "  width: 380px;"    // Comfortable width for a chord/lyric column block
+                   "  break-inside: avoid;"
+                   "  page-break-inside: avoid;"
+                   "}"
+                   // Standard chord line formatting rules
+                   ".chord-line { font-weight: bold; color: #b22222; font-family: sans-serif; }"
+                   "</style></head><body>";
+
+    html += "<div class='song-canvas'>";
+    html += parsedSongContent; // Your parsed blocks wrapped in <div class='song-section'>...</div>
+    html += "</div></body></html>";
+
+    return html;
+}
+
 // This is the implementation for the Save action
-//void MainWindow::handleFileSave() {
-//    statusBar()->showMessage("Save triggered - awaiting logic.");
-//    }
 void MainWindow::handleFileSave() {
     // 1. If no file is currently open, act like a "Save As" dialog
     if (m_currentFilePath.isEmpty()) {
@@ -397,17 +444,7 @@ QString MainWindow::runInitialParse(const QString &rawInput) {
     QString chorusBg = "#f0f7ff";
     QString commentBg = "#eeeeee";
 
-/*    QString result = "<html><head><style>"
-                     "body { font-family: 'Consolas', monospace; white-space: pre; }"
-                     ".chord { color: " + colorChord + "; font-weight: bold; }"
-                                    ".comment { background-color: " + commentBg + "; padding: 2px 5px; border-radius: 3px; }"
-                                   // Add these to your style block at the top of runInitialParse
-                                   ".chorus-box { background-color: #f0f7ff; border-left: 5px solid darkblue; padding: 5px 10px; margin: 5px 0; }"
-                                   ".section-header { background-color: #eeeeee; font-weight: bold; padding: 2px 5px; border-radius: 3px; display: inline-block; }"
-                                   "</style></head><body>";
-*/
     // 1. Pre-pass for Metadata Header
-//    QRegularExpression titleRegex("\\{title:\\s*(.*)\\}", QRegularExpression::CaseInsensitiveOption);
     QRegularExpression titleRegex(R"(\{(?:title|t):\s*(.*?)\})", QRegularExpression::CaseInsensitiveOption);
     QRegularExpression artistRegex("\\{artist:\\s*(.*)\\}", QRegularExpression::CaseInsensitiveOption);
     QRegularExpression keyRegex("\\{key:\\s*(.*)\\}", QRegularExpression::CaseInsensitiveOption);
@@ -438,13 +475,10 @@ QString MainWindow::runInitialParse(const QString &rawInput) {
     bool inVerse = false;
 
     for (const QString &line : lines) {
-//    for (QString line : lines) {
-//        line.remove('\r');
-//        QString trimmedLine = line.trimmed();
 
-    QString workingLine = line; // Make a local, changeable copy of just this line
-    workingLine.remove('\r');   // This is good now!
-    QString trimmedLine = workingLine.trimmed();
+        QString workingLine = line; // Make a local, changeable copy of just this line
+        workingLine.remove('\r');   // This is good now!
+        QString trimmedLine = workingLine.trimmed();
         bool lineHandled = false; // The gatekeeper
 
         // 1. Skip Metadata & Comments
@@ -462,7 +496,7 @@ QString MainWindow::runInitialParse(const QString &rawInput) {
         // 2. Handle Empty Lines
         if (trimmedLine.isEmpty()) {
             if (lastLineWasEmpty) continue;
-//            result += "<br>";
+            //            result += "<br>";
             lastLineWasEmpty = true;
             continue;
         }
@@ -595,7 +629,6 @@ void MainWindow::toggleTheme() {
 
     // Refresh the view to apply the new CSS
     parsedEditor->setHtml(runInitialParse(m_rawSongContent));
-//    parsedEditor->setHtml(runInitialParse(originalEditor->toPlainText()));
 }
 
 QString MainWindow::processLineContent(const QString &line) {
@@ -636,7 +669,6 @@ QString MainWindow::processLineContent(const QString &line) {
             }
             lyricLine += line.mid(currentPos);
           output = chordLine + "<br>" + lyricLine;
-//            output = chordLine + lyricLine;
         }
     }
     return output;

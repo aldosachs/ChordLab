@@ -73,6 +73,18 @@ private:
 
     void handlePlaybackStateChanged(QMediaPlayer::PlaybackState state);
 
+    // A simple container to hold individual song sections as we extract them
+    struct ChordProSection {
+        QString header; // e.g., "Verse 1", "Chorus"
+        QString body;   // The raw or intermediate text content inside that section
+    };
+
+    // Stores the fully prepared HTML layout grid for full-screen display
+    QString m_parsedSongContentGrid;
+
+    // Master wrapper that injects CSS flexbox styling for full-screen mode
+    QString generateFullScreenHtml(const QString& parsedSongContent);
+
     QString runInitialParse(const QString &rawInput);
     QString processLineContent(const QString &line);
     QString transposeChord(const QString &chord, int semitones);
