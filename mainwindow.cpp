@@ -775,55 +775,8 @@ void MainWindow::parseChordProToGrid(const QString &rawText) {
 
             while (pos < line.length()) {
                 if (line[pos] == '[') {
-                    // We hit a new chord, flush whatever lyrics/spaces accumulated up to this point
                     if (!currentChord.isEmpty() || !currentPhrase.isEmpty()) {
                         rowHtml += QString("<div style='display: inline-block; vertical-align: bottom; text-align: left; margin-right: 2px;'>") +
-                                   QString("<div class='chord-line'>%1</div>").arg(currentChord.isEmpty() ? "&nbsp;" : currentChord) +
-                                   QString("<div style='color: #222; font-family: sans-serif;'>%1</div>").arg(currentPhrase.isEmpty() ? "&nbsp;" : currentPhrase) +
-                                   QString("</div>");
-                        currentPhrase.clear();
-                    }
-
-                    int closePos = line.indexOf(']', pos);
-                    if (closePos != -1) {
-                        currentChord = line.mid(pos + 1, closePos - pos - 1);
-                        pos = closePos + 1;
-                        continue;
-                    }
-                }
-
-                // Convert normal spacing to non-breaking spaces so words don't collapse
-                if (line[pos] == ' ') {
-                    currentPhrase += "&nbsp;";
-                } else {
-                    currentPhrase += line[pos];
-                }
-                pos++;
-            }
-
-            // CRITICAL FIX: Flush any remaining trailing words or spaces at the end of the line!
-            if (!currentChord.isEmpty() || !currentPhrase.isEmpty()) {
-                rowHtml += QString("<div style='display: inline-block; vertical-align: bottom; text-align: left; margin-right: 2px;'>") +
-                           QString("<div class='chord-line'>%1</div>").arg(currentChord.isEmpty() ? "&nbsp;" : currentChord) +
-                           QString("<div style='color: #222; font-family: sans-serif;'>%1</div>").arg(currentPhrase.isEmpty() ? "&nbsp;" : currentPhrase) +
-                           QString("</div>");
-            }
-
-            rowHtml += "</div>";
-            currentSectionHtml += rowHtml;
-        }
-
-    /*    if (inSection) {
-            QString rowHtml = "<div style='margin-bottom: 6px; white-space: nowrap;'>";
-
-            int pos = 0;
-            QString currentChord = "";
-            QString currentPhrase = "";
-
-            while (pos < line.length()) {
-                if (line[pos] == '[') {
-                    if (!currentChord.isEmpty() || !currentPhrase.isEmpty()) {
-                        rowHtml += QString("<div style='display: inline-block; vertical-align: bottom; text-align: left; margin-right: 3px;'>") +
                                    QString("<div class='chord-line'>%1</div>").arg(currentChord.isEmpty() ? "&nbsp;" : currentChord) +
                                    QString("<div class='lyric-text'>%1</div>").arg(currentPhrase.isEmpty() ? "&nbsp;" : currentPhrase) +
                                    QString("</div>");
@@ -838,13 +791,17 @@ void MainWindow::parseChordProToGrid(const QString &rawText) {
                     }
                 }
 
-                if (line[pos] == ' ') currentPhrase += "&nbsp;";
-                else currentPhrase += line[pos];
+                if (line[pos] == ' ') {
+                    currentPhrase += "&nbsp;";
+                } else {
+                    currentPhrase += line[pos];
+                }
                 pos++;
             }
 
+            // Flush any remaining trailing words or spaces at the end of the line
             if (!currentChord.isEmpty() || !currentPhrase.isEmpty()) {
-                rowHtml += QString("<div style='display: inline-block; vertical-align: bottom; text-align: left; margin-right: 3px;'>") +
+                rowHtml += QString("<div style='display: inline-block; vertical-align: bottom; text-align: left; margin-right: 2px;'>") +
                            QString("<div class='chord-line'>%1</div>").arg(currentChord.isEmpty() ? "&nbsp;" : currentChord) +
                            QString("<div class='lyric-text'>%1</div>").arg(currentPhrase.isEmpty() ? "&nbsp;" : currentPhrase) +
                            QString("</div>");
@@ -852,7 +809,7 @@ void MainWindow::parseChordProToGrid(const QString &rawText) {
 
             rowHtml += "</div>";
             currentSectionHtml += rowHtml;
-        }*/
+        }
     }
 
     if (inSection) {
@@ -878,7 +835,92 @@ void MainWindow::onZoomOutTriggered() {
 
 void MainWindow::updatePlayAlongLayoutDensity() {
     int baseFontSize = 12 + (m_zoomScaleLevel * 2);
-    int columnWidth = 360 + (m_zoomScaleLevel * 30);
+    int columnWidth = 360 + (m_zoomScaleLevel * 40); // Increased step scale to help columns form
+
+    // Add explicit diagnostics to track window properties and scale level changes
+    qDebug() << "=== CHORDLAB ZOOM LAYOUT MONITOR ===";
+    qDebug() << "Current Zoom Scale Level Steps:" << m_zoomScaleLevel;
+    qDebug() << "Calculated Font Baseline Sizing:" << baseFontSize << "pt";
+    qDebug() << "Target Column Bounds Width Constraint:" << columnWidth << "px";
+
+    QString cssLayoutMode;
+
+    if (m_zoomScaleLevel >= 3) {
+        cssLayoutMode = ".song-canvas {"
+                        "  display: block;"
+                        "  height: auto;"
+                        "  margin: 0 auto;"
+                        "  max-width: 900px;"
+                        "} "
+                        ".song-section {"
+                        "  width: 100%;"
+                        "  margin-bottom: 30px;"
+                        "  white-space: nowrap !important;"
+                        "}";
+    } else {
+        // Multi-Column Mode: Setting max height forces the layout container to wrap side-by-side
+        cssLayoutMode = QString(
+                            ".song-canvas {"
+                            "  display: flex;"
+                            "  flex-direction: column;"
+                            "  flex-wrap: wrap;"
+                            "  height: 75vh;" // Slightly lowered container floor height to force column wrapping sooner
+                            "  align-content: flex-start;"
+                            "  gap: 35px;"
+                            "} "
+                            ".song-section {"
+                            "  width: %1px;"
+                            "  break-inside: avoid-column;"
+                            "  page-break-inside: avoid;"
+                            "  white-space: nowrap !important;"
+                            "}").arg(columnWidth);
+    }
+
+    QString baseHtml = "<html><head><style>"
+                       "body {"
+                       "  background-color: #ffffff;"
+                       "  font-family: sans-serif;"
+                       "  margin: 25px; padding: 0;"
+                       "}"
+                       + cssLayoutMode +
+                       "h1 { font-size: " + QString::number(baseFontSize + 6) + "pt; margin: 0 0 5px 0; }"
+                                                                                "h2 { font-size: " + QString::number(baseFontSize + 3) + "pt; color: #007acc; margin: 0 0 10px 0; border-bottom: 2px solid #eef; }"
+                                                             "h3 { font-size: " + QString::number(baseFontSize + 1) + "pt; margin: 0 0 10px 0; color: #666; }"
+                                                             ".chord-line {"
+                                                             "  font-weight: bold; color: #b22222;"
+                                                             "  font-family: sans-serif;"
+                                                             "  font-size: " + QString::number(baseFontSize + 1) + "pt;"
+                                                             "  min-height: 1.2em;"
+                                                             "}"
+                                                             ".lyric-text {"
+                                                             "  color: #222; font-family: sans-serif;"
+                                                             "  font-size: " + QString::number(baseFontSize) + "pt;"
+                                                         "}"
+                                                         ".tab-block {"
+                                                         "  display: block; clear: both;"
+                                                         "  font-family: 'Consolas', 'Courier New', monospace !important;"
+                                                         "  font-size: " + QString::number(baseFontSize - 1) + "pt;"
+                                                             "  white-space: pre !important;"
+                                                             "  background-color: #f4f6f9;"
+                                                             "  padding: 12px; border-left: 4px solid #007acc; margin: 10px 0;"
+                                                             "}"
+                                                             "</style></head><body>"
+                                                             "<div class='song-canvas'>"
+                       + m_parsedSongContentGrid +
+                       "</div></body></html>";
+
+    parsedEditor->setHtml(baseHtml);
+}
+
+/* void MainWindow::updatePlayAlongLayoutDensity() {
+    int baseFontSize = 12 + (m_zoomScaleLevel * 2);
+    int columnWidth = 360 + (m_zoomScaleLevel * 40);   // was 30
+
+    // explicit diagnostics to track window properties and scale level changes
+    qDebug() << "=== CHORDLAB ZOOM LAYOUT MONITOR ===";
+    qDebug() << "Current Zoom Scale Level Steps:" << m_zoomScaleLevel;
+    qDebug() << "Calculated Font Baseline Sizing:" << baseFontSize << "pt";
+    qDebug() << "Target Column Bounds Width Constraint:" << columnWidth << "px";
 
     QString cssLayoutMode;
 
@@ -902,7 +944,7 @@ void MainWindow::updatePlayAlongLayoutDensity() {
                             "  display: flex;"
                             "  flex-direction: column;"
                             "  flex-wrap: wrap;"
-                            "  height: 82vh;"
+                            "  height: 75vh;" // was 82vh
                             "  align-content: flex-start;"
                             "  gap: 35px;"
                             "} "
@@ -946,6 +988,7 @@ void MainWindow::updatePlayAlongLayoutDensity() {
 
     parsedEditor->setHtml(baseHtml);
 }
+*/
 
 void MainWindow::keyPressEvent(QKeyEvent *event) {
     if (currentState == PlayAlong) {
