@@ -209,6 +209,7 @@ void MainWindow::setupLayout() {
     // --- THE LIVE REFRESH LINK ---
     // Whenever the text on the left changes, instantly re-parse and display on the right
     connect(originalEditor, &QPlainTextEdit::textChanged, this, [=]() {
+        m_rawSongContent = originalEditor->toPlainText();
         parsedEditor->setHtml(runInitialParse(originalEditor->toPlainText()));
     });
 
@@ -442,7 +443,8 @@ void MainWindow::toggleDisplayMode() {
     }
 
     // Refresh the view
-    parsedEditor->setHtml(runInitialParse(originalEditor->toPlainText()));
+    parsedEditor->setHtml(runInitialParse(m_rawSongContent));
+//    parsedEditor->setHtml(runInitialParse(originalEditor->toPlainText()));
 }
 
 void MainWindow::shiftTransposition(int delta) {
