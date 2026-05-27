@@ -766,8 +766,8 @@ void MainWindow::parseChordProToGrid(const QString &rawText) {
         }
 
         if (inSection) {
-            // Treat the whole line as an unbreakable visual horizontal row
-            QString rowHtml = "<div style='margin-bottom: 6px; white-space: nowrap;'>";
+            // Keep the entire phrase completely straight across the screen canvas
+            QString rowHtml = "<p style='margin: 0 0 4px 0; padding: 0; white-space: nowrap;'>";
 
             int pos = 0;
             QString currentChord = "";
@@ -776,10 +776,11 @@ void MainWindow::parseChordProToGrid(const QString &rawText) {
             while (pos < line.length()) {
                 if (line[pos] == '[') {
                     if (!currentChord.isEmpty() || !currentPhrase.isEmpty()) {
-                        rowHtml += QString("<div style='display: inline-block; vertical-align: bottom; text-align: left; margin-right: 2px;'>") +
-                                   QString("<div class='chord-line'>%1</div>").arg(currentChord.isEmpty() ? "&nbsp;" : currentChord) +
-                                   QString("<div class='lyric-text'>%1</div>").arg(currentPhrase.isEmpty() ? "&nbsp;" : currentPhrase) +
-                                   QString("</div>");
+                        // Create a tiny inline frame that keeps chord stacked directly over lyric
+                        rowHtml += QString("<table style='display: inline; border-collapse: collapse; margin-right: 1px; padding: 0; vertical-align: bottom;'>") +
+                                   QString("<tr><td class='chord-line' style='padding: 0; margin: 0; line-height: 1;'>%1</td></tr>").arg(currentChord.isEmpty() ? "&nbsp;" : currentChord) +
+                                   QString("<tr><td class='lyric-text' style='padding: 0; margin: 0; line-height: 1;'>%1</td></tr>").arg(currentPhrase.isEmpty() ? "&nbsp;" : currentPhrase) +
+                                   QString("</table>");
                         currentPhrase.clear();
                     }
 
@@ -799,18 +800,17 @@ void MainWindow::parseChordProToGrid(const QString &rawText) {
                 pos++;
             }
 
-            // Flush any remaining trailing words or spaces at the end of the line
+            // Final trailing chunk flush
             if (!currentChord.isEmpty() || !currentPhrase.isEmpty()) {
-                rowHtml += QString("<div style='display: inline-block; vertical-align: bottom; text-align: left; margin-right: 2px;'>") +
-                           QString("<div class='chord-line'>%1</div>").arg(currentChord.isEmpty() ? "&nbsp;" : currentChord) +
-                           QString("<div class='lyric-text'>%1</div>").arg(currentPhrase.isEmpty() ? "&nbsp;" : currentPhrase) +
-                           QString("</div>");
+                rowHtml += QString("<table style='display: inline; border-collapse: collapse; margin-right: 1px; padding: 0; vertical-align: bottom;'>") +
+                           QString("<tr><td class='chord-line' style='padding: 0; margin: 0; line-height: 1;'>%1</td></tr>").arg(currentChord.isEmpty() ? "&nbsp;" : currentChord) +
+                           QString("<tr><td class='lyric-text' style='padding: 0; margin: 0; line-height: 1;'>%1</td></tr>").arg(currentPhrase.isEmpty() ? "&nbsp;" : currentPhrase) +
+                           QString("</table>");
             }
 
-            rowHtml += "</div>";
+            rowHtml += "</p>";
             currentSectionHtml += rowHtml;
         }
-    }
 
     if (inSection) {
         currentSectionHtml += "</div>";
@@ -835,44 +835,28 @@ void MainWindow::onZoomOutTriggered() {
 
 void MainWindow::updatePlayAlongLayoutDensity() {
     int baseFontSize = 12 + (m_zoomScaleLevel * 2);
-    int columnWidth = 360 + (m_zoomScaleLevel * 40); // Increased step scale to help columns form
+    int columnWidth = 380 + (m_zoomScaleLevel * 40);
 
-    // Add explicit diagnostics to track window properties and scale level changes
-    qDebug() << "=== CHORDLAB ZOOM LAYOUT MONITOR ===";
-    qDebug() << "Current Zoom Scale Level Steps:" << m_zoomScaleLevel;
-    qDebug() << "Calculated Font Baseline Sizing:" << baseFontSize << "pt";
-    qDebug() << "Target Column Bounds Width Constraint:" << columnWidth << "px";
+    qDebug() << "=== CHORDLAB COLUMN ENGINE MONITOR ===";
+    qDebug() << "Zoom Step:" << m_zoomScaleLevel << " | Font Size:" << baseFontSize << "pt | Col Width:" << columnWidth << "px";
 
     QString cssLayoutMode;
 
     if (m_zoomScaleLevel >= 3) {
-        cssLayoutMode = ".song-canvas {"
-                        "  display: block;"
-                        "  height: auto;"
-                        "  margin: 0 auto;"
-                        "  max-width: 900px;"
-                        "} "
-                        ".song-section {"
-                        "  width: 100%;"
-                        "  margin-bottom: 30px;"
-                        "  white-space: nowrap !important;"
-                        "}";
+        // High Zoom: Single Column View
+        cssLayoutMode = ".song-canvas { column-count: 1; } "
+                        ".song-section { margin-bottom: 25px; break-inside: avoid; }";
     } else {
-        // Multi-Column Mode: Setting max height forces the layout container to wrap side-by-side
+        // Multi-Column Mode: Strict CSS column configuration
         cssLayoutMode = QString(
                             ".song-canvas {"
-                            "  display: flex;"
-                            "  flex-direction: column;"
-                            "  flex-wrap: wrap;"
-                            "  height: 75vh;" // Slightly lowered container floor height to force column wrapping sooner
-                            "  align-content: flex-start;"
-                            "  gap: 35px;"
+                            "  column-width: %1px;"
+                            "  column-gap: 35px;"
+                            "  height: 80vh;" /* Limits downward spill to force column generation */
                             "} "
                             ".song-section {"
-                            "  width: %1px;"
                             "  break-inside: avoid-column;"
-                            "  page-break-inside: avoid;"
-                            "  white-space: nowrap !important;"
+                            "  margin-bottom: 25px;"
                             "}").arg(columnWidth);
     }
 
@@ -880,115 +864,30 @@ void MainWindow::updatePlayAlongLayoutDensity() {
                        "body {"
                        "  background-color: #ffffff;"
                        "  font-family: sans-serif;"
-                       "  margin: 25px; padding: 0;"
+                       "  margin: 20px; padding: 0;"
                        "}"
                        + cssLayoutMode +
-                       "h1 { font-size: " + QString::number(baseFontSize + 6) + "pt; margin: 0 0 5px 0; }"
-                                                                                "h2 { font-size: " + QString::number(baseFontSize + 3) + "pt; color: #007acc; margin: 0 0 10px 0; border-bottom: 2px solid #eef; }"
+                       "h1 { font-size: " + QString::number(baseFontSize + 6) + "pt; font-weight: bold; margin: 0 0 5px 0; }"
+                                                                                // FIXED: Headings now directly match your zoom factor scale!
+                                                                                ".section-heading { font-size: " + QString::number(baseFontSize + 3) + "pt; color: #007acc; font-weight: bold; margin: 0 0 8px 0; border-bottom: 2px solid #eef; font-family: sans-serif; }"
                                                              "h3 { font-size: " + QString::number(baseFontSize + 1) + "pt; margin: 0 0 10px 0; color: #666; }"
                                                              ".chord-line {"
                                                              "  font-weight: bold; color: #b22222;"
                                                              "  font-family: sans-serif;"
-                                                             "  font-size: " + QString::number(baseFontSize + 1) + "pt;"
-                                                             "  min-height: 1.2em;"
-                                                             "}"
-                                                             ".lyric-text {"
-                                                             "  color: #222; font-family: sans-serif;"
                                                              "  font-size: " + QString::number(baseFontSize) + "pt;"
                                                          "}"
-                                                         ".tab-block {"
-                                                         "  display: block; clear: both;"
-                                                         "  font-family: 'Consolas', 'Courier New', monospace !important;"
-                                                         "  font-size: " + QString::number(baseFontSize - 1) + "pt;"
-                                                             "  white-space: pre !important;"
-                                                             "  background-color: #f4f6f9;"
-                                                             "  padding: 12px; border-left: 4px solid #007acc; margin: 10px 0;"
-                                                             "}"
-                                                             "</style></head><body>"
-                                                             "<div class='song-canvas'>"
+                                                         ".lyric-text {"
+                                                         "  color: #222;"
+                                                         "  font-family: sans-serif;"
+                                                         "  font-size: " + QString::number(baseFontSize) + "pt;"
+                                                         "}"
+                                                         "</style></head><body>"
+                                                         "<div class='song-canvas'>"
                        + m_parsedSongContentGrid +
                        "</div></body></html>";
 
     parsedEditor->setHtml(baseHtml);
 }
-
-/* void MainWindow::updatePlayAlongLayoutDensity() {
-    int baseFontSize = 12 + (m_zoomScaleLevel * 2);
-    int columnWidth = 360 + (m_zoomScaleLevel * 40);   // was 30
-
-    // explicit diagnostics to track window properties and scale level changes
-    qDebug() << "=== CHORDLAB ZOOM LAYOUT MONITOR ===";
-    qDebug() << "Current Zoom Scale Level Steps:" << m_zoomScaleLevel;
-    qDebug() << "Calculated Font Baseline Sizing:" << baseFontSize << "pt";
-    qDebug() << "Target Column Bounds Width Constraint:" << columnWidth << "px";
-
-    QString cssLayoutMode;
-
-    if (m_zoomScaleLevel >= 3) {
-        // High-Zoom: Single Column scrolling sheet (SBP style)
-        cssLayoutMode = ".song-canvas {"
-                        "  display: block;"
-                        "  height: auto;"
-                        "  margin: 0 auto;"
-                        "  max-width: 900px;"
-                        "} "
-                        ".song-section {"
-                        "  width: 100%;"
-                        "  margin-bottom: 30px;"
-                        "  white-space: nowrap !important;" // Protects full lyric lines from breaking
-                        "}";
-    } else {
-        // Multi-Column: Side-by-side fitting canvas
-        cssLayoutMode = QString(
-                            ".song-canvas {"
-                            "  display: flex;"
-                            "  flex-direction: column;"
-                            "  flex-wrap: wrap;"
-                            "  height: 75vh;" // was 82vh
-                            "  align-content: flex-start;"
-                            "  gap: 35px;"
-                            "} "
-                            ".song-section {"
-                            "  width: %1px;"
-                            "  break-inside: avoid;"
-                            "  page-break-inside: avoid;"
-                            "  white-space: nowrap !important;" // Keeps lines intact in column views
-                            "}").arg(columnWidth);
-    }
-
-    QString baseHtml = "<html><head><style>"
-                       "body {"
-                       "  background-color: #ffffff;"
-                       "  font-family: sans-serif;"
-                       "  margin: 25px; padding: 0;"
-                       "}"
-                       + cssLayoutMode +
-                       ".chord-line {"
-                       "  font-weight: bold; color: #b22222;"
-                       "  font-family: sans-serif;"
-                       "  font-size: " + QString::number(baseFontSize + 1) + "pt;"
-                                                             "  min-height: 1.2em;"
-                                                             "}"
-                                                             ".lyric-text {"
-                                                             "  color: #222; font-family: sans-serif;"
-                                                             "  font-size: " + QString::number(baseFontSize) + "pt;"
-                                                         "}"
-                                                         ".tab-block {"
-                                                         "  display: block; clear: both;"
-                                                         "  font-family: 'Consolas', 'Courier New', monospace !important;"
-                                                         "  font-size: " + QString::number(baseFontSize - 1) + "pt;"
-                                                             "  white-space: pre !important;"
-                                                             "  background-color: #f4f6f9;"
-                                                             "  padding: 12px; border-left: 4px solid #007acc; margin: 10px 0;"
-                                                             "}"
-                                                             "</style></head><body>"
-                                                             "<div class='song-canvas'>"
-                       + m_parsedSongContentGrid +
-                       "</div></body></html>";
-
-    parsedEditor->setHtml(baseHtml);
-}
-*/
 
 void MainWindow::keyPressEvent(QKeyEvent *event) {
     if (currentState == PlayAlong) {
