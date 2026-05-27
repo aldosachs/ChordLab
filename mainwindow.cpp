@@ -15,6 +15,7 @@
 #include <QTextCharFormat>
 #include <QFileInfo>
 #include <QDir>
+#include <QDebug>
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     // 1. Scale to 60% of available screen
@@ -146,11 +147,11 @@ void MainWindow::setupToolBar() {
     connect(m_btnTransposeDown, &QPushButton::clicked, this, [=](){ shiftTransposition(-1); });
     connect(m_btnTheme, &QPushButton::clicked, this, &MainWindow::toggleTheme);
 
-    layout->addWidget(m_btnTheme);
+/*    layout->addWidget(m_btnTheme);
     layout->addWidget(m_btnTransposeDown);
     layout->addWidget(btnReset);
     layout->addWidget(m_btnTransposeUp);
-
+*/ //old...
 }
 
 void MainWindow::togglePlaybackMode() {
@@ -173,10 +174,10 @@ void MainWindow::togglePlaybackMode() {
 
 void MainWindow::updateFunctionKeys() {
     // Safely disconnect any previous lambda actions so they don't stack up
-    m_btnFn1->disconnect();
-    m_btnFn2->disconnect();
-    m_btnFn3->disconnect();
-    m_btnFn4->disconnect();
+    disconnect(m_btnFn1, &QPushButton::clicked, nullptr, nullptr);
+    disconnect(m_btnFn2, &QPushButton::clicked, nullptr, nullptr);
+    disconnect(m_btnFn3, &QPushButton::clicked, nullptr, nullptr);
+    disconnect(m_btnFn4, &QPushButton::clicked, nullptr, nullptr);
 
     if (currentState == OpenEdit || currentState == Idle) {
         // --- EDIT MODE CONFIGURATION ---
@@ -200,7 +201,7 @@ void MainWindow::updateFunctionKeys() {
     } else if (currentState == PlayAlong) {
         // --- PLAYBACK MODE CONFIGURATION ---
         m_btnFn1->setText("⏮ Rewind");
-        m_btnFn2->setText("[▶] Play");
+        m_btnFn2->setText("[>] Play");
         m_btnFn3->setText("⏸ Pause");
         m_btnFn4->setText("⏭ End");
 
@@ -209,7 +210,7 @@ void MainWindow::updateFunctionKeys() {
             if (m_selectedAudioPath.isEmpty()) {
                 statusBar()->showMessage("No audio track selected or available for playback.");
             } else {
-                statusBar()->showMessage(tr("[▶] Playing: %1").arg(QFileInfo(m_selectedAudioPath).fileName()));
+                statusBar()->showMessage(tr("[>] Playing: %1").arg(QFileInfo(m_selectedAudioPath).fileName())); // ▶
                 // Future audio engine playback hook: m_audioEngine->play(m_selectedAudioPath);
             }
         });
@@ -321,6 +322,8 @@ void MainWindow::handleFileOpen() {
     if (fileName.isEmpty()) {
         return;
     }
+
+    m_currentFilePath = fileName;
 
     // 2. Attempt to open and read the file
     QFile file(fileName);
@@ -601,7 +604,7 @@ QString MainWindow::processLineContent(const QString &line) {
     return output;
 }
 
-void MainWindow::checkForCompanionAudio(const QString &chordProPath) {
+/* void MainWindow::checkForCompanionAudio(const QString &chordProPath) {
     // 1. Clear out any previous track allocations
     m_audioTracks = AudioTracks();
     m_selectedAudioPath.clear();
@@ -610,11 +613,23 @@ void MainWindow::checkForCompanionAudio(const QString &chordProPath) {
     m_btnTrackBkg->setChecked(false);  m_btnTrackBkg->setEnabled(false);
     m_btnTrackSlow->setChecked(false); m_btnTrackSlow->setEnabled(false);
 
-    if (chordProPath.isEmpty()) return;
+    // DIAGNOSTIC TRACE 1
+    qDebug() << "=== ChordLab Audio Scanner Launch ===";
+    qDebug() << "Incoming Target ChordPro Path:" << chordProPath;
+
+    if (chordProPath.isEmpty()) {
+        qDebug() << "WARNING: Scan aborted. Path string is empty!";
+        return;
+    }
 
     // 2. Get the base file path prefix (e.g., "D:/Songs/Hotel_California")
     QFileInfo info(chordProPath);
-    QString basePrefix = info.path() + QDir::separator() + info.baseName();
+//    QString basePrefix = info.path() + QDir::separator() + info.baseName();
+    QString basePrefix = info.path() + QDir::separator() + info.completeBaseName();
+
+    qDebug() << "Calculated Directory:" << info.path();
+    qDebug() << "Calculated Base Name (No Extension):" << info.baseName();
+    qDebug() << "Target Base Search Prefix:" << basePrefix;
 
     // 3. Probe the file system for each variant
     QString fullOption  = basePrefix + ".mp3";
@@ -640,6 +655,84 @@ void MainWindow::checkForCompanionAudio(const QString &chordProPath) {
     else if (m_btnTrackBkg->isEnabled())  selectAudioTrack(m_btnTrackBkg, m_audioTracks.backingPath, "Backing Track");
     else if (m_btnTrackSlow->isEnabled()) selectAudioTrack(m_btnTrackSlow, m_audioTracks.slowPath, "Slow Track");
     else {
+        statusBar()->showMessage(tr("Loaded: %1 (No companion audio found)").arg(info.fileName()));
+        qDebug() << "Scan Complete: No companion assets found on disk.";
+    }
+    qDebug() << "=======================================";
+}
+*/
+
+void MainWindow::checkForCompanionAudio(const QString &chordProPath) {
+    // 1. Clear out previous state completely
+    m_audioTracks = AudioTracks();
+    m_selectedAudioPath.clear();
+
+    m_btnTrackFull->setChecked(false); m_btnTrackFull->setEnabled(false);
+    m_btnTrackBkg->setChecked(false);  m_btnTrackBkg->setEnabled(false);
+    m_btnTrackSlow->setChecked(false); m_btnTrackSlow->setEnabled(false);
+
+    if (chordProPath.isEmpty()) return;
+
+    QFileInfo info(chordProPath);
+    QString basePrefix = info.path() + QDir::separator() + info.completeBaseName();
+
+    // 2. Cross-Platform Essential Audio Extensions Matrix
+    // Scans in order of preference (Uncompressed studio masters down to compressed)
+    QStringList audioExtensions = { ".wav", ".aiff", ".m4a", ".mp3" };
+
+    // 3. Independent Probe for "Full Play-Along Track"
+    for (const QString &ext : audioExtensions) {
+        QString targetFile = basePrefix + ext;
+        if (QFileInfo::exists(targetFile)) {
+            m_audioTracks.fullPath = targetFile;
+            m_btnTrackFull->setEnabled(true);
+            qDebug() << "→ Found Full Track Asset:" << QFileInfo(targetFile).fileName();
+            break; // Stop looking for this variant once the highest-quality match is found
+        }
+    }
+
+    // 4. Independent Probe for "Backing Track" (_backing)
+    for (const QString &ext : audioExtensions) {
+        QString targetFile = basePrefix + "_backing" + ext;
+        if (QFileInfo::exists(targetFile)) {
+            m_audioTracks.backingPath = targetFile;
+            m_btnTrackBkg->setEnabled(true);
+            qDebug() << "→ Found Backing Track Asset:" << QFileInfo(targetFile).fileName();
+            break;
+        }
+    }
+
+    // 5. Independent Probe for "Slow Track" (_slow)
+    for (const QString &ext : audioExtensions) {
+        QString targetFile = basePrefix + "_slow" + ext;
+        if (QFileInfo::exists(targetFile)) {
+            m_audioTracks.slowPath = targetFile;
+            m_btnTrackSlow->setEnabled(true);
+            qDebug() << "→ Found Slow Practice Asset:" << QFileInfo(targetFile).fileName();
+            break;
+        }
+    }
+
+    // 6. Smart Default: Assign the initial checked state EXCLUSIVELY to ONE track
+    // Notice these are clean, non-destructive standalone 'if' checks!
+    if (m_btnTrackFull->isEnabled()) {
+        m_btnTrackFull->setChecked(true);
+        m_selectedAudioPath = m_audioTracks.fullPath;
+    }
+    else if (m_btnTrackBkg->isEnabled()) {
+        m_btnTrackBkg->setChecked(true);
+        m_selectedAudioPath = m_audioTracks.backingPath;
+    }
+    else if (m_btnTrackSlow->isEnabled()) {
+        m_btnTrackSlow->setChecked(true);
+        m_selectedAudioPath = m_audioTracks.slowPath;
+    }
+
+    // Update Status Bar info cleanly
+    if (!m_selectedAudioPath.isEmpty()) {
+        statusBar()->showMessage(tr("Loaded: %1 | Audio Armed: %2")
+                                     .arg(info.fileName(), QFileInfo(m_selectedAudioPath).fileName()));
+    } else {
         statusBar()->showMessage(tr("Loaded: %1 (No companion audio found)").arg(info.fileName()));
     }
 }
