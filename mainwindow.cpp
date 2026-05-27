@@ -301,14 +301,29 @@ void MainWindow::setAppState(AppState state) {
     case OpenEdit:
         statusBar()->showMessage("Editing Mode: Analyzing ChordPro syntax...");
         mainSplitter->show();
-        originalEditor->show(); // Make it visible
+
+        // 1. Fully reset default fonts to wipe the cached CSS flex grids when returning from Play Along mode...
+        parsedEditor->document()->clear(); {
+            QFont normalFont = parsedEditor->document()->defaultFont();
+            normalFont.setFamily("Consolas"); // Fall back to clean monospaced layout tracking
+            parsedEditor->document()->setDefaultFont(normalFont);
+        }
+
+        // 2. Restore standard visibility layout components
+        mainSplitter->setSizes(QList<int>({400, 400}));
+        originalEditor->show();
         parsedEditor->show();
 
+        // 3. Re-populate clean text views
+        parsedEditor->setHtml(runInitialParse(m_rawSongContent));
+
+        break;
         // --- THE SPLITTER FIX ---
         // Give both editors equal width (e.g., 400 pixels each).
         // The splitter will automatically scale these to match your 80% screen size!
-        mainSplitter->setSizes(QList<int>({400, 400}));
-        break;
+//        mainSplitter->setSizes(QList<int>({400, 400}));
+
+//        break;
 
     case PlayAlong:
         statusBar()->showMessage("Play-along Mode Active.");
@@ -337,34 +352,41 @@ void MainWindow::setAppState(AppState state) {
 
 QString MainWindow::generateFullScreenHtml(const QString& parsedSongContent) {
     QString html = "<html><head><style>"
-                   // The master canvas container spans the full screen width
                    "body {"
                    "  background-color: #ffffff;"
                    "  font-family: sans-serif;"
                    "  margin: 20px;"
                    "  padding: 0;"
                    "}"
-                   // Flexbox column wrap engine handles the dynamic tiling
                    ".song-canvas {"
                    "  display: flex;"
                    "  flex-direction: column;"
-                   "  flex-wrap: wrap;" // Automatically pushes trailing sections into the next column!
-                   "  height: 85vh;"    // Pin the height to the viewport to prevent vertical scrolling
+                   "  flex-wrap: wrap;"
+                   "  height: 85vh;"
                    "  align-content: flex-start;"
                    "  gap: 25px;"
                    "}"
-                   // Individual song sections form solid, un-sliceable structural blocks
                    ".song-section {"
-                   "  width: 380px;"    // Comfortable width for a chord/lyric column block
+                   "  width: 380px;"
                    "  break-inside: avoid;"
                    "  page-break-inside: avoid;"
                    "}"
-                   // Standard chord line formatting rules
-                   ".chord-line { font-weight: bold; color: #b22222; font-family: sans-serif; }"
-                   "</style></head><body>";
+                   ".chord-line { font-weight: bold; color: #b22222; font-family: sans-serif; min-height: 1.2em; }"
+                   ".tab-block {"
+                   "  display: block;"
+                   "  clear: both;"
+                   "  font-family: 'Consolas', 'Courier New', monospace !important;"
+                   "  white-space: pre !important;"
+                   "  background-color: #f4f6f9;"
+                   "  padding: 12px;"
+                   "  border-left: 4px solid #007acc;"
+                   "  margin: 8px 0;"
+                   "  line-height: 1.3;"
+                   "}"
+                   "</style></head><body>"; // <-- Single, pristine entry gate!
 
     html += "<div class='song-canvas'>";
-    html += parsedSongContent; // Your parsed blocks wrapped in <div class='song-section'>...</div>
+    html += parsedSongContent;
     html += "</div></body></html>";
 
     return html;
@@ -805,7 +827,6 @@ void MainWindow::parseChordProToGrid(const QString &rawText) {
             } else if (tag == "subtitle") {
                 metadataBlock += QString("<h3 style='margin: 0 0 10px 0; color: #666; font-style: italic;'>%1</h3>").arg(value);
             } else {
-                // Capitalize first letter of tag for pretty display
                 tag[0] = tag[0].toUpper();
                 metadataBlock += QString("<span style='font-size: 10pt; color: #555;'><b>%1:</b> %2</span>&nbsp;&nbsp;").arg(tag, value);
             }
@@ -815,7 +836,6 @@ void MainWindow::parseChordProToGrid(const QString &rawText) {
         // 2. Handle Monospace Environment Boundaries ({sog}/{eog}, {sot}/{eot})
         if (line.contains("{sog", Qt::CaseInsensitive) || line.contains("{sot", Qt::CaseInsensitive)) {
             if (!inSection) {
-                // Start an anonymous block if a tab appears before a {c:} marker
                 currentSectionHtml += "<div class='song-section'>";
                 inSection = true;
             }
@@ -831,29 +851,25 @@ void MainWindow::parseChordProToGrid(const QString &rawText) {
 
         // If inside a tab loop, pipe text exactly as-is to protect spacing
         if (inMonospaceBlock) {
-            // Convert simple chord tags inside tabs if they exist, or escape HTML tags safely
             QString escapedLine = line.toHtmlEscaped();
-            // Optional: make chord letters bold inside your tabs
             escapedLine.replace(QRegularExpression(R"(\[([A-G][b#]?[mM]?[0-9]*)\])"), "<b>\\1</b>");
             currentSectionHtml += escapedLine + "\n";
             continue;
         }
 
-        // 3. Handle Section Heading Commmands ({c: Section Name})
+        // 3. Handle Section Heading Commands ({c: Section Name})
         QRegularExpressionMatch commentMatch = commentRegex.match(line);
         if (commentMatch.hasMatch()) {
-            // If we are already building a section block, close it out now!
             if (inSection) {
-                currentSectionHtml += "</div>";
+                currentSectionHtml += "</div>"; // Close previous section pillar
             }
 
             QString sectionName = commentMatch.captured(1);
             currentSectionHtml += "<div class='song-section'>";
 
-            // Inject metadata alongside the very first header if present
             if (!metadataBlock.isEmpty()) {
                 currentSectionHtml += metadataBlock + "<br><br>";
-                metadataBlock.clear(); // Clear so it only prints once at the top-left!
+                metadataBlock.clear();
             }
 
             currentSectionHtml += QString("<h2 style='color: #007acc; margin: 0 0 10px 0; font-family: sans-serif; border-bottom: 2px solid #eef;'>%1</h2>").arg(sectionName);
@@ -861,49 +877,53 @@ void MainWindow::parseChordProToGrid(const QString &rawText) {
             continue;
         }
 
-        // 4. Handle Standard Inline Lyric & Chord Lines
+        // 4. Handle Standard Inline Lyric & Chord Lines (Upgraded Matrix Grid)
         if (inSection) {
-            // Separate line processing: create a clear stack of chords above lyrics
-            QString chordLine = "";
-            QString lyricLine = "";
+            QString rowHtml = "<div style='line-height: 1.6; margin-bottom: 6px; white-space: nowrap;'>";
 
-            // Simple inline parser loop to extract chords from brackets [...]
             int pos = 0;
+            QString lastChord = "";
+            QString currentText = "";
+
             while (pos < line.length()) {
                 if (line[pos] == '[') {
+                    if (!lastChord.isEmpty() || !currentText.isEmpty()) {
+                        rowHtml += QString("<div style='display: inline-block; vertical-align: bottom; text-align: left;'>") +
+                                   QString("<div class='chord-line'>%1</div>").arg(lastChord.isEmpty() ? "&nbsp;" : lastChord) +
+                                   QString("<div style='color: #333; font-family: sans-serif;'>%1</div>").arg(currentText.isEmpty() ? "&nbsp;" : currentText) +
+                                   QString("</div>");
+                        currentText.clear();
+                    }
+
                     int closePos = line.indexOf(']', pos);
                     if (closePos != -1) {
-                        QString chord = line.mid(pos + 1, closePos - pos - 1);
-                        // Pad out chord line to align with current lyric position
-                        while (chordLine.length() < lyricLine.length()) {
-                            chordLine += "&nbsp;";
-                        }
-                        chordLine += QString("<span class='chord-line'>%1</span>").arg(chord);
+                        lastChord = line.mid(pos + 1, closePos - pos - 1);
                         pos = closePos + 1;
                         continue;
                     }
                 }
 
-                // Add to lyric baseline character by character
-                if (line[pos] == ' ') lyricLine += "&nbsp;";
-                else lyricLine += line[pos];
+                if (line[pos] == ' ') currentText += "&nbsp;";
+                else currentText += line[pos];
                 pos++;
             }
 
-            if (!chordLine.isEmpty()) {
-                currentSectionHtml += "<div>" + chordLine + "</div>";
+            if (!lastChord.isEmpty() || !currentText.isEmpty()) {
+                rowHtml += QString("<div style='display: inline-block; vertical-align: bottom; text-align: left;'>") +
+                           QString("<div class='chord-line'>%1</div>").arg(lastChord.isEmpty() ? "&nbsp;" : lastChord) +
+                           QString("<div style='color: #333; font-family: sans-serif;'>%1</div>").arg(currentText.isEmpty() ? "&nbsp;" : currentText) +
+                           QString("</div>");
             }
-            if (!lyricLine.isEmpty() && lyricLine != "&nbsp;") {
-                currentSectionHtml += "<div style='margin-bottom: 8px; color: #333;'>" + lyricLine + "</div>";
-            }
+
+            rowHtml += "</div>";
+            currentSectionHtml += rowHtml;
         }
     }
 
-    // Close final trailing section container cleanly if left open
+    // 5. Wrap up tracking operations SAFELY outside the loop pass
     if (inSection) {
         currentSectionHtml += "</div>";
     }
 
     m_parsedSongContentGrid = currentSectionHtml;
 }
-
