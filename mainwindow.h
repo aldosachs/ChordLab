@@ -2,80 +2,85 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include <QPlainTextEdit>
 #include <QSplitter>
-#include <QLabel>
+#include <QPlainTextEdit>
 #include <QTextEdit>
 #include <QPushButton>
+#include <QStringList>
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
 
-enum class ChordDisplayMode {
-    CIL, // Chord-In-Line (Standard ChordPro)
-    CAL  // Chord-Above-Lyrics (Traditional Lead Sheet)
-};
-
 public:
-    enum AppState { Idle, OpenEdit, PlayAlong };
+    // 1. Define the AppState enum type here so the whole class understands it
+    enum AppState {
+        Idle,
+        OpenEdit,
+        PlayAlong
+    };
 
-    enum AppTheme { Light, Dark, Sepia };
+    // Define the ChordDisplayMode enum if you haven't already
+    enum ChordDisplayMode {
+        CIL,
+        CAL
+    };
+
+    // Define Theme enum
+    enum Theme {
+        Light,
+        Dark
+    };
 
     MainWindow(QWidget *parent = nullptr);
-    void setAppState(AppState state);
+    ~MainWindow() = default;
 
 private slots:
     void handleFileOpen();
     void handleFileSave();
+    void toggleDisplayMode();
     void toggleTheme();
+    void togglePlaybackMode();
 
 private:
     void setupMenus();
-    void setupLayout();
     void setupToolBar();
-    void toggleDisplayMode();
-    void shiftTransposition(int delta);
-    void setAppState();
+    void setupLayout();
 
-    void updateFunctionKeys(); // Helper to switch text and connections
+    // 2. The Declaration for your state manager function!
+    void setAppState(AppState state);
 
-    QString m_currentFilePath; // Tracks the currently open 'raw, ChoPro' file path
+    // 3. Helper to refresh your dynamic Fn-buttons
+    void updateFunctionKeys();
 
     QString runInitialParse(const QString &rawInput);
-    QString transposeChord(const QString &chord, int semitones);
     QString processLineContent(const QString &line);
+    QString transposeChord(const QString &chord, int semitones);
+    void shiftTransposition(int delta);
+    QString getThemeStyles();
 
-    ChordDisplayMode m_currentMode = ChordDisplayMode::CIL;
-
-    // UI Elements
+    // UI Layout Components
     QSplitter *mainSplitter;
     QPlainTextEdit *originalEditor;
     QTextEdit *parsedEditor;
-    QLabel *statusLabel;
 
-    // Toolbar Widgets (Declare here for global class access)
-    int m_transposeShift = 0; // Tracks the current semitone offset
+    // Control Buttons
     QPushButton *m_btnTransposeUp;
     QPushButton *m_btnTransposeDown;
-
-    QPushButton *m_viewToggleBtn; // Use m_ prefix for member variables
-    QPushButton *m_opt2Btn;       // Future-proofing your blue buttons
-    QPushButton *m_opt3Btn;
-    QPushButton *m_opt4Btn;
-    // Future buttons: m_themeBtn, m_listBtn, etc.
     QPushButton *m_btnTheme;
+    QPushButton *m_viewToggleBtn;
 
-    // reassignable Fn-x buttons
+    // The 4 Context-Aware Function Buttons
     QPushButton *m_btnFn1;
     QPushButton *m_btnFn2;
     QPushButton *m_btnFn3;
     QPushButton *m_btnFn4;
 
-    // A helper to get the current CSS based on the theme
-    QString getThemeStyles();
-
-    AppTheme m_currentTheme = Light;
+    // Internal State Variables
     AppState currentState;
+    ChordDisplayMode m_currentMode = CIL;
+    Theme m_currentTheme = Dark; // Or Light, depending on your default choice
+    int m_transposeShift = 0;
+    QString m_currentFilePath;
 };
 
-#endif
+#endif // MAINWINDOW_H

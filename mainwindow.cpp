@@ -95,6 +95,19 @@ void MainWindow::setupToolBar() {
         parsedEditor->setHtml(runInitialParse(originalEditor->toPlainText()));
     });
 
+    QPushButton *btnModeToggle = new QPushButton("Mode: Edit 📝");
+    btnModeToggle->setStyleSheet("QPushButton { background-color: #004060; color: white; padding: 5px; min-width: 100px; }");
+
+    // Connect to our new toggle function
+    connect(btnModeToggle, &QPushButton::clicked, this, &MainWindow::togglePlaybackMode);
+
+    // Add it to the layout right next to the other primary settings
+    layout->addWidget(btnModeToggle);
+    layout->addWidget(m_btnTheme);
+    layout->addWidget(m_btnTransposeDown);
+    layout->addWidget(btnReset);
+    layout->addWidget(m_btnTransposeUp);
+
     settingsToolBar->addWidget(container);
 
     // Initialize the member variable
@@ -113,6 +126,24 @@ void MainWindow::setupToolBar() {
     layout->addWidget(btnReset);
     layout->addWidget(m_btnTransposeUp);
 
+}
+
+void MainWindow::togglePlaybackMode() {
+    // We only want to toggle if a file is actually loaded (OpenEdit or PlayAlong)
+    if (currentState == Idle) {
+        statusBar()->showMessage("Please open a song file before entering Play-Along mode.");
+        return;
+    }
+
+    QPushButton *btn = qobject_cast<QPushButton*>(sender());
+
+    if (currentState == OpenEdit) {
+        if (btn) btn->setText("Mode: Play 🎤");
+        setAppState(PlayAlong); // This automatically hides raw text and updates Fn keys!
+    } else {
+        if (btn) btn->setText("Mode: Edit 📝");
+        setAppState(OpenEdit);  // Brings back the dual-pane editor view
+    }
 }
 
 void MainWindow::updateFunctionKeys() {
@@ -197,7 +228,8 @@ void MainWindow::setAppState(AppState state) {
         break;
     case PlayAlong:
         statusBar()->showMessage("Play-along Mode Active.");
-        // Future: Hide originalEditor, maximize parsed view or renderer
+        // Hide originalEditor, maximize parsed view or renderer
+        originalEditor->hide();
         break;
     }
 }
