@@ -691,9 +691,121 @@ void MainWindow::selectAudioTrack(QPushButton *clickedButton, const QString &fil
     statusBar()->showMessage(tr("Audio Ready [%1]: %2").arg(trackType, QFileInfo(filePath).fileName()));
 }
 
-void MainWindow::parseChordProToGrid(const QString &rawText) {
+void MainWindow::parseChordProToGrid(const QString &rawInput) {
+    // 1. Run your predictive analysis first!
+    analyzeChordProMetaData(rawInput);
+
+    QStringList lines = rawInput.split('\n');
+    QString fullSongHtml = "";
+    QString currentSectionHtml = "";
+    bool insideSectionBlock = false;
+
+    for (const QString &rawLine : lines) {
+        QString line = rawLine.trimmed();
+        if (line.isEmpty()) continue;
+
+        // Detect structural section headers (e.g., {c: Verse 1} or {comment: Chorus})
+        if (line.startsWith('{') && (line.contains("comment") || line.contains("c:"))) {
+
+            // If we were already tracking an active section, close its HTML wrapper block first!
+            if (insideSectionBlock) {
+                currentSectionHtml += "</div>"; // Closes the previous .song-section container
+                fullSongHtml += currentSectionHtml;
+                currentSectionHtml = "";
+            }
+
+            // Extract the section name cleanly from brackets
+            QString sectionName = line;
+            sectionName.remove(QRegularExpression("^\\{c(omment)?:?\\s*"));
+            sectionName.remove('}');
+
+            // Open a brand new isolated structural column container block
+            currentSectionHtml += "<div class='song-section'>";
+            currentSectionHtml += QString("<div class='section-heading'>%1</div>").arg(sectionName);
+
+            insideSectionBlock = true;
+            continue;
+        }
+
+        // Skip metadata lines (titles, artists, keys)
+        if (line.startsWith('{')) continue;
+
+        // Process lines inside an active section block
+        if (insideSectionBlock) {
+            QString chordLine = "";
+            QString lyricLine = "";
+            int linePos = 0;
+
+            QRegularExpression chordRegex("\\[(.*?)\\]");
+            auto matches = chordRegex.globalMatch(line);
+
+            if (!matches.hasNext()) {
+                for (int i = 0; i < line.length(); ++i) {
+                    QChar ch = line[i];
+                    if (ch == ' ') lyricLine += "&nbsp;"; else lyricLine += ch;
+                }
+            } else {
+                while (matches.hasNext()) {
+                    auto match = matches.next();
+                    int matchStart = match.capturedStart();
+
+                    while (linePos < matchStart) {
+                        QChar ch = line[linePos++];
+                        if (ch == ' ') lyricLine += "&nbsp;"; else lyricLine += ch;
+                        chordLine += "&nbsp;";
+                    }
+
+                    QString chordText = match.captured(1);
+                    int chordLen = chordText.length();
+                    chordLine += QString("<span class='chord-line'>%1</span>").arg(chordText);
+
+                    int closePos = match.capturedEnd();
+                    int nextMatchStart = matches.hasNext() ? line.indexOf('[', closePos) : line.length();
+                    int availableLyricGap = nextMatchStart - closePos;
+
+                    if (chordLen > availableLyricGap) {
+                        for (int i = 0; i < (chordLen - availableLyricGap); ++i) {
+                            lyricLine += "&nbsp;";
+                        }
+                    }
+                    linePos = closePos;
+                }
+
+                while (linePos < line.length()) {
+                    QChar ch = line[linePos++];
+                    if (ch == ' ') lyricLine += "&nbsp;"; else lyricLine += ch;
+                    chordLine += "&nbsp;";
+                }
+            }
+
+            // Wrap the double-line pair in a no-wrap unit block
+            QString lineBlockHtml = "<div style='white-space: nowrap; line-height: 1.2;'>";
+            if (!chordLine.trimmed().isEmpty()) {
+                lineBlockHtml += QString("<p style='margin: 0; padding: 0;'>%1</p>").arg(chordLine);
+            }
+            lineBlockHtml += QString("<p style='margin: 0 0 6px 0; padding: 0;' class='lyric-text'>%1</p>").arg(lyricLine.isEmpty() ? "&nbsp;" : lyricLine);
+            lineBlockHtml += "</div>";
+
+            currentSectionHtml += lineBlockHtml;
+        }
+    }
+
+    // Flush out the final section container closing block at the end of file parsing
+    if (insideSectionBlock) {
+        currentSectionHtml += "</div>";
+        fullSongHtml += currentSectionHtml;
+    }
+
+    // Assign to our master grid variable used by the updatePlayAlongLayoutDensity zoom engine
+    m_parsedSongContentGrid = fullSongHtml;
+
+    // Trigger update automatically to repaint the text window canvas layout frame instantly
+    updatePlayAlongLayoutDensity();
+}
+
+/* void MainWindow::parseChordProToGrid(const QString &rawText) {
     // Run pre-analysis first to establish layout metrics!
-    analyzeChordProMetaData(input);
+    analyzeChordProMetaData(rawText);
 
     m_parsedSongContentGrid.clear();
 
@@ -851,6 +963,7 @@ void MainWindow::parseChordProToGrid(const QString &rawText) {
         m_parsedSongContentGrid = currentSectionHtml;
     }
 }
+*/
 
 void MainWindow::onZoomInTriggered() {
     if (m_zoomScaleLevel < 6) {
@@ -875,6 +988,24 @@ void MainWindow::updatePlayAlongLayoutDensity() {
 
     // Use our analyzed target column choices or override with Manual High Zoom
     if (m_zoomScaleLevel >= 3 || m_currentSongMetrics.targetColumns == 1) {
+        // High Zoom Mode: Single rolling vertical layout canvas
+        cssLayoutMode = ".song-canvas { column-count: 1; } "
+                        ".song-section { break-inside: auto; margin-bottom: 25px; }";
+    } else {
+        // Multi-Column Mode: Force section-aware side-by-side horizontal distributions
+        cssLayoutMode = QString(
+                            ".song-canvas {"
+                            "  column-count: %1;"
+                            "  column-width: %2px;"
+                            "  column-gap: 45px;"
+                            "  height: 480px;" // Constrains vertical height to prompt column wrapping
+                            "} "
+                            ".song-section {"
+                            "  break-inside: avoid-column;" // CRITICAL: Prevents a single section from splitting across columns!
+                            "  margin-bottom: 25px;"
+                            "}").arg(m_currentSongMetrics.targetColumns).arg(columnWidth);
+    }
+/*    if (m_zoomScaleLevel >= 3 || m_currentSongMetrics.targetColumns == 1) {
         // High Zoom or wide line safety layout: Single straight scrollable column
         cssLayoutMode = ".song-canvas { column-count: 1; }";
     } else {
@@ -885,10 +1016,10 @@ void MainWindow::updatePlayAlongLayoutDensity() {
                             "  column-count: %1;"
                             "  column-width: %2px;"
                             "  column-gap: 45px;"
-                            "  height: 520px;" /* Keeps content locked vertically to enforce column breaks */
+                            "  height: 520px;" // Keeps content locked vertically to enforce column breaks
                             "}").arg(actualCols).arg(columnWidth);
     }
-
+*/
     QString baseHtml = "<html><head><style>"
                        "body {"
                        "  background-color: #ffffff;"
@@ -922,63 +1053,6 @@ void MainWindow::updatePlayAlongLayoutDensity() {
 
     parsedEditor->setHtml(baseHtml);
 }
-
-/* void MainWindow::updatePlayAlongLayoutDensity() {
-    int baseFontSize = 12 + (m_zoomScaleLevel * 2);
-    int columnWidth = 360 + (m_zoomScaleLevel * 40);
-
-    qDebug() << "=== CHORDLAB MATRIX ENGINE MONITOR ===";
-    qDebug() << "Scale Step:" << m_zoomScaleLevel << " | Base Font Size:" << baseFontSize << "pt";
-
-    QString cssLayoutMode;
-
-    if (m_zoomScaleLevel >= 3) {
-        // High Zoom: Single rolling vertical layout canvas
-        cssLayoutMode = ".song-canvas { column-count: 1; }";
-    } else {
-        // Multi-Column Mode: Strict CSS column definitions that force horizontal wrapping
-        cssLayoutMode = QString(
-                            ".song-canvas {"
-                            "  column-count: 3;"
-                            "  column-width: %1px;"
-                            "  column-gap: 45px;"
-                            "  height: 540px;" // Restricts vertical drop to snap content into column columns
-                            "}").arg(columnWidth);
-    }
-
-    QString baseHtml = "<html><head><style>"
-                       "body {"
-                       "  background-color: #ffffff;"
-                       "  margin: 15px; padding: 0;"
-                       "}"
-                       + cssLayoutMode +
-                       "h1 { font-size: " + QString::number(baseFontSize + 6) + "pt; font-weight: bold; font-family: sans-serif; margin: 0 0 5px 0; }"
-                                                                                ".section-heading {"
-                                                                                "  font-size: " + QString::number(baseFontSize + 2) + "pt;"
-                                                             "  color: #007acc;"
-                                                             "  font-weight: bold;"
-                                                             "  margin: 16px 0 6px 0;"
-                                                             "  border-bottom: 2px solid #eef;"
-                                                             "  font-family: sans-serif;"
-                                                             "}"
-                                                             ".chord-line {"
-                                                             "  font-weight: bold; color: #b22222;"
-                                                             "  font-family: 'Consolas', 'Courier New', monospace !important;"
-                                                             "  font-size: " + QString::number(baseFontSize) + "pt;"
-                                                         "}"
-                                                         ".lyric-text {"
-                                                         "  color: #222;"
-                                                         "  font-family: 'Consolas', 'Courier New', monospace !important;"
-                                                         "  font-size: " + QString::number(baseFontSize) + "pt;"
-                                                         "}"
-                                                         "</style></head><body>"
-                                                         "<div class='song-canvas'>"
-                       + m_parsedSongContentGrid +
-                       "</div></body></html>";
-
-    parsedEditor->setHtml(baseHtml);
-}
-*/
 
 void MainWindow::keyPressEvent(QKeyEvent *event) {
     if (currentState == PlayAlong) {
@@ -1062,10 +1136,18 @@ void MainWindow::analyzeChordProMetaData(const QString &rawInput) {
 
     // 3. BRUTE FORCE LAYOUT DECISION (Initial setup for Play mode display)
     // If a song has long lines, force 1 column to avoid horizontal truncation.
-    if (m_currentSongMetrics.maxLineCharacters > 55) {
+    if (m_currentSongMetrics.maxLineCharacters > 68) {
         m_currentSongMetrics.targetColumns = 1;
     }
-    // If it's a long song with reasonably compact line lengths, spread it into 2 or 3 columns
+    // If the song has multiple distinct sections, try to give each section its own column space!
+    else if (m_currentSongMetrics.sectionCount >= 3 || m_currentSongMetrics.totalLines > 24) {
+        m_currentSongMetrics.targetColumns = 3; // Perfect fit for side-by-side song structure maps
+    } else if (m_currentSongMetrics.sectionCount == 2 || m_currentSongMetrics.totalLines > 12) {
+        m_currentSongMetrics.targetColumns = 2;
+    } else {
+        m_currentSongMetrics.targetColumns = 1; // Default layout for ultra-short single verse snippets
+    }
+/*    // If it's a long song with reasonably compact line lengths, spread it into 2 or 3 columns
     else if (m_currentSongMetrics.totalLines > 32) {
         m_currentSongMetrics.targetColumns = 3;
     } else if (m_currentSongMetrics.totalLines > 16) {
@@ -1073,6 +1155,7 @@ void MainWindow::analyzeChordProMetaData(const QString &rawInput) {
     } else {
         m_currentSongMetrics.targetColumns = 1; // Default fallback for tiny charts
     }
+*/
 
     qDebug() << "==================================================";
     qDebug() << "===  CHORDLAB PRE-ANALYSIS COMPLETE           ===";
