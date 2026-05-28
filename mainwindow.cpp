@@ -772,10 +772,18 @@ void MainWindow::parseChordProToGrid(const QString &rawInput) {
                 }
             }
 
+            // Assemble into an un-breakable text block unit using matching line heights
             QString lineBlockHtml = "<div style='white-space: nowrap; line-height: 1.2;'>";
+
+            // Only draw a chord line if there are actual chords present in this row
             if (!chordLine.trimmed().isEmpty()) {
-                lineBlockHtml += QString("<p style='margin: 0; padding: 0;'>%1</p>").arg(chordLine);
+                lineBlockHtml += QString("<p style='margin: 0; padding: 0;' class='chord-line'>%1</p>").arg(chordLine);
+            } else {
+                // If there are no chords, add a blank matching spacer line to keep column grids locked vertically!
+                lineBlockHtml += "<p style='margin: 0; padding: 0;' class='chord-line'>&nbsp;</p>";
             }
+
+            // CRITICAL FIX: Ensure ALL lyric rows strictly wear the 'lyric-text' class tag!
             lineBlockHtml += QString("<p style='margin: 0 0 6px 0; padding: 0;' class='lyric-text'>%1</p>").arg(lyricLine.isEmpty() ? "&nbsp;" : lyricLine);
             lineBlockHtml += "</div>";
 
@@ -790,15 +798,14 @@ void MainWindow::parseChordProToGrid(const QString &rawInput) {
     }
 
     // =======================================================
-    // REFINED NATIVE TABLE CELL GENERATOR WITH SMOOTH SCALING
+    // REFINED NATIVE TABLE CELL GENERATOR WITH GUTTER PADDING
     // =======================================================
     int numCols = m_currentSongMetrics.targetColumns;
 
-    // Smoothly step down column density based on zoom pressure
     if (m_zoomScaleLevel == 1 && numCols > 2) {
-        numCols = 2; // Medium zoom gently steps down to 2 columns
+        numCols = 2;
     } else if (m_zoomScaleLevel >= 2) {
-        numCols = 1; // High zoom comfortably moves to 1 single clean scrolling column
+        numCols = 1;
     }
 
     if (numCols < 1) numCols = 1;
@@ -806,20 +813,19 @@ void MainWindow::parseChordProToGrid(const QString &rawInput) {
     QString tableGridHtml = "";
 
     if (numCols <= 1 || gatheredSections.isEmpty()) {
-        // Flat vertical layout
         for (const QString &section : gatheredSections) {
             tableGridHtml += section;
         }
     } else {
-        // Distribute sections evenly across columns with soft-padded spacing cells
+        // Enforce a strict layout grid template with horizontal space buffers
         tableGridHtml = "<table width='100%' border='0' cellspacing='0' cellpadding='0'><tr valign='top'>";
 
         int sectionsPerCol = qCeil((double)gatheredSections.size() / numCols);
         int cellWidthPercentage = 100 / numCols;
 
         for (int col = 0; col < numCols; ++col) {
-            // Set dynamic padding widths between columns to prevent visual clipping
-            QString rightPadding = (col < numCols - 1) ? "padding-right: 35px;" : "";
+            // Inject a generous 40px right padding to keep text blocks isolated cleanly
+            QString rightPadding = (col < numCols - 1) ? "padding-right: 40px;" : "";
             tableGridHtml += QString("<td width='%1%' style='%2'>").arg(cellWidthPercentage).arg(rightPadding);
 
             for (int i = 0; i < sectionsPerCol; ++i) {
@@ -834,7 +840,6 @@ void MainWindow::parseChordProToGrid(const QString &rawInput) {
         tableGridHtml += "</tr></table>";
     }
 
-    // Save out and paint
     m_parsedSongContentGrid = tableGridHtml;
     updatePlayAlongLayoutDensity();
 }
