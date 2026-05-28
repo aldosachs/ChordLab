@@ -17,6 +17,7 @@
 #include <QDir>
 #include <QDebug>
 #include <QMediaPlayer>
+#include <QtMath>
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     m_mediaPlayer = new QMediaPlayer(this);
@@ -692,11 +693,11 @@ void MainWindow::selectAudioTrack(QPushButton *clickedButton, const QString &fil
 }
 
 void MainWindow::parseChordProToGrid(const QString &rawInput) {
-    // 1. Fire your predictive analytics metadata block
+    // 1. Run predictive analysis to set m_currentSongMetrics variables
     analyzeChordProMetaData(rawInput);
 
     QStringList lines = rawInput.split('\n');
-    QString fullSongHtml = "";
+    QStringList gatheredSections; // Holds each section block as an isolated unit
     QString currentSectionHtml = "";
     bool insideSectionBlock = false;
 
@@ -704,30 +705,25 @@ void MainWindow::parseChordProToGrid(const QString &rawInput) {
         QString line = rawLine.trimmed();
         if (line.isEmpty()) continue;
 
-        // Detect structural comment markers
+        // Detect structural section headers
         if (line.startsWith('{') && (line.contains("comment") || line.contains("c:"))) {
-
-            // If a previous section container was active, close it up cleanly first!
             if (insideSectionBlock) {
-                currentSectionHtml += "</div>"; // Seal the .song-section div boundary
-                fullSongHtml += currentSectionHtml;
-                currentSectionHtml = ""; // CRITICAL FIX: Clear the accumulator buffer!
+                currentSectionHtml += "</div>"; // Close active segment
+                gatheredSections.append(currentSectionHtml);
+                currentSectionHtml = "";
             }
 
             QString sectionName = line;
             sectionName.remove(QRegularExpression("^\\{c(omment)?:?\\s*"));
             sectionName.remove('}');
 
-            // Open a fresh, distinct structural segment block
             currentSectionHtml += "<div class='song-section'>";
             currentSectionHtml += QString("<div class='section-heading'>%1</div>").arg(sectionName);
-
             insideSectionBlock = true;
             continue;
         }
 
-        // Skip standard header metadata items
-        if (line.startsWith('{')) continue;
+        if (line.startsWith('{')) continue; // Skip metadata
 
         if (insideSectionBlock) {
             QString chordLine = "";
@@ -787,15 +783,51 @@ void MainWindow::parseChordProToGrid(const QString &rawInput) {
         }
     }
 
-    // Final trailing file flush sequence
+    // Flush the trailing section block
     if (insideSectionBlock) {
         currentSectionHtml += "</div>";
-        fullSongHtml += currentSectionHtml;
+        gatheredSections.append(currentSectionHtml);
     }
 
-    m_parsedSongContentGrid = fullSongHtml;
+    // ==========================================
+    // BRUTE-FORCE NATIVE TABLE CELL GENERATOR
+    // ==========================================
+    int numCols = m_currentSongMetrics.targetColumns;
 
-    // Paint the view display engine canvas instantly
+    // Fallback protection if zoom forces 1 column or song is too short
+    if (m_zoomScaleLevel >= 3) numCols = 1;
+
+    QString tableGridHtml = "";
+
+    if (numCols <= 1 || gatheredSections.isEmpty()) {
+        // Flat vertical layout
+        for (const QString &section : gatheredSections) {
+            tableGridHtml += section;
+        }
+    } else {
+        // Distribute sections evenly across columns
+        tableGridHtml = "<table width='100%' border='0' cellspacing='20' cellpadding='0'><tr valign='top'>";
+
+        int sectionsPerCol = qCeil((double)gatheredSections.size() / numCols);
+        int cellWidthPercentage = 100 / numCols;
+
+        for (int col = 0; col < numCols; ++col) {
+            tableGridHtml += QString("<td width='%1%'>").arg(cellWidthPercentage);
+
+            for (int i = 0; i < sectionsPerCol; ++i) {
+                int index = (col * sectionsPerCol) + i;
+                if (index < gatheredSections.size()) {
+                    tableGridHtml += gatheredSections[index];
+                }
+            }
+
+            tableGridHtml += "</td>";
+        }
+        tableGridHtml += "</tr></table>";
+    }
+
+    // Save out and paint
+    m_parsedSongContentGrid = tableGridHtml;
     updatePlayAlongLayoutDensity();
 }
 
@@ -815,56 +847,30 @@ void MainWindow::onZoomOutTriggered() {
 
 void MainWindow::updatePlayAlongLayoutDensity() {
     int baseFontSize = 12 + (m_zoomScaleLevel * 2);
-    int columnWidth = 360 + (m_zoomScaleLevel * 40);
 
-    // Dynamically grab the exact height of the visual window component
-    int availableHeight = parsedEditor->height() - 30;
-    if (availableHeight < 100) availableHeight = 500; // Safe minimum fallback
+    // Reset layout view limits to default behavior
+    parsedEditor->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    parsedEditor->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
 
-    qDebug() << "=== CHORDLAB COLUMN MATRIX MONITOR ===";
-    qDebug() << "Scale Step:" << m_zoomScaleLevel << " | Font Size:" << baseFontSize << "pt | Height Canvas:" << availableHeight << "px";
-
-    QString cssLayoutMode;
-
-    if (m_zoomScaleLevel >= 3 || m_currentSongMetrics.targetColumns == 1) {
-        // High Zoom Mode: Single rolling vertical sheet
-        parsedEditor->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-        parsedEditor->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-        cssLayoutMode = ".song-canvas { column-count: 1; width: 100%; } "
-                        ".song-section { break-inside: auto; margin-bottom: 20px; }";
-    } else {
-        // Multi-Column Mode: Force HORIZONTAL layouts by disabling vertical scrolls
-        parsedEditor->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-        parsedEditor->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded); // Horizontal scrolling for columns!
-
-        cssLayoutMode = QString(
-                            ".song-canvas {"
-                            "  column-count: %1;"
-                            "  column-width: %2px;"
-                            "  column-gap: 45px;"
-                            "  height: %3px;" /* Strict boundary floor */
-                            "} "
-                            ".song-section {"
-                            "  break-inside: avoid-column;" /* Stops mid-verse column fragmentation */
-                            "  display: block;"
-                            "  margin-bottom: 25px;"
-                            "}").arg(m_currentSongMetrics.targetColumns).arg(columnWidth).arg(availableHeight);
-    }
+    qDebug() << "=== CHORDLAB TABLE ENGINE RESPONDING ===";
+    qDebug() << "Zoom Level Step:" << m_zoomScaleLevel << " | Active Font Unit:" << baseFontSize << "pt";
 
     QString baseHtml = "<html><head><style>"
                        "body {"
                        "  background-color: #ffffff;"
                        "  margin: 10px; padding: 0;"
                        "}"
-                       + cssLayoutMode +
                        "h1 { font-size: " + QString::number(baseFontSize + 6) + "pt; font-weight: bold; font-family: sans-serif; margin: 0 0 5px 0; }"
-                                                                                ".section-heading {"
-                                                                                "  font-size: " + QString::number(baseFontSize + 2) + "pt;"
+                                                             ".section-heading {"
+                                                             "  font-size: " + QString::number(baseFontSize + 2) + "pt;"
                                                              "  color: #007acc;"
                                                              "  font-weight: bold;"
-                                                             "  margin: 12px 0 6px 0;"
+                                                             "  margin: 0 0 8px 0;"
                                                              "  border-bottom: 2px solid #eef;"
                                                              "  font-family: sans-serif;"
+                                                             "}"
+                                                             ".song-section {"
+                                                             "  margin-bottom: 25px;"
                                                              "}"
                                                              ".chord-line {"
                                                              "  font-weight: bold; color: #b22222;"
