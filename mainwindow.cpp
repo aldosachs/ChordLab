@@ -789,13 +789,19 @@ void MainWindow::parseChordProToGrid(const QString &rawInput) {
         gatheredSections.append(currentSectionHtml);
     }
 
-    // ==========================================
-    // BRUTE-FORCE NATIVE TABLE CELL GENERATOR
-    // ==========================================
+    // =======================================================
+    // REFINED NATIVE TABLE CELL GENERATOR WITH SMOOTH SCALING
+    // =======================================================
     int numCols = m_currentSongMetrics.targetColumns;
 
-    // Fallback protection if zoom forces 1 column or song is too short
-    if (m_zoomScaleLevel >= 3) numCols = 1;
+    // Smoothly step down column density based on zoom pressure
+    if (m_zoomScaleLevel == 1 && numCols > 2) {
+        numCols = 2; // Medium zoom gently steps down to 2 columns
+    } else if (m_zoomScaleLevel >= 2) {
+        numCols = 1; // High zoom comfortably moves to 1 single clean scrolling column
+    }
+
+    if (numCols < 1) numCols = 1;
 
     QString tableGridHtml = "";
 
@@ -805,14 +811,16 @@ void MainWindow::parseChordProToGrid(const QString &rawInput) {
             tableGridHtml += section;
         }
     } else {
-        // Distribute sections evenly across columns
-        tableGridHtml = "<table width='100%' border='0' cellspacing='20' cellpadding='0'><tr valign='top'>";
+        // Distribute sections evenly across columns with soft-padded spacing cells
+        tableGridHtml = "<table width='100%' border='0' cellspacing='0' cellpadding='0'><tr valign='top'>";
 
         int sectionsPerCol = qCeil((double)gatheredSections.size() / numCols);
         int cellWidthPercentage = 100 / numCols;
 
         for (int col = 0; col < numCols; ++col) {
-            tableGridHtml += QString("<td width='%1%'>").arg(cellWidthPercentage);
+            // Set dynamic padding widths between columns to prevent visual clipping
+            QString rightPadding = (col < numCols - 1) ? "padding-right: 35px;" : "";
+            tableGridHtml += QString("<td width='%1%' style='%2'>").arg(cellWidthPercentage).arg(rightPadding);
 
             for (int i = 0; i < sectionsPerCol; ++i) {
                 int index = (col * sectionsPerCol) + i;
@@ -846,36 +854,42 @@ void MainWindow::onZoomOutTriggered() {
 }
 
 void MainWindow::updatePlayAlongLayoutDensity() {
+    // Smooth font increments
     int baseFontSize = 12 + (m_zoomScaleLevel * 2);
 
-    // Reset layout view limits to default behavior
+    // Proportional adjustments for vertical density
+    int headerMarginBottom = 6 + m_zoomScaleLevel;
+    int sectionMarginBottom = 16 + (m_zoomScaleLevel * 4);
+    double activeLineHeight = 1.2 + (m_zoomScaleLevel * 0.05); // Gently opens lines as text grows
+
+    // Ensure scroll bars follow standard UI policies smoothly
     parsedEditor->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     parsedEditor->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
 
-    qDebug() << "=== CHORDLAB TABLE ENGINE RESPONDING ===";
-    qDebug() << "Zoom Level Step:" << m_zoomScaleLevel << " | Active Font Unit:" << baseFontSize << "pt";
+    qDebug() << "=== CHORDLAB SMOOTH SCALING MATRIX ===";
+    qDebug() << "Zoom Scale Step:" << m_zoomScaleLevel << " | Font Size:" << baseFontSize << "pt";
 
     QString baseHtml = "<html><head><style>"
                        "body {"
                        "  background-color: #ffffff;"
-                       "  margin: 10px; padding: 0;"
+                       "  margin: 12px; padding: 0;"
                        "}"
-                       "h1 { font-size: " + QString::number(baseFontSize + 6) + "pt; font-weight: bold; font-family: sans-serif; margin: 0 0 5px 0; }"
+                       "h1 { font-size: " + QString::number(baseFontSize + 5) + "pt; font-weight: bold; font-family: sans-serif; margin: 0 0 5px 0; }"
                                                              ".section-heading {"
                                                              "  font-size: " + QString::number(baseFontSize + 2) + "pt;"
                                                              "  color: #007acc;"
                                                              "  font-weight: bold;"
-                                                             "  margin: 0 0 8px 0;"
-                                                             "  border-bottom: 2px solid #eef;"
-                                                             "  font-family: sans-serif;"
-                                                             "}"
-                                                             ".song-section {"
-                                                             "  margin-bottom: 25px;"
-                                                             "}"
-                                                             ".chord-line {"
-                                                             "  font-weight: bold; color: #b22222;"
-                                                             "  font-family: 'Consolas', 'Courier New', monospace !important;"
-                                                             "  font-size: " + QString::number(baseFontSize) + "pt;"
+                                                             "  margin: 0 0 " + QString::number(headerMarginBottom) + "px 0;"
+                                                               "  border-bottom: 2px solid #eef;"
+                                                               "  font-family: sans-serif;"
+                                                               "}"
+                                                               ".song-section {"
+                                                               "  margin-bottom: " + QString::number(sectionMarginBottom) + "px;"
+                                                                "}"
+                                                                ".chord-line {"
+                                                                "  font-weight: bold; color: #b22222;"
+                                                                "  font-family: 'Consolas', 'Courier New', monospace !important;"
+                                                                "  font-size: " + QString::number(baseFontSize) + "pt;"
                                                          "}"
                                                          ".lyric-text {"
                                                          "  color: #222;"
@@ -883,7 +897,7 @@ void MainWindow::updatePlayAlongLayoutDensity() {
                                                          "  font-size: " + QString::number(baseFontSize) + "pt;"
                                                          "}"
                                                          "</style></head><body>"
-                                                         "<div class='song-canvas'>"
+                                                         "<div class='song-canvas' style='line-height: " + QString::number(activeLineHeight) + ";'>"
                        + m_parsedSongContentGrid +
                        "</div></body></html>";
 
