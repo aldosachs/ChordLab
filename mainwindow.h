@@ -99,6 +99,8 @@ private:
     void onZoomInTriggered();
     void onZoomOutTriggered();
 
+    bool m_isLoadingFile = false;
+
     QString runInitialParse(const QString &rawInput);
     QString processLineContent(const QString &line);
     QString transposeChord(const QString &chord, int semitones);

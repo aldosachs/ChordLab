@@ -249,6 +249,7 @@ void MainWindow::setupLayout() {
     mainSplitter->addWidget(parsedEditor);
 
     connect(originalEditor, &QPlainTextEdit::textChanged, this, [=]() {
+        if (m_isLoadingFile) return;
         m_rawSongContent = originalEditor->toPlainText();
         parsedEditor->setHtml(runInitialParse(m_rawSongContent));
         parseChordProToGrid(m_rawSongContent);
@@ -342,8 +343,10 @@ void MainWindow::handleFileOpen() {
     file.close();
 
     m_rawSongContent = content;
-
+    m_isLoadingFile = true;           // ← block the signal handler
     originalEditor->setPlainText(content);
+    m_isLoadingFile = true;          // ← re-enable for live edits
+
     setAppState(OpenEdit);
 
     QString expertVersion = runInitialParse(content);
