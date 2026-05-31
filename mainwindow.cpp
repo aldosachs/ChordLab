@@ -60,7 +60,6 @@ void MainWindow::setupToolBar() {
     m_btnTransposeDown = new QPushButton("Key Down");
     m_btnTheme = new QPushButton("Light theme...");
     m_btnTheme->setStyleSheet("QPushButton { background-color: #0047AB; color: white; padding: 5px; min-width: 80px; }");
-    m_btnModeToggle = new QPushButton("Mode: Edit 📝");
 
     QWidget *container = new QWidget();
     QHBoxLayout *layout = new QHBoxLayout(container);
@@ -124,12 +123,12 @@ void MainWindow::setupToolBar() {
         parsedEditor->setHtml(runInitialParse(originalEditor->toPlainText()));
     });
 
-    QPushButton *btnModeToggle = new QPushButton("Mode: Edit 📝");
-    btnModeToggle->setStyleSheet("QPushButton { background-color: #004060; color: white; padding: 5px; min-width: 100px; }");
+    m_btnModeToggle = new QPushButton("Mode: Edit 📝");
+    m_btnModeToggle->setStyleSheet(
+        "QPushButton { background-color: #004060; color: white; padding: 5px; min-width: 100px; }");
+    connect(m_btnModeToggle, &QPushButton::clicked, this, &MainWindow::togglePlaybackMode);
+    layout->addWidget(m_btnModeToggle);
 
-    connect(btnModeToggle, &QPushButton::clicked, this, &MainWindow::togglePlaybackMode);
-
-    layout->addWidget(btnModeToggle);
     layout->addWidget(m_btnTheme);
     layout->addWidget(m_btnTransposeDown);
     layout->addWidget(btnReset);
@@ -154,13 +153,10 @@ void MainWindow::togglePlaybackMode() {
         return;
     }
 
-    QPushButton *btn = qobject_cast<QPushButton*>(sender());
-
+    // setAppState() now owns the button label — no manual setText needed here
     if (currentState == OpenEdit) {
-        if (btn) btn->setText("Mode: Play 🎤");
         setAppState(PlayAlong);
     } else {
-        if (btn) btn->setText("Mode: Edit 📝");
         setAppState(OpenEdit);
     }
 }
@@ -299,48 +295,6 @@ void MainWindow::setAppState(AppState state) {
         updatePlayAlongLayoutDensity();
         break;
     }
-}
-
-QString MainWindow::generateFullScreenHtml(const QString& parsedSongContent) {
-    QString html = "<html><head><style>"
-                   "body {"
-                   "  background-color: #ffffff;"
-                   "  font-family: sans-serif;"
-                   "  margin: 20px;"
-                   "  padding: 0;"
-                   "}"
-                   ".song-canvas {"
-                   "  display: flex;"
-                   "  flex-direction: column;"
-                   "  flex-wrap: wrap;"
-                   "  height: 85vh;"
-                   "  align-content: flex-start;"
-                   "  gap: 25px;"
-                   "}"
-                   ".song-section {"
-                   "  width: 380px;"
-                   "  break-inside: avoid;"
-                   "  page-break-inside: avoid;"
-                   "}"
-                   ".chord-line { font-weight: bold; color: #b22222; font-family: sans-serif; min-height: 1.2em; }"
-                   ".tab-block {"
-                   "  display: block;"
-                   "  clear: both;"
-                   "  font-family: 'Consolas', 'Courier New', monospace !important;"
-                   "  white-space: pre !important;"
-                   "  background-color: #f4f6f9;"
-                   "  padding: 12px;"
-                   "  border-left: 4px solid #007acc;"
-                   "  margin: 8px 0;"
-                   "  line-height: 1.3;"
-                   "}"
-                   "</style></head><body>";
-
-    html += "<div class='song-canvas'>";
-    html += parsedSongContent;
-    html += "</div></body></html>";
-
-    return html;
 }
 
 void MainWindow::handleFileSave() {

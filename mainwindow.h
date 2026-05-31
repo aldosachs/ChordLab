@@ -93,7 +93,6 @@ private:
     void updatePlayAlongLayoutDensity();
 
     QString m_parsedSongContentGrid;
-    QString generateFullScreenHtml(const QString& parsedSongContent);
 
     int m_zoomScaleLevel;
 
