@@ -117,6 +117,7 @@ private:
     QPushButton *m_btnTransposeDown;
     QPushButton *m_btnTheme;
     QPushButton *m_viewToggleBtn;
+    QPushButton *m_btnModeToggle;
 
     // Audio Selection Buttons
     QPushButton *m_btnTrackFull;

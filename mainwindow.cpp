@@ -36,9 +36,14 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     m_zoomScaleLevel = 0;
 
     setupMenus();
-    setupToolBar();
     setupLayout();
+    setupToolBar();
+    currentState = Idle;
+    m_currentMode = ChordDisplayMode::CIL;
+    m_currentTheme = Light;
+    m_transposeShift = 0;
     setAppState(Idle);
+
 }
 
 void MainWindow::setupMenus() {
@@ -55,6 +60,7 @@ void MainWindow::setupToolBar() {
     m_btnTransposeDown = new QPushButton("Key Down");
     m_btnTheme = new QPushButton("Light theme...");
     m_btnTheme->setStyleSheet("QPushButton { background-color: #0047AB; color: white; padding: 5px; min-width: 80px; }");
+    m_btnModeToggle = new QPushButton("Mode: Edit 📝");
 
     QWidget *container = new QWidget();
     QHBoxLayout *layout = new QHBoxLayout(container);
@@ -261,11 +267,13 @@ void MainWindow::setAppState(AppState state) {
 
     switch(state) {
     case Idle:
+        m_btnModeToggle->setText("Mode: Edit 📝"); // Reset on idle too
         statusBar()->showMessage("Ready. Open a ChordPro file to begin.");
         mainSplitter->hide();
         break;
 
     case OpenEdit:
+        m_btnModeToggle->setText("Mode: Edit 📝");
         statusBar()->showMessage("Editing Mode: Analyzing ChordPro syntax...");
         mainSplitter->show();
 
@@ -282,6 +290,7 @@ void MainWindow::setAppState(AppState state) {
         break;
 
     case PlayAlong:
+        m_btnModeToggle->setText("Mode: Play 🎤");
         statusBar()->showMessage("Play-along Mode Active. Space: Toggle Play | Ctrl +/-: Zoom");
         originalEditor->hide();
         parsedEditor->show();
