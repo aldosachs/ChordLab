@@ -28,11 +28,23 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 
     connect(m_mediaPlayer, &QMediaPlayer::playbackStateChanged, this, &MainWindow::handlePlaybackStateChanged);
 
+/*    // 2. Clear Internal State Variables Before UI Draws
+    m_currentFilePath = "";
+    m_parsedSongContentGrid = "";
+    m_zoomScaleLevel = 0;
+    m_transposeShift = 0;
+    m_isLoadingFile = false;
+    m_currentMode = ChordDisplayMode::CIL;
+    m_currentTheme = Theme::Light;
+*/
     // 2. Clear Internal State Variables Before UI Draws
     m_currentFilePath = "";
     m_parsedSongContentGrid = "";
     m_zoomScaleLevel = 0;
     m_transposeShift = 0;
+    m_capoShift = 0;                  // Default to open neck
+    m_instrumentTuningOffset = 0;     // Default to standard guitar tuning
+    m_debugTelemetryEnabled = true;   // 🚀 Enable tracking telemetry out to Qt App Output window
     m_isLoadingFile = false;
     m_currentMode = ChordDisplayMode::CIL;
     m_currentTheme = Theme::Light;
@@ -48,6 +60,9 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
         QSize size = screen->availableGeometry().size();
         resize(size.width() * 0.75, size.height() * 0.75);
     }
+
+    static const QStringList NOTE_SCALE_SHARPS = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
+    static const QStringList NOTE_SCALE_FLATS  = {"C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"};
 
     // 5. Final State Machine Launch
     setAppState(Idle);
@@ -257,31 +272,7 @@ void MainWindow::updateFunctionKeys() {
         connect(m_btnFn4, &QPushButton::clicked, this, [=]() {
             parsedEditor->setHtml(runInitialParse(originalEditor->toPlainText()));
         });
-/*    } else if (currentState == PlayAlong) {
-        m_btnFn1->setText("⏮ Rewind");
-        m_btnFn2->setText("▶ Play");
-        m_btnFn3->setText("⏸ Pause");
-        m_btnFn4->setText("⏭ End");
 
-        connect(m_btnFn1, &QPushButton::clicked, this, [=]() {
-            m_mediaPlayer->setPosition(0);
-            statusBar()->showMessage("Rewound to beginning.");
-        });
-        connect(m_btnFn2, &QPushButton::clicked, this, [=]() {
-            if (m_selectedAudioPath.isEmpty()) {
-                statusBar()->showMessage("No audio track selected or available for playback.");
-                return;
-            }
-            m_mediaPlayer->play();
-        });
-        connect(m_btnFn3, &QPushButton::clicked, this, [=]() {
-            m_mediaPlayer->pause();
-        });
-        connect(m_btnFn4, &QPushButton::clicked, this, [=]() {
-            m_mediaPlayer->setPosition(m_mediaPlayer->duration());
-        });
-    }
-*/
     } else if (currentState == PlayAlong) {
         m_btnFn1->setText("⏮ Rewind");
 
@@ -372,55 +363,27 @@ void MainWindow::handleFileOpen() {
     statusBar()->showMessage(tr("Loaded: ") + fileName);
 }
 
-void MainWindow::handleFileOpen() {
-    // Determine the location where the executable is currently running
-    QString appDir = QCoreApplication::applicationDirPath();
-
-    // Look for a local 'resources/pieces' directory relative to the build/installation folder
-    QString initialPath = appDir + "/resources/pieces";
-
-    // Fallback gracefully if that folder structure doesn't exist yet
-    if (!QDir(initialPath).exists()) {
-        initialPath = QDir::homePath(); // fallback to standard system User Documents folder
-    }
-
-    QString fileName = QFileDialog::getOpenFileName(
-        this,
-        tr("Open ChordPro File"),
-        initialPath, // 🚀 Automatically spins up inside your targeted pieces directory!
-        tr("ChordPro Files (*.chopro *.cho *.pro *.txt *.crd)")
-        );
-
-    if (fileName.isEmpty()) return;
-
-    m_currentFilePath = fileName;
-    QFile file(fileName);
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        QMessageBox::warning(this, tr("Error"), tr("Could not open file: ") + file.errorString());
-        return;
-    }
-
-    QTextStream in(&file);
-    QString content = in.readAll();
-    file.close();
-
-    m_rawSongContent = content;
-
-    m_isLoadingFile = true; // Block signal loops safely
-    originalEditor->setPlainText(content);
-    m_isLoadingFile = false; // RE-ENABLE safely (fixed bug here)
-
-    // Set state explicitly handles rendering separation cleanly
-    setAppState(OpenEdit);
-
-    checkForCompanionAudio(m_currentFilePath);
-    statusBar()->showMessage(tr("Loaded: ") + fileName);
-}
-
 void MainWindow::handleFileSave() {
     if (m_currentFilePath.isEmpty()) {
-        QString saveName = QFileDialog::getSaveFileName(this,
-                                                        tr("Save ChordPro File"), "", tr("ChordPro Files (*.chopro *.cho *.pro *.txt *.crd)"));
+        // 1. Determine the path to the running executable
+        QString appDir = QCoreApplication::applicationDirPath();
+
+        // 2. Point to our standard user workspace folder
+        QString initialPath = appDir + "/resources/pieces";
+
+        // 3. Fallback safely if the workspace directory isn't deployed yet
+        if (!QDir(initialPath).exists()) {
+            initialPath = QDir::homePath();
+        }
+
+        // 🚀 Synchronized: Opens the Save Dialog right in the same folder as Open Dialog!
+        QString saveName = QFileDialog::getSaveFileName(
+            this,
+            tr("Save ChordPro File"),
+            initialPath,
+            tr("ChordPro Files (*.chopro *.cho *.pro *.txt *.crd)")
+            );
+
         if (saveName.isEmpty()) return;
         m_currentFilePath = saveName;
     }
@@ -435,10 +398,20 @@ void MainWindow::handleFileSave() {
     out << originalEditor->toPlainText();
     file.close();
 
-    statusBar()->showMessage(tr("Saved successfully: ") + m_currentFilePath, 3000);
+    // Show the actual file name cleanly in the status bar
+    statusBar()->showMessage(tr("Saved successfully: ") + QFileInfo(m_currentFilePath).fileName(), 3000);
 }
 
 QString MainWindow::runInitialParse(const QString &rawInput) {
+
+    int visualShift = m_transposeShift - (m_capoShift + m_instrumentTuningOffset);
+
+    if (m_debugTelemetryEnabled) {
+        qDebug() << "\n--- CHORDLAB TRANSPOSE ENGINE TELEMETRY ---";
+        qDebug() << "Concert Shift:" << m_transposeShift << "| Capo Fret:" << m_capoShift << "| Tuning Offset:" << m_instrumentTuningOffset;
+        qDebug() << "TOTAL VISUAL CALCULATION SHIFT:" << visualShift;
+    }
+
     QString result = "<html><head><style>"
                      "body { font-family: 'Consolas', monospace; white-space: pre; font-size: 10pt; }"
                      + getThemeStyles() +
@@ -473,6 +446,57 @@ QString MainWindow::runInitialParse(const QString &rawInput) {
     bool inVerse = false;
 
     for (const QString &line : lines) {
+
+        bool inTabBlock = false;
+        bool inGridBlock = false;
+
+        for (const QString &line : lines) {
+            QString workingLine = line;
+            workingLine.remove('\r');
+            QString trimmedLine = workingLine.trimmed();
+
+            // Check for Capo configuration dynamically to automatically feed our math engine
+            if (trimmedLine.startsWith("{capo:", Qt::CaseInsensitive)) {
+                m_capoShift = trimmedLine.section(':', 1).chopped(1).trimmed().toInt();
+            }
+
+            // Block Boundary Interceptions
+            if (trimmedLine.startsWith("{start_of_tab}") || trimmedLine.startsWith("{sot}")) {
+                inTabBlock = true;
+                result += "<div style='font-family:monospace; color:#008800; font-weight:bold;'>[Tablature Block Start]</div>";
+                continue;
+            }
+            if (trimmedLine.startsWith("{end_of_tab}") || trimmedLine.startsWith("{eot}")) {
+                inTabBlock = false;
+                result += "<div style='font-family:monospace; color:#008800; font-weight:bold;'>[Tablature Block End]</div><br>";
+                continue;
+            }
+            if (trimmedLine.startsWith("{start_of_grid}") || trimmedLine.startsWith("{sog}")) {
+                inGridBlock = true;
+                result += "<div style='font-family:monospace; color:#880088; font-weight:bold;'>[Chord Grid Block Start]</div>";
+                continue;
+            }
+            if (trimmedLine.startsWith("{end_of_grid}") || trimmedLine.startsWith("{eog}")) {
+                inGridBlock = false;
+                result += "<div style='font-family:monospace; color:#880088; font-weight:bold;'>[Chord Grid Block End]</div><br>";
+                continue;
+            }
+
+            // Direct routing to our specialized parsing modules
+            if (inTabBlock) {
+                QString processedTab = parseTabLine(workingLine, visualShift);
+                if (m_debugTelemetryEnabled) qDebug() << "[TAB RAW]:" << workingLine << " -> [SHIFTED]:" << processedTab;
+                result += processedTab + "<br>";
+            }
+            else if (inGridBlock) {
+                QString processedGrid = parseGridLine(workingLine, visualShift);
+                if (m_debugTelemetryEnabled) qDebug() << "[GRID RAW]:" << workingLine << " -> [SHIFTED]:" << processedGrid;
+                result += processedGrid + "<br>";
+            }
+            else {
+/*                // ... (Keep your standard lyric/chord inline processing code exactly as it is here!) ...
+            }
+        }  */
         QString workingLine = line;
         workingLine.remove('\r');
         QString trimmedLine = workingLine.trimmed();
@@ -1063,4 +1087,117 @@ void MainWindow::checkForCompanionAudio(const QString &chordProPath) {
     } else {
         statusBar()->showMessage(tr("Loaded: %1 (No companion audio discovered)").arg(info.fileName()));
     }
+}
+
+QString MainWindow::transposeSingleNoteToken(const QString &noteToken, int semitones) {
+    if (semitones == 0 || noteToken.isEmpty()) return noteToken;
+
+    bool isLowercase = noteToken[0].isLower();
+    QString cleanNote = noteToken.toUpper();
+
+    QString baseNote = cleanNote.left(1);
+    if (cleanNote.length() > 1 && (cleanNote[1] == '#' || cleanNote[1].toLower() == 'b')) {
+        baseNote = cleanNote.left(2);
+    }
+    QString trailingModifiers = cleanNote.mid(baseNote.length());
+
+    int index = NOTE_SCALE_SHARPS.indexOf(baseNote);
+    if (index == -1) index = NOTE_SCALE_FLATS.indexOf(baseNote);
+    if (index == -1) return noteToken;
+
+    int targetIndex = (index + semitones) % 12;
+    if (targetIndex < 0) targetIndex += 12;
+
+    // Default to sharps in dark theme, flats in light theme for visual comfort
+    QString transposedNote = (m_currentTheme == Dark) ? NOTE_SCALE_SHARPS[targetIndex] : NOTE_SCALE_FLATS[targetIndex];
+    transposedNote += trailingModifiers;
+
+    return isLowercase ? transposedNote.toLower() : transposedNote;
+}
+
+QString MainWindow::transposeChord(const QString &chordText, int semitones) {
+    if (semitones == 0 || chordText.isEmpty()) return chordText;
+
+    // 1. Slash Chord Router [C/B]
+    if (chordText.contains('/')) {
+        QStringList parts = chordText.split('/');
+        if (parts.size() == 2) {
+            return transposeChord(parts[0], semitones) + "/" + transposeSingleNoteToken(parts[1], semitones);
+        }
+    }
+
+    // 2. Single Note Parenthetical Router (g)
+    if (chordText.startsWith('(') && chordText.endsWith(')')) {
+        QString innerNote = chordText.mid(1, chordText.length() - 2);
+        return "(" + transposeSingleNoteToken(innerNote, semitones) + ")";
+    }
+
+    return transposeSingleNoteToken(chordText, semitones);
+}
+
+QString MainWindow::parseGridLine(const QString &line, int semitones) {
+    QString result;
+    QString currentChordToken;
+
+    for (int i = 0; i < line.length(); ++i) {
+        QChar ch = line[i];
+        if (ch == '|' || ch == '.' || ch == '/' || ch == ' ') {
+            if (!currentChordToken.isEmpty()) {
+                result += transposeChord(currentChordToken, semitones);
+                currentChordToken.clear();
+            }
+            result += ch;
+        } else {
+            currentChordToken += ch;
+        }
+    }
+    if (!currentChordToken.isEmpty()) {
+        result += transposeChord(currentChordToken, semitones);
+    }
+    return result;
+}
+
+QString MainWindow::parseTabLine(const QString &line, int semitones) {
+    if (semitones == 0 || line.trimmed().isEmpty()) return line;
+
+    QString result = "";
+    int i = 0;
+
+    // Transpose tuning indicator notes (e.g. "E|" -> "F#|")
+    QRegularExpression tuningRegex("^([A-G][#b]?)\\|");
+    QRegularExpressionMatch match = tuningRegex.match(line);
+    if (match.hasMatch()) {
+        result += transposeSingleNoteToken(match.captured(1), semitones) + "|";
+        i = match.capturedEnd();
+    }
+
+    // Parse frets and intelligently preserve fixed-width columns
+    while (i < line.length()) {
+        if (line[i].isDigit()) {
+            QString fretStr = "";
+            while (i < line.length() && line[i].isDigit()) {
+                fretStr += line[i++];
+            }
+
+            int originalFret = fretStr.toInt();
+            int newFret = originalFret + semitones;
+
+            // Physical neck limit guard bounds (0 to 24 frets)
+            if (newFret < 0) newFret = 0;
+            if (newFret > 24) newFret = 24;
+
+            QString newFretStr = QString::number(newFret);
+            result += newFretStr;
+
+            // Accordion Compensation: If fret text expanded, drop trailing dashes to maintain alignment
+            int sizeDifference = newFretStr.length() - fretStr.length();
+            while (sizeDifference > 0 && i < line.length() && line[i] == '-') {
+                i++;
+                sizeDifference--;
+            }
+        } else {
+            result += line[i++];
+        }
+    }
+    return result;
 }

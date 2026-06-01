@@ -99,11 +99,25 @@ private:
     void onZoomInTriggered();
     void onZoomOutTriggered();
 
+    // --- Transposition & Instrument Mapping Matrix ---
+    int m_transposeShift = 0;           // Concert Pitch / Singer shift (Key Up/Down)
+    int m_capoShift;                // Extracted from {capo: X} or a manual setting
+    int m_instrumentTuningOffset;   // E Standard = 0, D Standard = -2, Eb Standard = -1
+
+    // --- Telemetry & Testing ---
+    bool m_debugTelemetryEnabled;   // Toggles detailed string parsing dumps to Qt Console
+
+    // --- Advanced Sub-Parsing Engines ---
+    QString transposeSingleNoteToken(const QString &noteToken, int semitones);
+    QString transposeChord(const QString &chordText, int semitones);
+    QString parseGridLine(const QString &line, int semitones);
+    QString parseTabLine(const QString &line, int semitones);
+
     bool m_isLoadingFile = false;
 
     QString runInitialParse(const QString &rawInput);
     QString processLineContent(const QString &line);
-    QString transposeChord(const QString &chord, int semitones);
+//    QString transposeChord(const QString &chord, int semitones);
 
     QString getThemeStyles();
     QString m_rawSongContent;
@@ -135,7 +149,7 @@ private:
     AppState currentState;
     ChordDisplayMode m_currentMode = CAL;
     Theme m_currentTheme = Light;
-    int m_transposeShift = 0;
+//    int m_transposeShift = 0;
     QString m_currentFilePath;
 };
 
