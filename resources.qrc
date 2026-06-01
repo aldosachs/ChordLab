@@ -1,0 +1,11 @@
+<!DOCTYPE RCC><RCC version="1.0">
+<qresource prefix="/">
+    <file>resources/icons/play.png</file>
+    <file>resources/icons/pause.png</file>
+    <file>resources/icons/stop.png</file>
+    
+    <file>resources/styles/modern.qss</file>
+    
+    <file>resources/test_songs/boundary_test.pro</file>
+</qresource>
+</RCC>

@@ -10,6 +10,7 @@ qt_add_executable(ChordLabV001A
     main.cpp
     mainwindow.cpp
     mainwindow.h
+    resources.qrc ## add resource tracking file
 )
 
 target_link_libraries(ChordLabV001A

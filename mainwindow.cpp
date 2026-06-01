@@ -257,7 +257,7 @@ void MainWindow::updateFunctionKeys() {
         connect(m_btnFn4, &QPushButton::clicked, this, [=]() {
             parsedEditor->setHtml(runInitialParse(originalEditor->toPlainText()));
         });
-    } else if (currentState == PlayAlong) {
+/*    } else if (currentState == PlayAlong) {
         m_btnFn1->setText("⏮ Rewind");
         m_btnFn2->setText("▶ Play");
         m_btnFn3->setText("⏸ Pause");
@@ -277,6 +277,50 @@ void MainWindow::updateFunctionKeys() {
         connect(m_btnFn3, &QPushButton::clicked, this, [=]() {
             m_mediaPlayer->pause();
         });
+        connect(m_btnFn4, &QPushButton::clicked, this, [=]() {
+            m_mediaPlayer->setPosition(m_mediaPlayer->duration());
+        });
+    }
+*/
+    } else if (currentState == PlayAlong) {
+        m_btnFn1->setText("⏮ Rewind");
+
+        // Dynamic Play/Pause Button State Checks
+        if (m_mediaPlayer->playbackState() == QMediaPlayer::PlayingState) {
+            // Try loading a native resource icon first, fallback to text emoji if empty
+            m_btnFn2->setIcon(QIcon(":/resources/icons/pause.png"));
+            m_btnFn2->setText("⏸ Pause");
+        } else {
+            m_btnFn2->setIcon(QIcon(":/resources/icons/play.png"));
+            m_btnFn2->setText("▶ Play");
+        }
+
+        m_btnFn3->setIcon(QIcon(":/resources/icons/stop.png"));
+        m_btnFn3->setText("■ Stop");
+        m_btnFn4->setText("⏭ End");
+
+        connect(m_btnFn1, &QPushButton::clicked, this, [=]() {
+            m_mediaPlayer->setPosition(0);
+            statusBar()->showMessage("Rewound to beginning.");
+        });
+
+        // Unified Play/Pause Action Router
+        connect(m_btnFn2, &QPushButton::clicked, this, [=]() {
+            if (m_selectedAudioPath.isEmpty()) {
+                statusBar()->showMessage("No audio track selected or available for playback.");
+                return;
+            }
+            if (m_mediaPlayer->playbackState() == QMediaPlayer::PlayingState) {
+                m_mediaPlayer->pause();
+            } else {
+                m_mediaPlayer->play();
+            }
+        });
+
+        connect(m_btnFn3, &QPushButton::clicked, this, [=]() {
+            m_mediaPlayer->stop();
+        });
+
         connect(m_btnFn4, &QPushButton::clicked, this, [=]() {
             m_mediaPlayer->setPosition(m_mediaPlayer->duration());
         });
@@ -654,10 +698,10 @@ void MainWindow::updatePlayAlongLayoutDensity() {
 void MainWindow::handlePlaybackStateChanged(QMediaPlayer::PlaybackState state) {
     switch (state) {
     case QMediaPlayer::PlayingState:
-        statusBar()->showMessage(tr("? Playing: %1").arg(QFileInfo(m_selectedAudioPath).fileName()));
+        statusBar()->showMessage(tr("▶ Playing: %1").arg(QFileInfo(m_selectedAudioPath).fileName()));
         break;
     case QMediaPlayer::PausedState:
-        statusBar()->showMessage("? Playback Paused.");
+        statusBar()->showMessage("⏸ Playback Paused.");
         break;
     case QMediaPlayer::StoppedState:
         if (m_mediaPlayer->position() >= m_mediaPlayer->duration() && m_mediaPlayer->duration() > 0) {
@@ -667,6 +711,7 @@ void MainWindow::handlePlaybackStateChanged(QMediaPlayer::PlaybackState state) {
         }
         break;
     }
+    updateFunctionKeys();
 }
 
 void MainWindow::keyPressEvent(QKeyEvent *event) {
