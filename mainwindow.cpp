@@ -38,7 +38,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     m_transposeShift = 0;
     m_capoShift = 0;                  // Default to open neck
     m_instrumentTuningOffset = 0;     // Default to standard guitar tuning
-    m_debugTelemetryEnabled = false;   // 🚀 Enable/discable tracking telemetry out to Qt App Output window
+    m_debugTelemetryEnabled = false;   // 🚀 Enable/disable tracking telemetry out to Qt App Output window
     m_isLoadingFile = false;
     m_currentMode = ChordDisplayMode::CIL;
     m_currentTheme = Theme::Light;
@@ -330,10 +330,21 @@ void MainWindow::handleFileOpen() {
     if (fileName.isEmpty()) return;
 
     m_currentFilePath = fileName;
+
+    // 🚀 RESET COUNTERS: Prevent cumulative transposition states on new files
+    m_transposeShift = 0;
+    m_capoShift = 0;
+    m_instrumentTuningOffset = 0;
+
+    // Clear status bar indicators if you have them displayed on screen
+    statusBar()->showMessage("Loaded new song. Transposition tracking reset to 0.");
+
     QFile file(fileName);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
         QMessageBox::warning(this, tr("Error"), tr("Could not open file: ") + file.errorString());
         return;
+        // Render out the baseline layout cleanly
+        parsedEditor->setHtml(runInitialParse(m_rawSongContent));
     }
 
     QTextStream in(&file);
@@ -1119,28 +1130,130 @@ QString MainWindow::transposeChord(const QString &chordText, int semitones) {
     return transposeSingleNoteToken(chordText, semitones);
 }
 
-QString MainWindow::parseGridLine(const QString &line, int semitones) {
-    QString result;
-    QString currentChordToken;
+QString MainWindow::parseGridLine(const QString &line, int delta) {
+    if (line.trimmed().isEmpty()) return line;
+
+    QString result = "";
+    QString currentToken = "";
 
     for (int i = 0; i < line.length(); ++i) {
         QChar ch = line[i];
-        if (ch == '|' || ch == '.' || ch == '/' || ch == ' ') {
-            if (!currentChordToken.isEmpty()) {
-                result += transposeChord(currentChordToken, semitones);
-                currentChordToken.clear();
+
+        // Maintain standard structural dividers cleanly
+        if (ch == '|' || ch.isSpace()) {
+            if (!currentToken.isEmpty()) {
+                // Look-ahead check: Only attempt transposition if token starts with a valid musical letter tone
+                QChar firstChar = currentToken.trimmed().isEmpty() ? QChar(' ') : currentToken.trimmed()[0];
+                char upperCheck = firstChar.toUpper().toLatin1();
+
+                if (upperCheck >= 'A' && upperCheck <= 'G') {
+                    result += transposeChord(currentToken, delta);
+                } else {
+                    result += currentToken; // Pass non-chord labels through safely!
+                }
+                currentToken = "";
             }
             result += ch;
         } else {
-            currentChordToken += ch;
+            currentToken += ch;
         }
     }
-    if (!currentChordToken.isEmpty()) {
-        result += transposeChord(currentChordToken, semitones);
+
+    if (!currentToken.isEmpty()) {
+        QChar firstChar = currentToken.trimmed().isEmpty() ? QChar(' ') : currentToken.trimmed()[0];
+        char upperCheck = firstChar.toUpper().toLatin1();
+        if (upperCheck >= 'A' && upperCheck <= 'G') {
+            result += transposeChord(currentToken, delta);
+        } else {
+            result += currentToken;
+        }
     }
+
     return result;
 }
 
+QString MainWindow::parseTabLine(const QString &line, int chordDelta, int instrumentDelta) {
+    if (line.trimmed().isEmpty()) return line;
+
+    // Check if it's a structural string line (e.g., E|---, B|---, e|---)
+    QRegularExpression tuningRegex("^([A-G][#b]?)\\|", QRegularExpression::CaseInsensitiveOption);
+    QRegularExpressionMatch tuningMatch = tuningRegex.match(line);
+
+    if (tuningMatch.hasMatch()) {
+        QString result = "";
+        QString originalStringNote = tuningMatch.captured(1);
+
+        QString transposedStringNote = transposeSingleNoteToken(originalStringNote, instrumentDelta);
+        result += transposedStringNote + "|";
+
+        int i = tuningMatch.capturedEnd();
+
+        while (i < line.length()) {
+            if (line[i].isDigit()) {
+                QString fretStr = "";
+                while (i < line.length() && line[i].isDigit()) {
+                    fretStr += line[i++];
+                }
+
+                int originalFret = fretStr.toInt();
+                int newFret = originalFret + instrumentDelta + chordDelta;
+
+                QString outputVisual = "";
+                int logicalVisualLength = 0;
+
+                // 🚀 THE RED 'x' OUT-OF-BOUNDS GUARD
+                if (newFret < 0) {
+                    // We wrap the lower case x inside inline HTML color tags
+                    outputVisual = "<span style='color:#FF3333; font-weight:bold;'>x</span>";
+                    logicalVisualLength = 1; // It physically takes up only ONE character cell on screen!
+                } else {
+                    if (newFret > 24) newFret = 24; // Keep standard fret ceiling safety intact
+                    outputVisual = QString::number(newFret);
+                    logicalVisualLength = outputVisual.length();
+                }
+
+                result += outputVisual;
+
+                // 📐 TRACK PRECISION DASHES USING LOGICAL LENGTH ONLY
+                // This prevents the HTML span tag length from chewing up your structural tab lines!
+                int sizeDifference = logicalVisualLength - fretStr.length();
+                while (sizeDifference > 0 && i < line.length() && line[i] == '-') {
+                    i++;
+                    sizeDifference--;
+                }
+            } else {
+                result += line[i++];
+            }
+        }
+        return result;
+    }
+    else {
+        // --- ROUTINE B: This is a floating chord line above tabs ---
+        // Keeps spacing intervals intact while transposing musical chords cleanly
+        QString result = "";
+        QString currentToken = "";
+
+        for (int i = 0; i < line.length(); ++i) {
+            QChar ch = line[i];
+
+            if (ch.isSpace()) {
+                if (!currentToken.isEmpty()) {
+                    result += transposeChord(currentToken, chordDelta);
+                    currentToken = "";
+                }
+                result += ch;
+            } else {
+                currentToken += ch;
+            }
+        }
+        if (!currentToken.isEmpty()) {
+            result += transposeChord(currentToken, chordDelta);
+        }
+        return result;
+    }
+}
+
+/*
 QString MainWindow::parseTabLine(const QString &line, int chordDelta, int instrumentDelta) {
     if (line.trimmed().isEmpty()) return line;
 
@@ -1214,55 +1327,5 @@ QString MainWindow::parseTabLine(const QString &line, int chordDelta, int instru
         }
         return result;
     }
-}
-
-/*
-QString MainWindow::parseTabLine(const QString &line, int tuningAndCapoShift) {
-    if (line.trimmed().isEmpty()) return line;
-
-    QString result = "";
-    int i = 0;
-
-    // 🚀 FIX 1: Support case-insensitive matching (^([A-Ga-g])) for lowercase string indicators
-    QRegularExpression tuningRegex("^([A-G][#b]?)\\|", QRegularExpression::CaseInsensitiveOption);
-    QRegularExpressionMatch match = tuningRegex.match(line);
-
-    if (match.hasMatch()) {
-        QString originalNote = match.captured(1);
-        // Transpose the tuning line header note indicator using our instrument offset calculation
-        QString transposedNote = transposeSingleNoteToken(originalNote, tuningAndCapoShift);
-        result += transposedNote + "|";
-        i = match.capturedEnd();
-    }
-    // Process physical frets across the string
-    while (i < line.length()) {
-        if (line[i].isDigit()) {
-            QString fretStr = "";
-            while (i < line.length() && line[i].isDigit()) {
-                fretStr += line[i++];
-            }
-
-            int originalFret = fretStr.toInt();
-
-            // 🚀 FIX 2: Only apply physical finger position changes driven by Capo or Detuning
-            int newFret = originalFret + tuningAndCapoShift;
-
-            if (newFret < 0) newFret = 0;
-            if (newFret > 24) newFret = 24;
-
-            QString newFretStr = QString::number(newFret);
-            result += newFretStr;
-
-            // Maintain alignment grid via accordion compaction
-            int sizeDifference = newFretStr.length() - fretStr.length();
-            while (sizeDifference > 0 && i < line.length() && line[i] == '-') {
-                i++;
-                sizeDifference--;
-            }
-        } else {
-            result += line[i++];
-        }
-    }
-    return result;
 }
 */
