@@ -411,6 +411,16 @@ QString MainWindow::runInitialParse(const QString &rawInput) {
         qDebug() << "TOTAL VISUAL CALCULATION SHIFT:" << visualShift;
     }
 
+    // Compute our separate, target-specific translation variables
+    int chordShift = m_transposeShift;
+    int instrumentShift = -(m_capoShift + m_instrumentTuningOffset);
+
+    if (m_debugTelemetryEnabled) {
+        qDebug() << "\n--- CHORDLAB TRANSPOSE ENGINE TELEMETRY ---";
+        qDebug() << "Concert Transpose Offset:" << chordShift;
+        qDebug() << "Instrument Structural Shift (Capo + Tuning):" << instrumentShift;
+    }
+
     QString result = "<html><head><style>"
                      "body { font-family: 'Consolas', monospace; white-space: pre; font-size: 10pt; }"
                      + getThemeStyles() +
@@ -482,7 +492,7 @@ QString MainWindow::runInitialParse(const QString &rawInput) {
             }
 
             // Direct routing to our specialized parsing modules
-            if (inTabBlock) {
+/*            if (inTabBlock) {
                 QString processedTab = parseTabLine(workingLine, visualShift);
                 if (m_debugTelemetryEnabled) qDebug() << "[TAB RAW]:" << workingLine << " -> [SHIFTED]:" << processedTab;
                 result += processedTab + "<br>";
@@ -492,10 +502,19 @@ QString MainWindow::runInitialParse(const QString &rawInput) {
                 if (m_debugTelemetryEnabled) qDebug() << "[GRID RAW]:" << workingLine << " -> [SHIFTED]:" << processedGrid;
                 result += processedGrid + "<br>";
             }
-/*            else {
-                // ... (Keep your standard lyric/chord inline processing code exactly as it is here!) ...
+*/
+            if (inTabBlock) {
+                // Tabs process physical layout placement updates based on instrument configuration alterations
+                QString processedTab = parseTabLine(workingLine, instrumentShift);
+                if (m_debugTelemetryEnabled) qDebug() << "[TAB]:" << workingLine.trimmed() << " -> [RENDER]:" << processedTab;
+                result += processedTab + "<br>";
             }
-        }  */
+            else if (inGridBlock) {
+                // Chord Grids map out pitch harmonies, so they shift cleanly with our chord rules
+                QString processedGrid = parseGridLine(workingLine, chordShift);
+                if (m_debugTelemetryEnabled) qDebug() << "[GRID]:" << workingLine.trimmed() << " -> [RENDER]:" << processedGrid;
+                result += processedGrid + "<br>";
+            }
 //        QString workingLine = line;
         workingLine.remove('\r');
 //        QString trimmedLine = workingLine.trimmed();
@@ -938,26 +957,6 @@ void MainWindow::analyzeChordProMetaData(const QString &rawInput) {
     qDebug() << "==================================================";
 }
 
-/* QString MainWindow::transposeChord(const QString &chord, int semitones) {
-    static const QStringList notes = {"C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"};
-
-    QRegularExpression re("^([A-G][b#]?)");
-    auto match = re.match(chord);
-    if (!match.hasMatch()) return chord;
-
-    QString root = match.captured(1);
-    QString suffix = chord.mid(root.length());
-
-    int idx = notes.indexOf(root);
-    if (idx == -1) return chord;
-
-    int newIdx = (idx + semitones) % 12;
-    if (newIdx < 0) newIdx += 12;
-
-    return notes[newIdx] + suffix;
-}
-*/
-
 QString MainWindow::getThemeStyles() {
     if (m_currentTheme == Dark) {
         return "body { background-color: #121212; color: #E0E0E0; }"
@@ -1157,21 +1156,25 @@ QString MainWindow::parseGridLine(const QString &line, int semitones) {
     return result;
 }
 
-QString MainWindow::parseTabLine(const QString &line, int semitones) {
-    if (semitones == 0 || line.trimmed().isEmpty()) return line;
+QString MainWindow::parseTabLine(const QString &line, int tuningAndCapoShift) {
+    if (line.trimmed().isEmpty()) return line;
 
     QString result = "";
     int i = 0;
 
-    // Transpose tuning indicator notes (e.g. "E|" -> "F#|")
-    QRegularExpression tuningRegex("^([A-G][#b]?)\\|");
+    // 🚀 FIX 1: Support case-insensitive matching (^([A-Ga-g])) for lowercase string indicators
+    QRegularExpression tuningRegex("^([A-G][#b]?)\\|", QRegularExpression::CaseInsensitiveOption);
     QRegularExpressionMatch match = tuningRegex.match(line);
+
     if (match.hasMatch()) {
-        result += transposeSingleNoteToken(match.captured(1), semitones) + "|";
+        QString originalNote = match.captured(1);
+        // Transpose the tuning line header note indicator using our instrument offset calculation
+        QString transposedNote = transposeSingleNoteToken(originalNote, tuningAndCapoShift);
+        result += transposedNote + "|";
         i = match.capturedEnd();
     }
 
-    // Parse frets and intelligently preserve fixed-width columns
+    // Process physical frets across the string
     while (i < line.length()) {
         if (line[i].isDigit()) {
             QString fretStr = "";
@@ -1180,16 +1183,17 @@ QString MainWindow::parseTabLine(const QString &line, int semitones) {
             }
 
             int originalFret = fretStr.toInt();
-            int newFret = originalFret + semitones;
 
-            // Physical neck limit guard bounds (0 to 24 frets)
+            // 🚀 FIX 2: Only apply physical finger position changes driven by Capo or Detuning
+            int newFret = originalFret + tuningAndCapoShift;
+
             if (newFret < 0) newFret = 0;
             if (newFret > 24) newFret = 24;
 
             QString newFretStr = QString::number(newFret);
             result += newFretStr;
 
-            // Accordion Compensation: If fret text expanded, drop trailing dashes to maintain alignment
+            // Maintain alignment grid via accordion compaction
             int sizeDifference = newFretStr.length() - fretStr.length();
             while (sizeDifference > 0 && i < line.length() && line[i] == '-') {
                 i++;
