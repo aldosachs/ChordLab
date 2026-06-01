@@ -31,15 +31,6 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 
     connect(m_mediaPlayer, &QMediaPlayer::playbackStateChanged, this, &MainWindow::handlePlaybackStateChanged);
 
-/*    // 2. Clear Internal State Variables Before UI Draws
-    m_currentFilePath = "";
-    m_parsedSongContentGrid = "";
-    m_zoomScaleLevel = 0;
-    m_transposeShift = 0;
-    m_isLoadingFile = false;
-    m_currentMode = ChordDisplayMode::CIL;
-    m_currentTheme = Theme::Light;
-*/
     // 2. Clear Internal State Variables Before UI Draws
     m_currentFilePath = "";
     m_parsedSongContentGrid = "";
@@ -47,7 +38,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     m_transposeShift = 0;
     m_capoShift = 0;                  // Default to open neck
     m_instrumentTuningOffset = 0;     // Default to standard guitar tuning
-    m_debugTelemetryEnabled = true;   // 🚀 Enable tracking telemetry out to Qt App Output window
+    m_debugTelemetryEnabled = false;   // 🚀 Enable/discable tracking telemetry out to Qt App Output window
     m_isLoadingFile = false;
     m_currentMode = ChordDisplayMode::CIL;
     m_currentTheme = Theme::Light;
@@ -402,8 +393,7 @@ void MainWindow::handleFileSave() {
 }
 
 QString MainWindow::runInitialParse(const QString &rawInput) {
-
-    // 1. Calculate our clear target translation variables
+    // Calculate translation offsets explicitly
     int chordShift = m_transposeShift;
     int instrumentShift = -(m_capoShift + m_instrumentTuningOffset);
 
@@ -413,13 +403,12 @@ QString MainWindow::runInitialParse(const QString &rawInput) {
         qDebug() << "Instrument Structural Shift (Tabs/Capo/Tuning):" << instrumentShift;
     }
 
-    // 2. Build the baseline HTML header structural frame
     QString result = "<html><head><style>"
                      "body { font-family: 'Consolas', monospace; white-space: pre; font-size: 10pt; }"
                      + getThemeStyles() +
                      "</style></head><body>";
 
-    // 3. Extract Metadata cleanly using uniform expressions
+    // Extract Metadata Block Headers
     QRegularExpression titleRegex(R"(\{(?:title|t):\s*(.*?)\})", QRegularExpression::CaseInsensitiveOption);
     QRegularExpression artistRegex("\\{artist:\\s*(.*)\\}", QRegularExpression::CaseInsensitiveOption);
     QRegularExpression keyRegex("\\{key:\\s*(.*)\\}", QRegularExpression::CaseInsensitiveOption);
@@ -439,10 +428,9 @@ QString MainWindow::runInitialParse(const QString &rawInput) {
         if (!key.isEmpty())    result += "Key: <b>" + key + "</b><br>";
         if (!tempo.isEmpty())  result += "Tempo: <b>" + tempo + "</b><br>";
         if (!capo.isEmpty())   result += "Capo: <b>" + capo + "</b>";
-        result += "</div>";
+        result += "</div><br>"; // 🚀 Added explicit break after metadata block
     }
 
-    // 4. Run our single-pass line iteration loop
     QStringList lines = rawInput.split('\n');
     bool inTabBlock = false;
     bool inGridBlock = false;
@@ -456,7 +444,6 @@ QString MainWindow::runInitialParse(const QString &rawInput) {
         workingLine.remove('\r');
         QString trimmedLine = workingLine.trimmed();
 
-        // Dynamically capture inline capo settings to feed our matrix math
         if (trimmedLine.startsWith("{capo:", Qt::CaseInsensitive)) {
             m_capoShift = trimmedLine.section(':', 1).chopped(1).trimmed().toInt();
         }
@@ -464,38 +451,39 @@ QString MainWindow::runInitialParse(const QString &rawInput) {
         // --- Block Boundary Interceptions ---
         if (trimmedLine.startsWith("{start_of_tab}") || trimmedLine.startsWith("{sot}")) {
             inTabBlock = true;
-            result += "<div style='font-family:monospace; color:#008800; font-weight:bold;'>[Tablature Block Start]</div>";
+            // 🚀 FIXED: Wrapped block labels in standard layout lines followed by explicit HTML line breaks
+            result += "<div style='font-family:sans-serif; color:#008800; font-weight:bold;'>[Tablature Block Start]</div><br>";
             continue;
         }
         if (trimmedLine.startsWith("{end_of_tab}") || trimmedLine.startsWith("{eot}")) {
             inTabBlock = false;
-            result += "<div style='font-family:monospace; color:#008800; font-weight:bold;'>[Tablature Block End]</div><br>";
+            result += "<div style='font-family:sans-serif; color:#008800; font-weight:bold;'>[Tablature Block End]</div><br>";
             continue;
         }
         if (trimmedLine.startsWith("{start_of_grid}") || trimmedLine.startsWith("{sog}")) {
             inGridBlock = true;
-            result += "<div style='font-family:monospace; color:#880088; font-weight:bold;'>[Chord Grid Block Start]</div>";
+            result += "<div style='font-family:sans-serif; color:#880088; font-weight:bold;'>[Chord Grid Block Start]</div><br>";
             continue;
         }
         if (trimmedLine.startsWith("{end_of_grid}") || trimmedLine.startsWith("{eog}")) {
             inGridBlock = false;
-            result += "<div style='font-family:monospace; color:#880088; font-weight:bold;'>[Chord Grid Block End]</div><br>";
+            result += "<div style='font-family:sans-serif; color:#880088; font-weight:bold;'>[Chord Grid Block End]</div><br>";
             continue;
         }
 
-        // --- Specialized Routing Blocks ---
+        // --- Specialized Rendering Engine Modules ---
         if (inTabBlock) {
             QString processedTab = parseTabLine(workingLine, instrumentShift);
-            if (m_debugTelemetryEnabled) qDebug() << "[TAB]:" << workingLine.trimmed() << " -> [RENDER]:" << processedTab;
+            if (m_debugTelemetryEnabled) qDebug() << "[TAB Engine]:" << workingLine.trimmed() << " -> [RENDER]:" << processedTab;
             result += processedTab + "<br>";
-            continue; // Skip standard chord engine formatting for this row
+            continue;
         }
 
         if (inGridBlock) {
             QString processedGrid = parseGridLine(workingLine, chordShift);
-            if (m_debugTelemetryEnabled) qDebug() << "[GRID]:" << workingLine.trimmed() << " -> [RENDER]:" << processedGrid;
+            if (m_debugTelemetryEnabled) qDebug() << "[GRID Engine]:" << workingLine.trimmed() << " -> [RENDER]:" << processedGrid;
             result += processedGrid + "<br>";
-            continue; // Skip standard chord engine formatting for this row
+            continue;
         }
 
         // --- Standard ChordPro Structural Content Parsing ---
@@ -530,7 +518,7 @@ QString MainWindow::runInitialParse(const QString &rawInput) {
         }
         else if (trimmedLine.startsWith("{end_of_chorus}") || trimmedLine.startsWith("{eoc")) {
             inChorus = false;
-            result += "</div>";
+            result += "</div><br>";
             lineHandled = true;
         }
         else if (trimmedLine.startsWith("{c:") || trimmedLine.startsWith("{comment:")) {
@@ -547,28 +535,27 @@ QString MainWindow::runInitialParse(const QString &rawInput) {
 
         if (!lineHandled) {
             if (inProtectedBlock) {
-                result += line + "<br>";
+                result += workingLine + "<br>";
             }
             else if (inChorus) {
-                result += processLineContent(line) + "<br>";
+                result += processLineContent(workingLine) + "<br>";
             }
             else {
                 if (!inVerse) {
                     inVerse = true;
                     result += "<div class='verse-box'>";
                 }
-                result += processLineContent(line) + "<br>";
+                result += processLineContent(workingLine) + "<br>";
             }
         }
     }
 
-    // 5. Clean up any open styling blocks before completing the file stream
     if (inVerse || inChorus) {
         result += "</div>";
     }
 
     result += "</body></html>";
-    return result; // 🚀 Absolute Guarantee: Every control block now returns this string!
+    return result;
 }
 
 void MainWindow::toggleDisplayMode() {
@@ -589,10 +576,14 @@ void MainWindow::shiftTransposition(int delta) {
     }
 
     statusBar()->showMessage(QString("Transposition: %1 semitones").arg(m_transposeShift));
+
     if (currentState == PlayAlong) {
         parseChordProToGrid(m_rawSongContent);
     } else {
-        parsedEditor->setHtml(runInitialParse(m_rawSongContent));
+        // 🚀 FIX: Pass the current live string text data rather than old m_rawSongContent
+        // Replace 'rawEditor' with the actual variable name of your left-side text entry window
+        QString currentLiveText = originalEditor->toPlainText();
+        parsedEditor->setHtml(runInitialParse(currentLiveText));
     }
 }
 
