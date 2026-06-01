@@ -199,13 +199,13 @@ void MainWindow::setAppState(AppState state) {
 
     switch(state) {
     case Idle:
-        m_btnModeToggle->setText("Mode: Edit ??");
+        m_btnModeToggle->setText("Mode: Edit 📝");
         statusBar()->showMessage("Ready. Open a ChordPro file to begin.");
         mainSplitter->hide();
         break;
 
     case OpenEdit:
-        m_btnModeToggle->setText("Mode: Edit ??");
+        m_btnModeToggle->setText("Mode: Edit 📝");
         statusBar()->showMessage("Editing Mode: Analyzing ChordPro syntax...");
 
         // Show split panels
@@ -219,7 +219,7 @@ void MainWindow::setAppState(AppState state) {
         break;
 
     case PlayAlong:
-        m_btnModeToggle->setText("Mode: Play ??");
+        m_btnModeToggle->setText("Mode: Play 🎤");
         statusBar()->showMessage("Play-along Mode Active. Space: Toggle Play | Ctrl +/-: Zoom");
 
         // Maximize output window surface
@@ -241,10 +241,10 @@ void MainWindow::updateFunctionKeys() {
     disconnect(m_btnFn4, &QPushButton::clicked, nullptr, nullptr);
 
     if (currentState == OpenEdit || currentState == Idle) {
-        m_btnFn1->setText("?? Open");
-        m_btnFn2->setText("?? Save");
-        m_btnFn3->setText("?? As...");
-        m_btnFn4->setText("?? Parse");
+        m_btnFn1->setText("📂 Open");
+        m_btnFn2->setText("💾 Save");
+        m_btnFn3->setText("💾 As...");
+        m_btnFn4->setText("🔄 Parse");
 
         connect(m_btnFn1, &QPushButton::clicked, this, &MainWindow::handleFileOpen);
         connect(m_btnFn2, &QPushButton::clicked, this, &MainWindow::handleFileSave);
@@ -258,10 +258,10 @@ void MainWindow::updateFunctionKeys() {
             parsedEditor->setHtml(runInitialParse(originalEditor->toPlainText()));
         });
     } else if (currentState == PlayAlong) {
-        m_btnFn1->setText("? Rewind");
-        m_btnFn2->setText("? Play");
-        m_btnFn3->setText("? Pause");
-        m_btnFn4->setText("? End");
+        m_btnFn1->setText("⏮ Rewind");
+        m_btnFn2->setText("▶ Play");
+        m_btnFn3->setText("⏸ Pause");
+        m_btnFn4->setText("⏭ End");
 
         connect(m_btnFn1, &QPushButton::clicked, this, [=]() {
             m_mediaPlayer->setPosition(0);
