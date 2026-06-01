@@ -343,7 +343,7 @@ void MainWindow::handleFileOpen() {
         this,
         tr("Open ChordPro File"),
         initialPath, // 🚀 Automatically spins up inside your targeted pieces directory!
-        tr("ChordPro Files (*.chopro *.pro *.txt *.crd)")
+        tr("ChordPro Files (*.chopro *.cho *.pro *.txt *.crd)")
         );
 
     if (fileName.isEmpty()) return;
@@ -375,7 +375,7 @@ void MainWindow::handleFileOpen() {
 void MainWindow::handleFileSave() {
     if (m_currentFilePath.isEmpty()) {
         QString saveName = QFileDialog::getSaveFileName(this,
-                                                        tr("Save ChordPro File"), "", tr("ChordPro Files (*.chopro *.pro *.txt *.crd)"));
+                                                        tr("Save ChordPro File"), "", tr("ChordPro Files (*.chopro *.cho *.pro *.txt *.crd)"));
         if (saveName.isEmpty()) return;
         m_currentFilePath = saveName;
     }
