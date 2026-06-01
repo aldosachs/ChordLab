@@ -2,6 +2,7 @@
 {artist: The Beatles}
 {time: 108}
 {duration: 0:02:33}
+
 {c: Verse 1}
 [G]In the | [D]town /where/  [C]I was | [G]born
 [Em]Lived a | [Am]man /who/  [C] sailed to | [D]sea

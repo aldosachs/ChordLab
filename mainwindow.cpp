@@ -132,7 +132,7 @@ void MainWindow::setupToolBar() {
         }
     });
 
-    m_btnModeToggle = new QPushButton("Mode: Edit ??");
+    m_btnModeToggle = new QPushButton("Mode: Edit 📝");
     m_btnModeToggle->setStyleSheet("QPushButton { background-color: #004060; color: white; padding: 5px; min-width: 100px; }");
     connect(m_btnModeToggle, &QPushButton::clicked, this, &MainWindow::togglePlaybackMode);
     layout->addWidget(m_btnModeToggle);
@@ -144,7 +144,7 @@ void MainWindow::setupToolBar() {
 
     settingsToolBar->addWidget(container);
 
-    m_viewToggleBtn = new QPushButton("View: ChordPro (CIL)");
+    m_viewToggleBtn = new QPushButton("ChordPro-CIL");
     m_viewToggleBtn->setStyleSheet("QPushButton { background-color: #0047AB; color: white; }");
     connect(m_viewToggleBtn, &QPushButton::clicked, this, &MainWindow::toggleDisplayMode);
     layout->addWidget(m_viewToggleBtn);
@@ -206,7 +206,7 @@ void MainWindow::setAppState(AppState state) {
 
     case OpenEdit:
         m_btnModeToggle->setText("Mode: Edit 📝");
-        statusBar()->showMessage("Editing Mode: Analyzing ChordPro syntax...");
+        statusBar()->showMessage("Editing Mode📝: Analyzing ChordPro syntax...");
 
         // Show split panels
         mainSplitter->show();
@@ -220,7 +220,7 @@ void MainWindow::setAppState(AppState state) {
 
     case PlayAlong:
         m_btnModeToggle->setText("Mode: Play 🎤");
-        statusBar()->showMessage("Play-along Mode Active. Space: Toggle Play | Ctrl +/-: Zoom");
+        statusBar()->showMessage("Play-along Mode 🎤Active. Space: Toggle Play | Ctrl +/-: Zoom");
 
         // Maximize output window surface
         originalEditor->hide();
@@ -439,7 +439,7 @@ QString MainWindow::runInitialParse(const QString &rawInput) {
 
 void MainWindow::toggleDisplayMode() {
     m_currentMode = (m_currentMode == ChordDisplayMode::CIL) ? ChordDisplayMode::CAL : ChordDisplayMode::CIL;
-    m_viewToggleBtn->setText(m_currentMode == ChordDisplayMode::CIL ? "View: ChordPro (CIL)" : "View: LeadSheet (CAL)");
+    m_viewToggleBtn->setText(m_currentMode == ChordDisplayMode::CIL ? "ChordPro-CIL" : "LeadSheet-CAL");
 
     if (currentState == PlayAlong) {
         parseChordProToGrid(m_rawSongContent);
