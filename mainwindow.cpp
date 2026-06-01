@@ -372,6 +372,51 @@ void MainWindow::handleFileOpen() {
     statusBar()->showMessage(tr("Loaded: ") + fileName);
 }
 
+void MainWindow::handleFileOpen() {
+    // Determine the location where the executable is currently running
+    QString appDir = QCoreApplication::applicationDirPath();
+
+    // Look for a local 'resources/pieces' directory relative to the build/installation folder
+    QString initialPath = appDir + "/resources/pieces";
+
+    // Fallback gracefully if that folder structure doesn't exist yet
+    if (!QDir(initialPath).exists()) {
+        initialPath = QDir::homePath(); // fallback to standard system User Documents folder
+    }
+
+    QString fileName = QFileDialog::getOpenFileName(
+        this,
+        tr("Open ChordPro File"),
+        initialPath, // 🚀 Automatically spins up inside your targeted pieces directory!
+        tr("ChordPro Files (*.chopro *.cho *.pro *.txt *.crd)")
+        );
+
+    if (fileName.isEmpty()) return;
+
+    m_currentFilePath = fileName;
+    QFile file(fileName);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        QMessageBox::warning(this, tr("Error"), tr("Could not open file: ") + file.errorString());
+        return;
+    }
+
+    QTextStream in(&file);
+    QString content = in.readAll();
+    file.close();
+
+    m_rawSongContent = content;
+
+    m_isLoadingFile = true; // Block signal loops safely
+    originalEditor->setPlainText(content);
+    m_isLoadingFile = false; // RE-ENABLE safely (fixed bug here)
+
+    // Set state explicitly handles rendering separation cleanly
+    setAppState(OpenEdit);
+
+    checkForCompanionAudio(m_currentFilePath);
+    statusBar()->showMessage(tr("Loaded: ") + fileName);
+}
+
 void MainWindow::handleFileSave() {
     if (m_currentFilePath.isEmpty()) {
         QString saveName = QFileDialog::getSaveFileName(this,
