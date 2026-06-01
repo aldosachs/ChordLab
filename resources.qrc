@@ -6,6 +6,8 @@
     
     <file>resources/styles/modern.qss</file>
     
-    <file>resources/test_songs/boundary_test.pro</file>
+    <file>resources/pieces</file>
+    <file>resources/playlists</file>
+
 </qresource>
 </RCC>

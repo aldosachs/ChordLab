@@ -328,8 +328,24 @@ void MainWindow::updateFunctionKeys() {
 }
 
 void MainWindow::handleFileOpen() {
-    QString fileName = QFileDialog::getOpenFileName(this,
-                                                    tr("Open ChordPro File"), "", tr("ChordPro Files (*.chopro *.pro *.txt *.crd)"));
+    // Determine the location where the executable is currently running
+    QString appDir = QCoreApplication::applicationDirPath();
+
+    // Look for a local 'resources/pieces' directory relative to the build/installation folder
+    QString initialPath = appDir + "/resources/pieces";
+
+    // Fallback gracefully if that folder structure doesn't exist yet
+    if (!QDir(initialPath).exists()) {
+        initialPath = QDir::homePath(); // fallback to standard system User Documents folder
+    }
+
+    QString fileName = QFileDialog::getOpenFileName(
+        this,
+        tr("Open ChordPro File"),
+        initialPath, // 🚀 Automatically spins up inside your targeted pieces directory!
+        tr("ChordPro Files (*.chopro *.pro *.txt *.crd)")
+        );
+
     if (fileName.isEmpty()) return;
 
     m_currentFilePath = fileName;
