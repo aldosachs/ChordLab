@@ -111,8 +111,7 @@ private:
     QString transposeSingleNoteToken(const QString &noteToken, int semitones);
     QString transposeChord(const QString &chordText, int semitones);
     QString parseGridLine(const QString &line, int semitones);
-    QString parseTabLine(const QString &line, int semitones);
-
+    QString parseTabLine(const QString &line, int chordDelta, int instrumentDelta);
     bool m_isLoadingFile = false;
 
     QString runInitialParse(const QString &rawInput);

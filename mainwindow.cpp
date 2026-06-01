@@ -473,12 +473,19 @@ QString MainWindow::runInitialParse(const QString &rawInput) {
 
         // --- Specialized Rendering Engine Modules ---
         if (inTabBlock) {
+            // 🚀 Update: We pass BOTH chordShift and instrumentShift directly to the tab line processing module
+            QString processedTab = parseTabLine(workingLine, chordShift, instrumentShift);
+            if (m_debugTelemetryEnabled) qDebug() << "[TAB Engine]:" << workingLine.trimmed() << " -> [RENDER]:" << processedTab;
+            result += processedTab + "<br>";
+            continue;
+        }
+/*        if (inTabBlock) {
             QString processedTab = parseTabLine(workingLine, instrumentShift);
             if (m_debugTelemetryEnabled) qDebug() << "[TAB Engine]:" << workingLine.trimmed() << " -> [RENDER]:" << processedTab;
             result += processedTab + "<br>";
             continue;
         }
-
+*/
         if (inGridBlock) {
             QString processedGrid = parseGridLine(workingLine, chordShift);
             if (m_debugTelemetryEnabled) qDebug() << "[GRID Engine]:" << workingLine.trimmed() << " -> [RENDER]:" << processedGrid;
@@ -1134,6 +1141,82 @@ QString MainWindow::parseGridLine(const QString &line, int semitones) {
     return result;
 }
 
+QString MainWindow::parseTabLine(const QString &line, int chordDelta, int instrumentDelta) {
+    if (line.trimmed().isEmpty()) return line;
+
+    // 1. IDENTIFY LINE TYPE: Check if it's a structural guitar string line (e.g., E|, g|, A| )
+    QRegularExpression tuningRegex("^([A-G][#b]?)\\|", QRegularExpression::CaseInsensitiveOption);
+    QRegularExpressionMatch tuningMatch = tuningRegex.match(line);
+
+    if (tuningMatch.hasMatch()) {
+        // --- ROUTINE A: This is a physical fretboard string line! ---
+        QString result = "";
+        QString originalStringNote = tuningMatch.captured(1);
+
+        // Transpose the string's baseline tuning label note (e.g., E -> F# if Capo is 2)
+        QString transposedStringNote = transposeSingleNoteToken(originalStringNote, instrumentDelta);
+        result += transposedStringNote + "|";
+
+        int i = tuningMatch.capturedEnd();
+
+        while (i < line.length()) {
+            if (line[i].isDigit()) {
+                QString fretStr = "";
+                while (i < line.length() && line[i].isDigit()) {
+                    fretStr += line[i++];
+                }
+
+                int originalFret = fretStr.toInt();
+
+                // Physical frets shift by the instrument/capo offset balance
+                int newFret = originalFret + instrumentDelta;
+                if (newFret < 0)  newFret = 0;
+                if (newFret > 24) newFret = 24;
+
+                QString newFretStr = QString::number(newFret);
+                result += newFretStr;
+
+                // Standard grid compaction tracker to keep dashed vertical alignments square
+                int sizeDifference = newFretStr.length() - fretStr.length();
+                while (sizeDifference > 0 && i < line.length() && line[i] == '-') {
+                    i++;
+                    sizeDifference--;
+                }
+            } else {
+                // 🚀 TECHNIQUE GUARD: ~ / \ h p b r pass through completely untouched!
+                result += line[i++];
+            }
+        }
+        return result;
+    }
+    else {
+        // --- ROUTINE B: This is a floating Chord line above a tab track! ---
+        // We split the line token-by-token to transpose text chords while preserving exact space intervals
+        QString result = "";
+        QString currentToken = "";
+
+        for (int i = 0; i < line.length(); ++i) {
+            QChar ch = line[i];
+
+            if (ch.isSpace()) {
+                if (!currentToken.isEmpty()) {
+                    // Transpose the chord using standard chord rules
+                    result += transposeChord(currentToken, chordDelta);
+                    currentToken = "";
+                }
+                result += ch; // Retain precise formatting spaces
+            } else {
+                currentToken += ch;
+            }
+        }
+        if (!currentToken.isEmpty()) {
+            result += transposeChord(currentToken, chordDelta);
+        }
+        return result;
+    }
+}
+
+/*
 QString MainWindow::parseTabLine(const QString &line, int tuningAndCapoShift) {
     if (line.trimmed().isEmpty()) return line;
 
@@ -1151,7 +1234,6 @@ QString MainWindow::parseTabLine(const QString &line, int tuningAndCapoShift) {
         result += transposedNote + "|";
         i = match.capturedEnd();
     }
-
     // Process physical frets across the string
     while (i < line.length()) {
         if (line[i].isDigit()) {
@@ -1183,3 +1265,4 @@ QString MainWindow::parseTabLine(const QString &line, int tuningAndCapoShift) {
     }
     return result;
 }
+*/
