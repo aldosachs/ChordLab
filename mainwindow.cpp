@@ -19,6 +19,9 @@
 #include <QMediaPlayer>
 #include <QtMath>
 
+static const QStringList NOTE_SCALE_SHARPS = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
+static const QStringList NOTE_SCALE_FLATS  = {"C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"};
+
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     // 1. Core Hardware & Audio Engine Instantiation First
     m_mediaPlayer = new QMediaPlayer(this);
@@ -60,10 +63,6 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
         QSize size = screen->availableGeometry().size();
         resize(size.width() * 0.75, size.height() * 0.75);
     }
-
-    static const QStringList NOTE_SCALE_SHARPS = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
-    static const QStringList NOTE_SCALE_FLATS  = {"C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"};
-
     // 5. Final State Machine Launch
     setAppState(Idle);
 }
@@ -493,13 +492,13 @@ QString MainWindow::runInitialParse(const QString &rawInput) {
                 if (m_debugTelemetryEnabled) qDebug() << "[GRID RAW]:" << workingLine << " -> [SHIFTED]:" << processedGrid;
                 result += processedGrid + "<br>";
             }
-            else {
-/*                // ... (Keep your standard lyric/chord inline processing code exactly as it is here!) ...
+/*            else {
+                // ... (Keep your standard lyric/chord inline processing code exactly as it is here!) ...
             }
         }  */
-        QString workingLine = line;
+//        QString workingLine = line;
         workingLine.remove('\r');
-        QString trimmedLine = workingLine.trimmed();
+//        QString trimmedLine = workingLine.trimmed();
         bool lineHandled = false;
 
         if (trimmedLine.startsWith("{title:", Qt::CaseInsensitive) ||
@@ -564,8 +563,8 @@ QString MainWindow::runInitialParse(const QString &rawInput) {
     }
     if (inVerse || inChorus) result += "</div>";
     return result + "</body></html>";
+    }
 }
-
 void MainWindow::toggleDisplayMode() {
     m_currentMode = (m_currentMode == ChordDisplayMode::CIL) ? ChordDisplayMode::CAL : ChordDisplayMode::CIL;
     m_viewToggleBtn->setText(m_currentMode == ChordDisplayMode::CIL ? "ChordPro-CIL" : "LeadSheet-CAL");
@@ -939,7 +938,7 @@ void MainWindow::analyzeChordProMetaData(const QString &rawInput) {
     qDebug() << "==================================================";
 }
 
-QString MainWindow::transposeChord(const QString &chord, int semitones) {
+/* QString MainWindow::transposeChord(const QString &chord, int semitones) {
     static const QStringList notes = {"C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"};
 
     QRegularExpression re("^([A-G][b#]?)");
@@ -957,6 +956,7 @@ QString MainWindow::transposeChord(const QString &chord, int semitones) {
 
     return notes[newIdx] + suffix;
 }
+*/
 
 QString MainWindow::getThemeStyles() {
     if (m_currentTheme == Dark) {
