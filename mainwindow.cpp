@@ -455,6 +455,9 @@ QString MainWindow::runInitialParse(const QString &rawInput) {
         workingLine.remove('\r');
         QString trimmedLine = workingLine.trimmed();
 
+        QString safeInput = rawInput;
+        safeInput.replace(QChar(0xA0), ' ');
+
         if (trimmedLine.startsWith("{capo:", Qt::CaseInsensitive)) {
             m_capoShift = trimmedLine.section(':', 1).chopped(1).trimmed().toInt();
         }
@@ -599,7 +602,6 @@ void MainWindow::shiftTransposition(int delta) {
         parseChordProToGrid(m_rawSongContent);
     } else {
         // 🚀 FIX: Pass the current live string text data rather than old m_rawSongContent
-        // Replace 'rawEditor' with the actual variable name of your left-side text entry window
         QString currentLiveText = originalEditor->toPlainText();
         parsedEditor->setHtml(runInitialParse(currentLiveText));
     }
