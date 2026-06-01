@@ -403,123 +403,102 @@ void MainWindow::handleFileSave() {
 
 QString MainWindow::runInitialParse(const QString &rawInput) {
 
-    int visualShift = m_transposeShift - (m_capoShift + m_instrumentTuningOffset);
-
-    if (m_debugTelemetryEnabled) {
-        qDebug() << "\n--- CHORDLAB TRANSPOSE ENGINE TELEMETRY ---";
-        qDebug() << "Concert Shift:" << m_transposeShift << "| Capo Fret:" << m_capoShift << "| Tuning Offset:" << m_instrumentTuningOffset;
-        qDebug() << "TOTAL VISUAL CALCULATION SHIFT:" << visualShift;
-    }
-
-    // Compute our separate, target-specific translation variables
+    // 1. Calculate our clear target translation variables
     int chordShift = m_transposeShift;
     int instrumentShift = -(m_capoShift + m_instrumentTuningOffset);
 
     if (m_debugTelemetryEnabled) {
         qDebug() << "\n--- CHORDLAB TRANSPOSE ENGINE TELEMETRY ---";
-        qDebug() << "Concert Transpose Offset:" << chordShift;
-        qDebug() << "Instrument Structural Shift (Capo + Tuning):" << instrumentShift;
+        qDebug() << "Concert Transpose Offset (Chords):" << chordShift;
+        qDebug() << "Instrument Structural Shift (Tabs/Capo/Tuning):" << instrumentShift;
     }
 
+    // 2. Build the baseline HTML header structural frame
     QString result = "<html><head><style>"
                      "body { font-family: 'Consolas', monospace; white-space: pre; font-size: 10pt; }"
                      + getThemeStyles() +
                      "</style></head><body>";
 
+    // 3. Extract Metadata cleanly using uniform expressions
     QRegularExpression titleRegex(R"(\{(?:title|t):\s*(.*?)\})", QRegularExpression::CaseInsensitiveOption);
     QRegularExpression artistRegex("\\{artist:\\s*(.*)\\}", QRegularExpression::CaseInsensitiveOption);
     QRegularExpression keyRegex("\\{key:\\s*(.*)\\}", QRegularExpression::CaseInsensitiveOption);
     QRegularExpression tempoRegex("\\{tempo:\\s*(.*)\\}", QRegularExpression::CaseInsensitiveOption);
     QRegularExpression capoRegex("\\{capo:\\s*(.*)\\}", QRegularExpression::CaseInsensitiveOption);
 
-    QString title = titleRegex.match(rawInput).captured(1).trimmed();
+    QString title  = titleRegex.match(rawInput).captured(1).trimmed();
     QString artist = artistRegex.match(rawInput).captured(1).trimmed();
-    QString key = keyRegex.match(rawInput).captured(1).trimmed();
-    QString tempo = tempoRegex.match(rawInput).captured(1).trimmed();
-    QString capo = capoRegex.match(rawInput).captured(1).trimmed();
+    QString key    = keyRegex.match(rawInput).captured(1).trimmed();
+    QString tempo  = tempoRegex.match(rawInput).captured(1).trimmed();
+    QString capo   = capoRegex.match(rawInput).captured(1).trimmed();
 
     if (!title.isEmpty()) {
         result += "<div class='header-block'>";
         result += "<h1 style='margin:0; font-size: 16pt;'>" + title + "</h1>";
-        if (!artist.isEmpty())   result += "Artist: <b>" + artist + "</b><br>";
-        if (!key.isEmpty())   result += "Key: <b>" + key + "</b><br>";
-        if (!tempo.isEmpty()) result += "Tempo: <b>" + tempo + "</b><br>";
-        if (!capo.isEmpty())  result += "Capo: <b>" + capo + "</b>";
+        if (!artist.isEmpty()) result += "Artist: <b>" + artist + "</b><br>";
+        if (!key.isEmpty())    result += "Key: <b>" + key + "</b><br>";
+        if (!tempo.isEmpty())  result += "Tempo: <b>" + tempo + "</b><br>";
+        if (!capo.isEmpty())   result += "Capo: <b>" + capo + "</b>";
         result += "</div>";
     }
 
+    // 4. Run our single-pass line iteration loop
     QStringList lines = rawInput.split('\n');
+    bool inTabBlock = false;
+    bool inGridBlock = false;
     bool inProtectedBlock = false;
     bool lastLineWasEmpty = false;
     bool inChorus = false;
     bool inVerse = false;
 
     for (const QString &line : lines) {
-
-        bool inTabBlock = false;
-        bool inGridBlock = false;
-
-        for (const QString &line : lines) {
-            QString workingLine = line;
-            workingLine.remove('\r');
-            QString trimmedLine = workingLine.trimmed();
-
-            // Check for Capo configuration dynamically to automatically feed our math engine
-            if (trimmedLine.startsWith("{capo:", Qt::CaseInsensitive)) {
-                m_capoShift = trimmedLine.section(':', 1).chopped(1).trimmed().toInt();
-            }
-
-            // Block Boundary Interceptions
-            if (trimmedLine.startsWith("{start_of_tab}") || trimmedLine.startsWith("{sot}")) {
-                inTabBlock = true;
-                result += "<div style='font-family:monospace; color:#008800; font-weight:bold;'>[Tablature Block Start]</div>";
-                continue;
-            }
-            if (trimmedLine.startsWith("{end_of_tab}") || trimmedLine.startsWith("{eot}")) {
-                inTabBlock = false;
-                result += "<div style='font-family:monospace; color:#008800; font-weight:bold;'>[Tablature Block End]</div><br>";
-                continue;
-            }
-            if (trimmedLine.startsWith("{start_of_grid}") || trimmedLine.startsWith("{sog}")) {
-                inGridBlock = true;
-                result += "<div style='font-family:monospace; color:#880088; font-weight:bold;'>[Chord Grid Block Start]</div>";
-                continue;
-            }
-            if (trimmedLine.startsWith("{end_of_grid}") || trimmedLine.startsWith("{eog}")) {
-                inGridBlock = false;
-                result += "<div style='font-family:monospace; color:#880088; font-weight:bold;'>[Chord Grid Block End]</div><br>";
-                continue;
-            }
-
-            // Direct routing to our specialized parsing modules
-/*            if (inTabBlock) {
-                QString processedTab = parseTabLine(workingLine, visualShift);
-                if (m_debugTelemetryEnabled) qDebug() << "[TAB RAW]:" << workingLine << " -> [SHIFTED]:" << processedTab;
-                result += processedTab + "<br>";
-            }
-            else if (inGridBlock) {
-                QString processedGrid = parseGridLine(workingLine, visualShift);
-                if (m_debugTelemetryEnabled) qDebug() << "[GRID RAW]:" << workingLine << " -> [SHIFTED]:" << processedGrid;
-                result += processedGrid + "<br>";
-            }
-*/
-            if (inTabBlock) {
-                // Tabs process physical layout placement updates based on instrument configuration alterations
-                QString processedTab = parseTabLine(workingLine, instrumentShift);
-                if (m_debugTelemetryEnabled) qDebug() << "[TAB]:" << workingLine.trimmed() << " -> [RENDER]:" << processedTab;
-                result += processedTab + "<br>";
-            }
-            else if (inGridBlock) {
-                // Chord Grids map out pitch harmonies, so they shift cleanly with our chord rules
-                QString processedGrid = parseGridLine(workingLine, chordShift);
-                if (m_debugTelemetryEnabled) qDebug() << "[GRID]:" << workingLine.trimmed() << " -> [RENDER]:" << processedGrid;
-                result += processedGrid + "<br>";
-            }
-//        QString workingLine = line;
+        QString workingLine = line;
         workingLine.remove('\r');
-//        QString trimmedLine = workingLine.trimmed();
-        bool lineHandled = false;
+        QString trimmedLine = workingLine.trimmed();
 
+        // Dynamically capture inline capo settings to feed our matrix math
+        if (trimmedLine.startsWith("{capo:", Qt::CaseInsensitive)) {
+            m_capoShift = trimmedLine.section(':', 1).chopped(1).trimmed().toInt();
+        }
+
+        // --- Block Boundary Interceptions ---
+        if (trimmedLine.startsWith("{start_of_tab}") || trimmedLine.startsWith("{sot}")) {
+            inTabBlock = true;
+            result += "<div style='font-family:monospace; color:#008800; font-weight:bold;'>[Tablature Block Start]</div>";
+            continue;
+        }
+        if (trimmedLine.startsWith("{end_of_tab}") || trimmedLine.startsWith("{eot}")) {
+            inTabBlock = false;
+            result += "<div style='font-family:monospace; color:#008800; font-weight:bold;'>[Tablature Block End]</div><br>";
+            continue;
+        }
+        if (trimmedLine.startsWith("{start_of_grid}") || trimmedLine.startsWith("{sog}")) {
+            inGridBlock = true;
+            result += "<div style='font-family:monospace; color:#880088; font-weight:bold;'>[Chord Grid Block Start]</div>";
+            continue;
+        }
+        if (trimmedLine.startsWith("{end_of_grid}") || trimmedLine.startsWith("{eog}")) {
+            inGridBlock = false;
+            result += "<div style='font-family:monospace; color:#880088; font-weight:bold;'>[Chord Grid Block End]</div><br>";
+            continue;
+        }
+
+        // --- Specialized Routing Blocks ---
+        if (inTabBlock) {
+            QString processedTab = parseTabLine(workingLine, instrumentShift);
+            if (m_debugTelemetryEnabled) qDebug() << "[TAB]:" << workingLine.trimmed() << " -> [RENDER]:" << processedTab;
+            result += processedTab + "<br>";
+            continue; // Skip standard chord engine formatting for this row
+        }
+
+        if (inGridBlock) {
+            QString processedGrid = parseGridLine(workingLine, chordShift);
+            if (m_debugTelemetryEnabled) qDebug() << "[GRID]:" << workingLine.trimmed() << " -> [RENDER]:" << processedGrid;
+            result += processedGrid + "<br>";
+            continue; // Skip standard chord engine formatting for this row
+        }
+
+        // --- Standard ChordPro Structural Content Parsing ---
         if (trimmedLine.startsWith("{title:", Qt::CaseInsensitive) ||
             trimmedLine.startsWith("{t:", Qt::CaseInsensitive) ||
             trimmedLine.startsWith("{artist:", Qt::CaseInsensitive) ||
@@ -540,6 +519,8 @@ QString MainWindow::runInitialParse(const QString &rawInput) {
         bool isChorusStart = trimmedLine.startsWith("{start_of_chorus}") ||
                              trimmedLine.startsWith("{soc") ||
                              (trimmedLine.startsWith("{c:") && trimmedLine.contains("Chorus", Qt::CaseInsensitive));
+
+        bool lineHandled = false;
 
         if (isChorusStart) {
             if (inVerse) { result += "</div>"; inVerse = false; }
@@ -580,10 +561,16 @@ QString MainWindow::runInitialParse(const QString &rawInput) {
             }
         }
     }
-    if (inVerse || inChorus) result += "</div>";
-    return result + "</body></html>";
+
+    // 5. Clean up any open styling blocks before completing the file stream
+    if (inVerse || inChorus) {
+        result += "</div>";
     }
+
+    result += "</body></html>";
+    return result; // 🚀 Absolute Guarantee: Every control block now returns this string!
 }
+
 void MainWindow::toggleDisplayMode() {
     m_currentMode = (m_currentMode == ChordDisplayMode::CIL) ? ChordDisplayMode::CAL : ChordDisplayMode::CIL;
     m_viewToggleBtn->setText(m_currentMode == ChordDisplayMode::CIL ? "ChordPro-CIL" : "LeadSheet-CAL");
