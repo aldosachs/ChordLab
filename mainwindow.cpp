@@ -23,7 +23,7 @@ static const QStringList NOTE_SCALE_SHARPS = {"C", "C#", "D", "D#", "E", "F", "F
 static const QStringList NOTE_SCALE_FLATS  = {"C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"};
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
-    // 1. Core Hardware & Audio Engine Instantiation First
+    // Core Hardware & Audio Engine Instantiation First
     m_mediaPlayer = new QMediaPlayer(this);
     m_audioOutput = new QAudioOutput(this);
     m_mediaPlayer->setAudioOutput(m_audioOutput);
@@ -31,30 +31,30 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 
     connect(m_mediaPlayer, &QMediaPlayer::playbackStateChanged, this, &MainWindow::handlePlaybackStateChanged);
 
-    // 2. Clear Internal State Variables Before UI Draws
+    // Clear Internal State Variables Before UI Draws
     m_currentFilePath = "";
     m_parsedSongContentGrid = "";
     m_zoomScaleLevel = 0;
     m_transposeShift = 0;
-    m_capoShift = 0;                  // Default to open neck
-    m_instrumentTuningOffset = 0;     // Default to standard guitar tuning
-    m_debugTelemetryEnabled = false;   // 🚀 Enable/disable tracking telemetry out to Qt App Output window
+    m_capoShift = 0;                  // default to open neck
+    m_instrumentTuningOffset = 0;     // default to standard guitar tuning
+    m_debugTelemetryEnabled = false;   // enable/disable tracking telemetry out to Qt App Output window
     m_isLoadingFile = false;
     m_currentMode = ChordDisplayMode::CIL;
     m_currentTheme = Theme::Light;
 
-    // 3. Sequential UI Component Construction
+    // Sequential UI Component Construction
     setupMenus();
     setupLayout(); // Prepares central widgets and splitters
     setupToolBar();
 
-    // 4. Set App Window Metric Policy (Consolidated to a stable 75% display footprint)
+    // Set App Window Metric Policy (Consolidated to a stable 75% display footprint)
     QScreen *screen = QGuiApplication::primaryScreen();
     if (screen) {
         QSize size = screen->availableGeometry().size();
-        resize(size.width() * 0.75, size.height() * 0.75);
+        resize(size.width() * 0.6, size.height() * 0.6);
     }
-    // 5. Final State Machine Launch
+    // then launch State Machine
     setAppState(Idle);
 }
 
@@ -465,7 +465,7 @@ QString MainWindow::runInitialParse(const QString &rawInput) {
         // --- Block Boundary Interceptions ---
         if (trimmedLine.startsWith("{start_of_tab}") || trimmedLine.startsWith("{sot}")) {
             inTabBlock = true;
-            // 🚀 FIXED: Wrapped block labels in standard layout lines followed by explicit HTML line breaks
+            // wrap block labels in standard layout lines followed by explicit HTML line breaks
             result += "<div style='font-family:sans-serif; color:#008800; font-weight:bold;'>[Tablature Block Start]</div><br>";
             continue;
         }
@@ -487,19 +487,13 @@ QString MainWindow::runInitialParse(const QString &rawInput) {
 
         // --- Specialized Rendering Engine Modules ---
         if (inTabBlock) {
-            // 🚀 Update: We pass BOTH chordShift and instrumentShift directly to the tab line processing module
+            // pass chordShift and instrumentShift directly to the tab line processing module
             QString processedTab = parseTabLine(workingLine, chordShift, instrumentShift);
             if (m_debugTelemetryEnabled) qDebug() << "[TAB Engine]:" << workingLine.trimmed() << " -> [RENDER]:" << processedTab;
             result += processedTab + "<br>";
             continue;
         }
-/*        if (inTabBlock) {
-            QString processedTab = parseTabLine(workingLine, instrumentShift);
-            if (m_debugTelemetryEnabled) qDebug() << "[TAB Engine]:" << workingLine.trimmed() << " -> [RENDER]:" << processedTab;
-            result += processedTab + "<br>";
-            continue;
-        }
-*/
+
         if (inGridBlock) {
             QString processedGrid = parseGridLine(workingLine, chordShift);
             if (m_debugTelemetryEnabled) qDebug() << "[GRID Engine]:" << workingLine.trimmed() << " -> [RENDER]:" << processedGrid;
@@ -601,7 +595,7 @@ void MainWindow::shiftTransposition(int delta) {
     if (currentState == PlayAlong) {
         parseChordProToGrid(m_rawSongContent);
     } else {
-        // 🚀 FIX: Pass the current live string text data rather than old m_rawSongContent
+        // process the current live string text data
         QString currentLiveText = originalEditor->toPlainText();
         parsedEditor->setHtml(runInitialParse(currentLiveText));
     }
