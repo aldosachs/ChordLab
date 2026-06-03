@@ -8,6 +8,7 @@
 #include <QScreen>
 #include <QFileDialog>
 #include <QFile>
+#include <QString>
 #include <QTextStream>
 #include <QMessageBox>
 #include <QRegularExpression>
@@ -18,6 +19,8 @@
 #include <QDebug>
 #include <QMediaPlayer>
 #include <QtMath>
+#include <QSettings>
+#include <qapplication.h>
 
 static const QStringList NOTE_SCALE_SHARPS = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
 static const QStringList NOTE_SCALE_FLATS  = {"C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"};
@@ -30,6 +33,28 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     m_audioOutput->setVolume(0.8f);
 
     connect(m_mediaPlayer, &QMediaPlayer::playbackStateChanged, this, &MainWindow::handlePlaybackStateChanged);
+
+    setWindowTitle("ChordLab V001A");
+    QIcon icon(":/resources/icons/CL-icon.ico");
+    setWindowIcon(icon);
+
+    QSettings::setDefaultFormat(QSettings::IniFormat);
+    QCoreApplication::setOrganizationName("AldoMusic");
+    QCoreApplication::setApplicationName("ChordLab");
+
+    QSettings settings;
+    QString savedStyle = settings.value("theme/lastStyle").toString();
+
+    if (!savedStyle.isEmpty() && QFile::exists(savedStyle)) {
+        loadStyleSheetFromFile(savedStyle);
+    } else {
+        QString fallbackStyle = (":/resources/styles/Adaptic(default).qss");
+        if (QFile::exists(fallbackStyle)) {
+            loadStyleSheetFromFile(fallbackStyle);
+        } else {
+            qDebug() << "[Theme] No saved or fallback style found. Using default QPlayer styling.";
+        }
+    }
 
     // Clear Internal State Variables Before UI Draws
     m_currentFilePath = "";
@@ -157,6 +182,24 @@ void MainWindow::setupToolBar() {
     connect(m_btnTransposeUp, &QPushButton::clicked, this, [=](){ shiftTransposition(1); });
     connect(m_btnTransposeDown, &QPushButton::clicked, this, [=](){ shiftTransposition(-1); });
     connect(m_btnTheme, &QPushButton::clicked, this, &MainWindow::toggleTheme);
+}
+
+void MainWindow::loadStyleSheetFromFile(const QString &filePath) {
+    QFile file(filePath);
+//    qDebug() << "[MW l.466] loadstylesheet called with: " << filePath;
+    if (!QApplication::instance()) return;
+    qApp->setStyleSheet(QString());
+    if (file.open(QFile::ReadOnly)) {
+        QString styleSheet = QLatin1String(file.readAll());
+        qApp->setStyleSheet(styleSheet);
+
+        QSettings settings;
+        settings.setValue("theme/lastStyle", filePath);
+
+        qDebug() << "[Theme] Loaded:" << filePath;
+    } else {
+        qDebug() << "[Theme] Failed to load:" << filePath;
+    }
 }
 
 void MainWindow::setupLayout() {

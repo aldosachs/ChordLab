@@ -59,6 +59,7 @@ private slots:
     void toggleDisplayMode();
     void toggleTheme();
     void togglePlaybackMode();
+    void loadStyleSheetFromFile(const QString &filePath);
 
 private:
     void setupMenus();

@@ -3,11 +3,10 @@
     <file>resources/icons/play.png</file>
     <file>resources/icons/pause.png</file>
     <file>resources/icons/stop.png</file>
-    
-    <file>resources/styles/modern.qss</file>
-    
-    <file>resources/pieces</file>
-    <file>resources/playlists</file>
-
+    <file>resources/icons/CL-icon.ico</file>
+    <file>resources/styles/Adaptic(default).qss</file>
+    <file>resources/pieces/sample_song.pro</file>
+    <file>resources/pieces/boundary_test.txt</file>    
+    <file>resources/playlists/rock_setlist.txt</file>
 </qresource>
 </RCC>
