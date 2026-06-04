@@ -20,6 +20,7 @@
 #include <QMediaPlayer>
 #include <QtMath>
 #include <QSettings>
+#include <QActionGroup>
 #include <qapplication.h>
 
 static const QStringList NOTE_SCALE_SHARPS = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
@@ -45,17 +46,6 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     QSettings settings;
     QString savedStyle = settings.value("theme/lastStyle").toString();
 
-    if (!savedStyle.isEmpty() && QFile::exists(savedStyle)) {
-        loadStyleSheetFromFile(savedStyle);
-    } else {
-        QString fallbackStyle = (":/resources/styles/Adaptic(default).qss");
-        if (QFile::exists(fallbackStyle)) {
-            loadStyleSheetFromFile(fallbackStyle);
-        } else {
-            qDebug() << "[Theme] No saved or fallback style found. Using default QPlayer styling.";
-        }
-    }
-
     // Clear Internal State Variables Before UI Draws
     m_currentFilePath = "";
     m_parsedSongContentGrid = "";
@@ -64,6 +54,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     m_capoShift = 0;                  // default to open neck
     m_instrumentTuningOffset = 0;     // default to standard guitar tuning
     m_debugTelemetryEnabled = false;   // enable/disable tracking telemetry out to Qt App Output window
+    m_debugVerboseLevel = true;
     m_isLoadingFile = false;
     m_currentMode = ChordDisplayMode::CIL;
     m_currentTheme = Theme::Light;
@@ -79,16 +70,68 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
         QSize size = screen->availableGeometry().size();
         resize(size.width() * 0.6, size.height() * 0.6);
     }
+
+    if (!savedStyle.isEmpty() && QFile::exists(savedStyle)) {
+        loadStyleSheetFromFile(savedStyle);
+    } else {
+        QString fallbackStyle = (":/resources/styles/Adaptic(default).qss");
+        if (QFile::exists(fallbackStyle)) {
+            loadStyleSheetFromFile(fallbackStyle);
+        } else {
+            qDebug() << "[Theme] No saved or fallback style found. Using default QPlayer styling.";
+        }
+    }
+
     // then launch State Machine
     setAppState(Idle);
 }
 
 void MainWindow::setupMenus() {
+    // --- File Menu ---
     QMenu *fileMenu = menuBar()->addMenu("&File");
     fileMenu->addAction("&Open...", QKeySequence::Open, this, &MainWindow::handleFileOpen);
     fileMenu->addAction("&Save Standardized", QKeySequence::Save, this, &MainWindow::handleFileSave);
     fileMenu->addSeparator();
     fileMenu->addAction("E&xit", this, &QWidget::close);
+
+    QMenu *prefMenu = menuBar()->addMenu("&Preferences");
+
+    // Add sub-menus and SAVE THE POINTERS
+    prefMenu->addMenu("Settings and Preferences");
+    QMenu *themeMenu = prefMenu->addMenu("Themes"); // <--- SAVE THIS
+
+    QActionGroup *prefGroup = new QActionGroup(this);
+    prefGroup->setExclusive(true);
+
+    QDir themeDir(":/resources/styles");
+    QStringList themes = themeDir.entryList(QStringList() << "*.qss", QDir::Files);
+
+    // If the directory doesn't exist or is empty, this will be empty
+    if (themes.isEmpty()) {
+        qDebug() << "[Theme] No themes found in" << themeDir.absolutePath();
+    }
+
+    QSettings settings;
+    QString currentPath = settings.value("theme/lastStyle").toString();
+    qDebug() << "Available resources at :/resources/styles:" << themeDir.entryList();
+    for (const QString &themeFile : themes) {
+        QString fullPath = ":/resources/styles/" + themeFile;
+        QString menuName = themeFile;
+        menuName.remove(".qss");
+
+        // ADD TO themeMenu, NOT prefMenu
+        QAction *action = themeMenu->addAction(menuName);
+        action->setCheckable(true);
+        action->setActionGroup(prefGroup);
+
+        if (fullPath == currentPath) {
+            action->setChecked(true);
+        }
+
+        connect(action, &QAction::triggered, this, [=]() {
+            loadStyleSheetFromFile(fullPath);
+        });
+    }
 }
 
 void MainWindow::setupToolBar() {
@@ -186,7 +229,9 @@ void MainWindow::setupToolBar() {
 
 void MainWindow::loadStyleSheetFromFile(const QString &filePath) {
     QFile file(filePath);
-//    qDebug() << "[MW l.466] loadstylesheet called with: " << filePath;
+    if (m_debugVerboseLevel){
+        qDebug() << "[MW l.189] loadstylesheet called with: " << filePath;
+    }
     if (!QApplication::instance()) return;
     qApp->setStyleSheet(QString());
     if (file.open(QFile::ReadOnly)) {

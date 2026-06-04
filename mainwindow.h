@@ -107,6 +107,7 @@ private:
 
     // --- Telemetry & Testing ---
     bool m_debugTelemetryEnabled;   // Toggles detailed string parsing dumps to Qt Console
+    bool m_debugVerboseLevel;       // Toggles verbose administrative dumps to Qt Console
 
     // --- Advanced Sub-Parsing Engines ---
     QString transposeSingleNoteToken(const QString &noteToken, int semitones);
@@ -117,7 +118,6 @@ private:
 
     QString runInitialParse(const QString &rawInput);
     QString processLineContent(const QString &line);
-//    QString transposeChord(const QString &chord, int semitones);
 
     QString getThemeStyles();
     QString m_rawSongContent;
@@ -149,7 +149,6 @@ private:
     AppState currentState;
     ChordDisplayMode m_currentMode = CAL;
     Theme m_currentTheme = Light;
-//    int m_transposeShift = 0;
     QString m_currentFilePath;
 };
 
