@@ -9,10 +9,6 @@
     <file>resources/styles/Dtor(light).qss</file>
     <file>resources/styles/ExcelOffice(green).qss</file>
     <file>resources/styles/Fibers(red).qss</file>
-    <file>resources/styles/Gravira(grey_and_green).qss</file>
-    <file>resources/styles/Irrorater(colourful).qss</file>
-    <file>resources/pieces/sample_song.pro</file>
-    <file>resources/pieces/boundary_test.txt</file>    
-    <file>resources/playlists/rock_setlist.txt</file>
+    <file>resources/styles/Irrorater(colourful).qss</file> 
 </qresource>
 </RCC>
