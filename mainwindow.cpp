@@ -445,6 +445,7 @@ void MainWindow::handleFileOpen() {
     originalEditor->setPlainText(content);
     m_isLoadingFile = false; // RE-ENABLE safely (fixed bug here)
 
+    loadSongLayoutPreference(fileName);
     // Set state explicitly handles rendering separation cleanly
     setAppState(OpenEdit);
 
@@ -969,6 +970,8 @@ void MainWindow::keyPressEvent(QKeyEvent *event) {
 void MainWindow::onZoomInTriggered() {
     if (m_zoomScaleLevel < 6) {
         m_zoomScaleLevel++;
+        // if User adjusts the scaling tracking index, ChordLab remembers it instantly
+        saveSongLayoutPreference(m_currentFilePath);
         if (currentState == PlayAlong) {
             parseChordProToGrid(m_rawSongContent); // Re-calculate target columns dynamically when zooming!
         }
@@ -978,6 +981,8 @@ void MainWindow::onZoomInTriggered() {
 void MainWindow::onZoomOutTriggered() {
     if (m_zoomScaleLevel > -4) {
         m_zoomScaleLevel--;
+        // if User adjusts the scaling tracking index, ChordLab remembers it instantly
+        saveSongLayoutPreference(m_currentFilePath);
         if (currentState == PlayAlong) {
             parseChordProToGrid(m_rawSongContent);
         }
@@ -1408,7 +1413,7 @@ void MainWindow::saveLayoutPreference(const QString &filePath, const SongLayoutS
     }
 }
 
-SongLayoutState MainWindow::loadLayoutPreference(const QString &filePath) {
+MainWindow::SongLayoutState MainWindow::loadLayoutPreference(const QString &filePath) {
     QSettings settings;
     QFileInfo fileInfo(filePath);
     QString uniqueSongKey = fileInfo.fileName();

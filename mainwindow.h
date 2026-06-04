@@ -35,6 +35,9 @@ public:
 
     struct SongLayoutState {
         bool hasUserOverride = false;
+        int columnCount;      // 1, 2, 4, etc. (Handles your "Quadrant" idea)
+        int fontSize;
+        int capoShift;
         int savedColumns = 1;
         int savedZoomLevel = 0;
     };
