@@ -33,6 +33,21 @@ public:
         QString slowPath;
     };
 
+    struct SongLayoutState {
+        bool hasUserOverride = false;
+        int savedColumns = 1;
+        int savedZoomLevel = 0;
+    };
+
+//    struct SongLayoutState {
+//        bool hasUserOverride; // If false, use the Intelligent Zoom math
+//        int columnCount;      // 1, 2, 4, etc. (Handles your "Quadrant" idea)
+//        int fontSize;
+//        int capoShift;        // Might as well save their preferred key too!
+//    };
+
+
+
     enum Theme {
         Light,
         Dark
@@ -72,6 +87,12 @@ private:
 
     void checkForCompanionAudio(const QString &chordProPath);
     void selectAudioTrack(QPushButton *clickedButton, const QString &filePath, const QString &trackType);
+
+    void saveLayoutPreference(const QString &filePath, const SongLayoutState &layout);
+    void saveSongLayoutPreference(const QString &filePath);
+    void loadSongLayoutPreference(const QString &filePath);
+
+    SongLayoutState loadLayoutPreference(const QString &filePath);
 
     AudioTracks m_audioTracks;
     QString m_selectedAudioPath;
