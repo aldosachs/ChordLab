@@ -84,6 +84,15 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 
     // then launch State Machine
     setAppState(Idle);
+    // Restore application window footprint
+//    QSettings settings;
+    if (settings.contains("window/geometry")) {
+        restoreGeometry(settings.value("window/geometry").toByteArray());
+        restoreState(settings.value("window/state").toByteArray());
+    } else {
+        // Fallback layout if it's the very first time launching ChordLab
+        resize(1024, 768); // or could go with 'resize(size.width() * 0.6, size.height() * 0.6);' here...
+    }
 }
 
 void MainWindow::setupMenus() {
@@ -325,6 +334,19 @@ void MainWindow::setAppState(AppState state) {
         parseChordProToGrid(m_rawSongContent);
         break;
     }
+}
+
+void MainWindow::closeEvent(QCloseEvent *event) {
+    QSettings settings;
+
+    // Save the window size and desktop location
+    settings.setValue("window/geometry", saveGeometry());
+
+    // Save state information (whether it was maximized, full-screen, toolbar positions, etc.)
+    settings.setValue("window/state", saveState());
+
+    // Pass the event along to allow the application to shut down cleanly
+    QMainWindow::closeEvent(event);
 }
 
 void MainWindow::updateFunctionKeys() {
@@ -708,7 +730,7 @@ void MainWindow::parseChordProToGrid(const QString &rawInput) {
     bool insideSectionBlock = false;
 
     // Toggle this boolean flag to enable/disable your visual alignment spacer checkline!
-    bool showDiagnosticCheckline = true;
+    bool showDiagnosticCheckline = false;
 
     for (const QString &rawLine : lines) {
         QString line = rawLine.trimmed();

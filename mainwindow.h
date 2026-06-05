@@ -70,6 +70,7 @@ public:
 protected:
     // This allows intercepting the Spacebar and Zoom keys anywhere inside the window frame
     void keyPressEvent(QKeyEvent *event) override;
+    void closeEvent(QCloseEvent *event) override;
 
 private slots:
     void handleFileOpen();
