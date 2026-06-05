@@ -158,6 +158,17 @@ void MainWindow::showEvent(QShowEvent *event) {
     }
 }
 
+void MainWindow::resizeEvent(QResizeEvent *event) {
+    // Forward the event to the base QMainWindow so internal layouts update their geometry first
+    QMainWindow::resizeEvent(event);
+
+    // Only update live if a song is actively running in PlayAlong mode!
+    if (currentState == PlayAlong && !m_rawSongContent.isEmpty() && !m_isLoadingFile) {
+        // Force the layout engine to immediately adapt to the user's fresh window width
+        parseChordProToGrid(m_rawSongContent);
+    }
+}
+
 void MainWindow::setupMenus() {
     // --- File Menu ---
     QMenu *fileMenu = menuBar()->addMenu("&File");
@@ -419,7 +430,12 @@ void MainWindow::closeEvent(QCloseEvent *event) {
     QMainWindow::closeEvent(event);
 }
 
-void MainWindow::loadSongQuietly(const QString &fileName) {
+/* void MainWindow::loadSongQuietly(const QString &fileName) {
+
+    m_isLoadingFile = true;
+    m_currentFilePath = filePath;
+    loadSongLayoutPreference(filePath);
+
     if (fileName.isEmpty() || !QFile::exists(fileName)) {
         setAppState(Idle);
         return;
@@ -430,16 +446,19 @@ void MainWindow::loadSongQuietly(const QString &fileName) {
     m_capoShift = 0;
     m_instrumentTuningOffset = 0;
 
-    QFile file(fileName);
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        setAppState(Idle);
-        return;
+    // --- 🚀 RECALL PER-SONG TRACKING PREFERENCE ---
+    // Read the song's specific layout preference block before generating the display data
+    loadSongLayoutPreference(filePath);
+
+    QFile file(filePath);
+    if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        QTextStream in(&file);
+        m_rawSongContent = in.readAll();
+        originalEditor->setPlainText(m_rawSongContent);
+        file.close();
     }
 
-    QTextStream in(&file);
-    QString content = in.readAll();
-    file.close();
-
+    m_isLoadingFile = false;
     m_rawSongContent = content;
 
     m_isLoadingFile = true;
@@ -455,7 +474,28 @@ void MainWindow::loadSongQuietly(const QString &fileName) {
     checkForCompanionAudio(m_currentFilePath);
     statusBar()->showMessage(tr("Restored last session: ") + QFileInfo(fileName).fileName());
 }
+*/
 
+void MainWindow::loadSongQuietly(const QString &filePath) {
+    if (filePath.isEmpty() || !QFile::exists(filePath)) return;
+
+    m_isLoadingFile = true;
+    m_currentFilePath = filePath;
+
+    // --- 🚀 RECALL PER-SONG TRACKING PREFERENCE ---
+    // Read the song's specific layout preference block before generating the display data
+    loadSongLayoutPreference(filePath);
+
+    QFile file(filePath);
+    if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        QTextStream in(&file);
+        m_rawSongContent = in.readAll();
+        originalEditor->setPlainText(m_rawSongContent);
+        file.close();
+    }
+
+    m_isLoadingFile = false;
+}
 void MainWindow::updateFunctionKeys() {
     // 1. Break old signal routing tables cleanly
     disconnect(m_btnFn1, &QPushButton::clicked, nullptr, nullptr);
