@@ -21,6 +21,7 @@
 #include <QtMath>
 #include <QSettings>
 #include <QActionGroup>
+#include <QTimer>
 #include <qapplication.h>
 
 static const QStringList NOTE_SCALE_SHARPS = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
@@ -97,15 +98,63 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
         }
     }
 
-    // Launch State Machine: Auto-load previous session or start clean
-    QString lastFile = settings.value("app/lastOpenedFile").toString();
-    int lastMode = settings.value("app/lastMode", static_cast<int>(PlayAlong)).toInt();
-
-    if (!lastFile.isEmpty() && QFile::exists(lastFile)) {
-        loadSongQuietly(lastFile);
-        setAppState(static_cast<AppState>(lastMode)); // Put me back exactly where I left off!
+    // --- Set App Window Metric Policy ---
+    if (settings.contains("window/geometry")) {
+        restoreGeometry(settings.value("window/geometry").toByteArray());
+        restoreState(settings.value("window/state").toByteArray());
+        if (m_debugVerboseLevel) {
+            qDebug() << "MainWindow: Successfully restored window footprint and state.";
+        }
     } else {
-        setAppState(Idle);
+        // Pure fallback for the absolute first-time launch
+        QScreen *screen = QGuiApplication::primaryScreen();
+        if (screen) {
+            QSize size = screen->availableGeometry().size();
+            resize(size.width() * 0.6, size.height() * 0.6);
+        }
+    }
+
+    // Explicitly make sure NO hard minimum size constraints are left locking the widget layout
+    this->setMinimumSize(0, 0);
+    this->setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
+}
+
+void MainWindow::showEvent(QShowEvent *event) {
+    // Crucial: Let QMainWindow finish handling its native show tasks first
+    QMainWindow::showEvent(event);
+
+    // Use a static flag so this initialization ONLY runs once when the app boots,
+    // not every time the window is minimized and restored.
+    static bool firstShow = true;
+    if (firstShow) {
+        firstShow = false;
+
+        QSettings settings;
+
+        // Let's see what size Windows actually granted us after restoring geometry/maximized state
+        if (m_debugVerboseLevel) {
+            qDebug() << "[ShowEvent Initialized] Actual Width:" << this->width() << "Height:" << this->height();
+        }
+
+        // Defensive guard rail: Only force a resize if the restored geometry is completely unreadable or tiny
+        if (!isMaximized() && this->height() < 600) {
+            if (m_debugVerboseLevel) {
+                qDebug() << "[ShowEvent Guard] Restored height is too short. Resetting to default safety scale.";
+            }
+            this->resize(this->width() > 1024 ? this->width() : 1024, 768);
+        }
+
+        // Now that the window is physically drawn and sized correctly on your monitor,
+        // load the song file. The Elastic Radar will get the true, perfect width!
+        QString lastFile = settings.value("app/lastOpenedFile").toString();
+        int lastMode = settings.value("app/lastMode", static_cast<int>(PlayAlong)).toInt();
+
+        if (!lastFile.isEmpty() && QFile::exists(lastFile)) {
+            loadSongQuietly(lastFile);
+            setAppState(static_cast<AppState>(lastMode));
+        } else {
+            setAppState(Idle);
+        }
     }
 }
 
@@ -400,8 +449,8 @@ void MainWindow::loadSongQuietly(const QString &fileName) {
     // Pull specific zoom settings for this exact song
     loadSongLayoutPreference(fileName);
 
-    // Bypass Idle and go straight to Editor mode// should be the (last) mode i.e. "saved mode at exit"???
-    setAppState(PlayAlong);
+// Bypass Idle and go straight to Editor mode// should be the (last) mode i.e. "saved mode at exit"???
+//    setAppState(PlayAlong);  // hard coded here for testing...
 
     checkForCompanionAudio(m_currentFilePath);
     statusBar()->showMessage(tr("Restored last session: ") + QFileInfo(fileName).fileName());
