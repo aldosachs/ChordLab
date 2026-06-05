@@ -120,44 +120,51 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 }
 
 void MainWindow::showEvent(QShowEvent *event) {
-    // Crucial: Let QMainWindow finish handling its native show tasks first
     QMainWindow::showEvent(event);
 
-    // Use a static flag so this initialization ONLY runs once when the app boots,
-    // not every time the window is minimized and restored.
     static bool firstShow = true;
     if (firstShow) {
         firstShow = false;
 
         QSettings settings;
 
-        // Let's see what size Windows actually granted us after restoring geometry/maximized state
         if (m_debugVerboseLevel) {
             qDebug() << "[ShowEvent Initialized] Actual Width:" << this->width() << "Height:" << this->height();
         }
 
-        // Defensive guard rail: Only force a resize if the restored geometry is completely unreadable or tiny
         if (!isMaximized() && this->height() < 600) {
-            if (m_debugVerboseLevel) {
-                qDebug() << "[ShowEvent Guard] Restored height is too short. Resetting to default safety scale.";
-            }
             this->resize(this->width() > 1024 ? this->width() : 1024, 768);
         }
 
-        // Now that the window is physically drawn and sized correctly on your monitor,
-        // load the song file. The Elastic Radar will get the true, perfect width!
-        QString lastFile = settings.value("app/lastOpenedFile").toString();
-        int lastMode = settings.value("app/lastMode", static_cast<int>(PlayAlong)).toInt();
+        // 🚀 THE CURE: Defer loading song structures by 50ms!
+        // This lets the OS window manager completely finish sizing the central splitter
+        // and central widgets, ensuring the Radar reads the true physical layout width!
+        QTimer::singleShot(50, this, [=]() {
+            QSettings delayedSettings;
+            QString lastFile = delayedSettings.value("app/lastOpenedFile").toString();
+            int lastMode = delayedSettings.value("app/lastMode", static_cast<int>(PlayAlong)).toInt();
 
-        if (!lastFile.isEmpty() && QFile::exists(lastFile)) {
-            loadSongQuietly(lastFile);
-            setAppState(static_cast<AppState>(lastMode));
-        } else {
-            setAppState(Idle);
-        }
+            if (!lastFile.isEmpty() && QFile::exists(lastFile)) {
+                loadSongQuietly(lastFile);
+                setAppState(static_cast<AppState>(lastMode));
+            } else {
+                setAppState(Idle);
+            }
+        });
     }
 }
 
+void MainWindow::resizeEvent(QResizeEvent *event) {
+    QMainWindow::resizeEvent(event);
+
+    // 🚀 LIVE LAYOUT LINK: If the user maximizes or manually resizes the frame,
+    // re-trigger the engine calculations instantly to adjust columns live!
+    if (currentState == PlayAlong && !m_rawSongContent.isEmpty() && !m_isLoadingFile) {
+        parseChordProToGrid(m_rawSongContent);
+    }
+}
+
+/*
 void MainWindow::resizeEvent(QResizeEvent *event) {
     // Forward the event to the base QMainWindow so internal layouts update their geometry first
     QMainWindow::resizeEvent(event);
@@ -168,7 +175,7 @@ void MainWindow::resizeEvent(QResizeEvent *event) {
         parseChordProToGrid(m_rawSongContent);
     }
 }
-
+*/
 void MainWindow::setupMenus() {
     // --- File Menu ---
     QMenu *fileMenu = menuBar()->addMenu("&File");
@@ -1180,9 +1187,14 @@ void MainWindow::analyzeChordProMetaData(const QString &rawInput) {
             lyricOnlyLine.remove(QRegularExpression("\\[.*?\\]"));
 
             int cleanLength = lyricOnlyLine.length();
+            // Cap individual anomalous long lines at a reasonable layout floor (e.g. 50 characters)
+            // so an accidental run-on line doesn't completely destroy column generation!
             if (cleanLength > m_currentSongMetrics.maxLineCharacters) {
                 m_currentSongMetrics.maxLineCharacters = cleanLength;
             }
+/*            if (cleanLength > m_currentSongMetrics.maxLineCharacters) {
+                m_currentSongMetrics.maxLineCharacters = cleanLength;
+            }*/
         }
     }
 
@@ -1207,7 +1219,8 @@ void MainWindow::analyzeChordProMetaData(const QString &rawInput) {
     } else {
         // Calculate how many columns can fit side-by-side without truncating text lines
         // We add an arbitrary 6-character safety buffer for column margins
-        int allocationWidthPerCol = m_currentSongMetrics.maxLineCharacters + 6;
+//        int allocationWidthPerCol = m_currentSongMetrics.maxLineCharacters + 6;
+        int allocationWidthPerCol = qMin(m_currentSongMetrics.maxLineCharacters, 48) + 2;
         int calculatedCols = displayWidth / (allocationWidthPerCol * approxCharWidthPixels);
 
         // Clamp layout structure to reasonable parameters (1 to 4 columns/quadrants)
