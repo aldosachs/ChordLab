@@ -99,12 +99,14 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 
     // Launch State Machine: Auto-load previous session or start clean
     QString lastFile = settings.value("app/lastOpenedFile").toString();
+    int lastMode = settings.value("app/lastMode", static_cast<int>(PlayAlong)).toInt();
 
     if (!lastFile.isEmpty() && QFile::exists(lastFile)) {
         loadSongQuietly(lastFile);
+        setAppState(static_cast<AppState>(lastMode)); // Put me back exactly where I left off!
     } else {
         setAppState(Idle);
-    };
+    }
 }
 
 void MainWindow::setupMenus() {
@@ -329,8 +331,9 @@ void MainWindow::setAppState(AppState state) {
         mainSplitter->show();
         originalEditor->show();
         parsedEditor->show();
-        mainSplitter->setSizes(QList<int>({400, 400}));
-
+//        mainSplitter->setSizes(QList<int>({400, 400}));
+        // 🚀 Dynamically split the screen 50/50 instead of forcing 400px
+        mainSplitter->setSizes(QList<int>({this->width() / 2, this->width() / 2}));
         // Render crisp editor text layout without multi-column table interference
         parsedEditor->setHtml(runInitialParse(m_rawSongContent));
         break;
@@ -362,7 +365,8 @@ void MainWindow::closeEvent(QCloseEvent *event) {
     if (!m_currentFilePath.isEmpty()) {
         settings.setValue("app/lastOpenedFile", m_currentFilePath);
     }
-
+    // 🚀 Save the active mode at "exit-time"
+    settings.setValue("app/lastMode", static_cast<int>(currentState));
     QMainWindow::closeEvent(event);
 }
 
@@ -396,8 +400,8 @@ void MainWindow::loadSongQuietly(const QString &fileName) {
     // Pull specific zoom settings for this exact song
     loadSongLayoutPreference(fileName);
 
-    // Bypass Idle and go straight to Editor mode
-    setAppState(OpenEdit);
+    // Bypass Idle and go straight to Editor mode// should be the (last) mode i.e. "saved mode at exit"???
+    setAppState(PlayAlong);
 
     checkForCompanionAudio(m_currentFilePath);
     statusBar()->showMessage(tr("Restored last session: ") + QFileInfo(fileName).fileName());
