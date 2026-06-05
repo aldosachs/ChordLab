@@ -430,52 +430,6 @@ void MainWindow::closeEvent(QCloseEvent *event) {
     QMainWindow::closeEvent(event);
 }
 
-/* void MainWindow::loadSongQuietly(const QString &fileName) {
-
-    m_isLoadingFile = true;
-    m_currentFilePath = filePath;
-    loadSongLayoutPreference(filePath);
-
-    if (fileName.isEmpty() || !QFile::exists(fileName)) {
-        setAppState(Idle);
-        return;
-    }
-
-    m_currentFilePath = fileName;
-    m_transposeShift = 0;
-    m_capoShift = 0;
-    m_instrumentTuningOffset = 0;
-
-    // --- 🚀 RECALL PER-SONG TRACKING PREFERENCE ---
-    // Read the song's specific layout preference block before generating the display data
-    loadSongLayoutPreference(filePath);
-
-    QFile file(filePath);
-    if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        QTextStream in(&file);
-        m_rawSongContent = in.readAll();
-        originalEditor->setPlainText(m_rawSongContent);
-        file.close();
-    }
-
-    m_isLoadingFile = false;
-    m_rawSongContent = content;
-
-    m_isLoadingFile = true;
-    originalEditor->setPlainText(content);
-    m_isLoadingFile = false;
-
-    // Pull specific zoom settings for this exact song
-    loadSongLayoutPreference(fileName);
-
-// Bypass Idle and go straight to Editor mode// should be the (last) mode i.e. "saved mode at exit"???
-//    setAppState(PlayAlong);  // hard coded here for testing...
-
-    checkForCompanionAudio(m_currentFilePath);
-    statusBar()->showMessage(tr("Restored last session: ") + QFileInfo(fileName).fileName());
-}
-*/
-
 void MainWindow::loadSongQuietly(const QString &filePath) {
     if (filePath.isEmpty() || !QFile::exists(filePath)) return;
 
