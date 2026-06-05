@@ -85,7 +85,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     // then launch State Machine
     setAppState(Idle);
     // Restore application window footprint
-//    QSettings settings;
+//    QSettings settings; // already included above...
     if (settings.contains("window/geometry")) {
         restoreGeometry(settings.value("window/geometry").toByteArray());
         restoreState(settings.value("window/state").toByteArray());
