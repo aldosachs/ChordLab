@@ -95,6 +95,7 @@ private:
     void saveLayoutPreference(const QString &filePath, const SongLayoutState &layout);
     void saveSongLayoutPreference(const QString &filePath);
     void loadSongLayoutPreference(const QString &filePath);
+    void loadSongQuietly(const QString &fileName);
 
     SongLayoutState loadLayoutPreference(const QString &filePath);
 

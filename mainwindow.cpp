@@ -97,8 +97,14 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
         }
     }
 
-    // Launch State Machine
-    setAppState(Idle);
+    // Launch State Machine: Auto-load previous session or start clean
+    QString lastFile = settings.value("app/lastOpenedFile").toString();
+
+    if (!lastFile.isEmpty() && QFile::exists(lastFile)) {
+        loadSongQuietly(lastFile);
+    } else {
+        setAppState(Idle);
+    };
 }
 
 void MainWindow::setupMenus() {
@@ -151,6 +157,8 @@ void MainWindow::setupMenus() {
 
 void MainWindow::setupToolBar() {
     QToolBar *settingsToolBar = addToolBar("Critical Settings");
+    settingsToolBar->setObjectName("criticalSettingsToolBar");
+
     m_btnTransposeUp = new QPushButton("Key Up");
     m_btnTransposeDown = new QPushButton("Key Down");
     m_btnTheme = new QPushButton("Light theme...");
@@ -348,12 +356,51 @@ void MainWindow::closeEvent(QCloseEvent *event) {
 
     // Save the window size and desktop location
     settings.setValue("window/geometry", saveGeometry());
-
-    // Save state information (whether it was maximized, full-screen, toolbar positions, etc.)
     settings.setValue("window/state", saveState());
 
-    // Pass the event along to allow the application to shut down cleanly
+    // NEW: Save the active song file path!
+    if (!m_currentFilePath.isEmpty()) {
+        settings.setValue("app/lastOpenedFile", m_currentFilePath);
+    }
+
     QMainWindow::closeEvent(event);
+}
+
+void MainWindow::loadSongQuietly(const QString &fileName) {
+    if (fileName.isEmpty() || !QFile::exists(fileName)) {
+        setAppState(Idle);
+        return;
+    }
+
+    m_currentFilePath = fileName;
+    m_transposeShift = 0;
+    m_capoShift = 0;
+    m_instrumentTuningOffset = 0;
+
+    QFile file(fileName);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        setAppState(Idle);
+        return;
+    }
+
+    QTextStream in(&file);
+    QString content = in.readAll();
+    file.close();
+
+    m_rawSongContent = content;
+
+    m_isLoadingFile = true;
+    originalEditor->setPlainText(content);
+    m_isLoadingFile = false;
+
+    // Pull specific zoom settings for this exact song
+    loadSongLayoutPreference(fileName);
+
+    // Bypass Idle and go straight to Editor mode
+    setAppState(OpenEdit);
+
+    checkForCompanionAudio(m_currentFilePath);
+    statusBar()->showMessage(tr("Restored last session: ") + QFileInfo(fileName).fileName());
 }
 
 void MainWindow::updateFunctionKeys() {
