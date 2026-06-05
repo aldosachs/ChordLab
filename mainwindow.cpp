@@ -64,13 +64,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     setupLayout(); // Prepares central widgets and splitters
     setupToolBar();
 
-    // Set App Window Metric Policy (Consolidated to a stable 75% display footprint)
-    QScreen *screen = QGuiApplication::primaryScreen();
-    if (screen) {
-        QSize size = screen->availableGeometry().size();
-        resize(size.width() * 0.6, size.height() * 0.6);
-    }
-
+    // --- Set App Window Style & Theme ---
     if (!savedStyle.isEmpty() && QFile::exists(savedStyle)) {
         loadStyleSheetFromFile(savedStyle);
     } else {
@@ -78,24 +72,33 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
         if (QFile::exists(fallbackStyle)) {
             loadStyleSheetFromFile(fallbackStyle);
         } else {
-            qDebug() << "[Theme] No saved or fallback style found. Using default QPlayer styling.";
+            qDebug() << "[Theme] No saved or fallback style found. Using default styling.";
         }
     }
-    // Restore application window footprint
-    //    QSettings settings; // already included above...
+
+    // --- Set App Window Metric Policy (Check settings first, fallback to screen metric) ---
     if (settings.contains("window/geometry")) {
         restoreGeometry(settings.value("window/geometry").toByteArray());
         restoreState(settings.value("window/state").toByteArray());
-    } else {
-        // Fallback layout if it's the very first time launching ChordLab
         if (m_debugVerboseLevel) {
-            qDebug() << "MainWindow::mainwindow.cpp line 92: No window/geometry found...";
+            qDebug() << "MainWindow: Successfully restored window footprint and state.";
         }
-        resize(1024, 768); // or could go with 'resize(size.width() * 0.6, size.height() * 0.6);' here...
+    } else {
+        // Fallback layout ONLY if it's the very first time launching ChordLab
+        QScreen *screen = QGuiApplication::primaryScreen();
+        if (screen) {
+            QSize size = screen->availableGeometry().size();
+            resize(size.width() * 0.6, size.height() * 0.6);
+        } else {
+            resize(1024, 768); // Baseline hard fallback if screen geometries can't be fetched
+        }
+        if (m_debugVerboseLevel) {
+            qDebug() << "MainWindow: No saved geometry found. Defaulted to initial screen footprint.";
+        }
     }
-    // then launch State Machine
-    setAppState(Idle);
 
+    // Launch State Machine
+    setAppState(Idle);
 }
 
 void MainWindow::setupMenus() {
@@ -252,7 +255,8 @@ void MainWindow::loadStyleSheetFromFile(const QString &filePath) {
 
         QSettings settings;
         settings.setValue("theme/lastStyle", filePath);
-
+    }
+    if (m_debugVerboseLevel){
         qDebug() << "[Theme] Loaded:" << filePath;
     } else {
         qDebug() << "[Theme] Failed to load:" << filePath;
@@ -353,16 +357,31 @@ void MainWindow::closeEvent(QCloseEvent *event) {
 }
 
 void MainWindow::updateFunctionKeys() {
+    // 1. Break old signal routing tables cleanly
     disconnect(m_btnFn1, &QPushButton::clicked, nullptr, nullptr);
     disconnect(m_btnFn2, &QPushButton::clicked, nullptr, nullptr);
     disconnect(m_btnFn3, &QPushButton::clicked, nullptr, nullptr);
     disconnect(m_btnFn4, &QPushButton::clicked, nullptr, nullptr);
 
+    // 2. High-readability local layout engine helper
+    auto configureButton = [](QPushButton *btn, const QString &iconPath, const QString &fallbackText) {
+        if (!iconPath.isEmpty() && QFile::exists(iconPath)) {
+            btn->setIcon(QIcon(iconPath));
+            btn->setText("");              // Clear textual representation to keep icons square
+            btn->setToolTip(fallbackText); // Accessible user-friendly context tooltips
+        } else {
+            btn->setIcon(QIcon());          // Explicitly purge icon allocations
+            btn->setText(fallbackText);     // Fallback to text emojis seamlessly
+            btn->setToolTip("");
+        }
+    };
+
+    // 3. Render Mode Layout Switchboard
     if (currentState == OpenEdit || currentState == Idle) {
-        m_btnFn1->setText("📂 Open");
-        m_btnFn2->setText("💾 Save");
-        m_btnFn3->setText("💾 As...");
-        m_btnFn4->setText("🔄 Parse");
+        configureButton(m_btnFn1, "", "📂 Open");
+        configureButton(m_btnFn2, "", "💾 Save");
+        configureButton(m_btnFn3, "", "💾 As...");
+        configureButton(m_btnFn4, "", "🔄 Parse");
 
         connect(m_btnFn1, &QPushButton::clicked, this, &MainWindow::handleFileOpen);
         connect(m_btnFn2, &QPushButton::clicked, this, &MainWindow::handleFileSave);
@@ -377,28 +396,24 @@ void MainWindow::updateFunctionKeys() {
         });
 
     } else if (currentState == PlayAlong) {
-        m_btnFn1->setText("⏮ Rewind");
+        configureButton(m_btnFn1, ":/resources/icons/rewindtostart.png", "⏮ Rewind");
 
-        // Dynamic Play/Pause Button State Checks
+        // Real-time tracking of active audio driver playback engine state
         if (m_mediaPlayer->playbackState() == QMediaPlayer::PlayingState) {
-            // Try loading a native resource icon first, fallback to text emoji if empty
-            m_btnFn2->setIcon(QIcon(":/resources/icons/pause.png"));
-            m_btnFn2->setText("⏸ Pause");
+            configureButton(m_btnFn2, ":/resources/icons/pause.png", "⏸ Pause");
         } else {
-            m_btnFn2->setIcon(QIcon(":/resources/icons/play.png"));
-            m_btnFn2->setText("▶ Play");
+            configureButton(m_btnFn2, ":/resources/icons/play.png", "▶ Play");
         }
 
-        m_btnFn3->setIcon(QIcon(":/resources/icons/stop.png"));
-        m_btnFn3->setText("■ Stop");
-        m_btnFn4->setText("⏭ End");
+        configureButton(m_btnFn3, ":/resources/icons/stop.png", "■ Stop");
+        configureButton(m_btnFn4, ":/resources/icons/fastfwdtoend.png", "⏭ Skip");
 
+        // Action routing allocations
         connect(m_btnFn1, &QPushButton::clicked, this, [=]() {
             m_mediaPlayer->setPosition(0);
             statusBar()->showMessage("Rewound to beginning.");
         });
 
-        // Unified Play/Pause Action Router
         connect(m_btnFn2, &QPushButton::clicked, this, [=]() {
             if (m_selectedAudioPath.isEmpty()) {
                 statusBar()->showMessage("No audio track selected or available for playback.");
@@ -899,20 +914,20 @@ void MainWindow::updatePlayAlongLayoutDensity() {
     parsedEditor->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
 
     // Apply color palettes dynamically from current system theme setup
-    QString bgColor = (m_currentTheme == Dark) ? "#121212" : "#ffffff";
-    QString txtColor = (m_currentTheme == Dark) ? "#E0E0E0" : "#222222";
-    QString chordColor = (m_currentTheme == Dark) ? "#82AAFF" : "#b22222";
+//    QString bgColor = (m_currentTheme == Dark) ? "#121212" : "#ffffff";
+//    QString txtColor = (m_currentTheme == Dark) ? "#E0E0E0" : "#222222";
+//    QString chordColor = (m_currentTheme == Dark) ? "#82AAFF" : "#b22222";
 
     QString baseHtml = "<html><head><style>"
                        "body {"
-                       "  background-color: " + bgColor + ";"
-                       "  color: " + txtColor + ";"
+//                       "  background-color: " + bgColor + ";"
+//                       "  color: " + txtColor + ";"
                        "  margin: 10px; padding: 0;"
                        "}"
                        "h1 { font-size: " + QString::number(baseFontSize + 4) + "pt; font-weight: bold; font-family: sans-serif; margin: 0 0 4px 0; }"
                        ".section-heading {"
                        "  font-size: " + QString::number(baseFontSize + 1) + "pt;"
-                       "  color: #007acc;"
+//                       "  color: #007acc;"
                        "  font-weight: bold;"
                        "  margin: 0 0 " + QString::number(headerMarginBottom) + "px 0;"
                        "  border-bottom: 2px solid #eef;"
@@ -922,12 +937,13 @@ void MainWindow::updatePlayAlongLayoutDensity() {
                        "  margin-bottom: " + QString::number(sectionMarginBottom) + "px;"
                        "}"
                        ".chord-line {"
-                       "  font-weight: bold; color: " + chordColor + ";"
+                       "  font-weight: bold;"
+//                       " color: " + chordColor + ";"
                        "  font-family: 'Consolas', 'Courier New', monospace !important;"
                        "  font-size: " + QString::number(baseFontSize) + "pt;"
                        "}"
                        ".lyric-text {"
-                       "  color: " + txtColor + ";"
+//                       "  color: " + txtColor + ";"
                        "  font-family: 'Consolas', 'Courier New', monospace !important;"
                        "  font-size: " + QString::number(baseFontSize) + "pt;"
                        "}"
