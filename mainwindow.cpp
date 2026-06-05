@@ -81,18 +81,21 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
             qDebug() << "[Theme] No saved or fallback style found. Using default QPlayer styling.";
         }
     }
-
-    // then launch State Machine
-    setAppState(Idle);
     // Restore application window footprint
-//    QSettings settings; // already included above...
+    //    QSettings settings; // already included above...
     if (settings.contains("window/geometry")) {
         restoreGeometry(settings.value("window/geometry").toByteArray());
         restoreState(settings.value("window/state").toByteArray());
     } else {
         // Fallback layout if it's the very first time launching ChordLab
+        if (m_debugVerboseLevel) {
+            qDebug() << "MainWindow::mainwindow.cpp line 92: No window/geometry found...";
+        }
         resize(1024, 768); // or could go with 'resize(size.width() * 0.6, size.height() * 0.6);' here...
     }
+    // then launch State Machine
+    setAppState(Idle);
+
 }
 
 void MainWindow::setupMenus() {
