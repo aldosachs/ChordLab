@@ -13,7 +13,9 @@ qt_add_executable(ChordLabV001A
     mainwindow.cpp
     mainwindow.h
     resources.qrc ## resources tracking file
-    app.rc        ## app resource tracking file
+    app.rc
+    setlistmanager.h
+    setlistmanager.cpp        ## app resource tracking file
 )
 
 target_link_libraries(ChordLabV001A
