@@ -782,6 +782,7 @@ QString MainWindow::runInitialParse(const QString &rawInput) {
             result += "<div class='verse-box'><span class='section-header'>" + commentText + "</span><br>";
             lineHandled = true;
         }
+
 /*        else if (trimmedLine.startsWith("{end_of_chorus}") || trimmedLine.startsWith("{eoc")) {
             inChorus = false;
             result += "</div><br>";
