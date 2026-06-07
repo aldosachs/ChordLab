@@ -44,15 +44,6 @@ public:
         int savedZoomLevel = 0;
     };
 
-//    struct SongLayoutState {
-//        bool hasUserOverride; // If false, use the Intelligent Zoom math
-//        int columnCount;      // 1, 2, 4, etc. (Handles your "Quadrant" idea)
-//        int fontSize;
-//        int capoShift;        // Might as well save their preferred key too!
-//    };
-
-
-
     enum Theme {
         Light,
         Dark

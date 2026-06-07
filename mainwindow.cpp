@@ -20,6 +20,7 @@
 #include <QMediaPlayer>
 #include <QtMath>
 #include <QSettings>
+#include <QMenu>
 #include <QActionGroup>
 #include <QTimer>
 #include <qapplication.h>
@@ -164,18 +165,6 @@ void MainWindow::resizeEvent(QResizeEvent *event) {
     }
 }
 
-/*
-void MainWindow::resizeEvent(QResizeEvent *event) {
-    // Forward the event to the base QMainWindow so internal layouts update their geometry first
-    QMainWindow::resizeEvent(event);
-
-    // Only update live if a song is actively running in PlayAlong mode!
-    if (currentState == PlayAlong && !m_rawSongContent.isEmpty() && !m_isLoadingFile) {
-        // Force the layout engine to immediately adapt to the user's fresh window width
-        parseChordProToGrid(m_rawSongContent);
-    }
-}
-*/
 void MainWindow::setupMenus() {
     // --- File Menu ---
     QMenu *fileMenu = menuBar()->addMenu("&File");
@@ -188,7 +177,8 @@ void MainWindow::setupMenus() {
 
     // Add sub-menus and SAVE THE POINTERS
     prefMenu->addMenu("Settings and Preferences");
-    QMenu *themeMenu = prefMenu->addMenu("Themes"); // <--- SAVE THIS
+    fileMenu->addSeparator();
+    QMenu *themeMenu = prefMenu->addMenu("Themes");
 
     QActionGroup *prefGroup = new QActionGroup(this);
     prefGroup->setExclusive(true);
@@ -200,6 +190,13 @@ void MainWindow::setupMenus() {
     if (themes.isEmpty()) {
         qDebug() << "[Theme] No themes found in" << themeDir.absolutePath();
     }
+
+    QMenu *helpMenu = menuBar()->addMenu(tr("&Help"));
+
+    helpMenu->addMenu("&Help");
+    QAction *aboutAction = helpMenu->addAction(QIcon(":/resources/icons/about.png"), tr("About"), this, [this]() {
+        QMessageBox::about(this, "About QPlayer", "ChordLab\nVersion 1a\n15-Jun-2026...\nA chordpro multimedia app \nfor musicians.");
+    });
 
     QSettings settings;
     QString currentPath = settings.value("theme/lastStyle").toString();
@@ -855,17 +852,28 @@ void MainWindow::parseChordProToGrid(const QString &rawInput) {
         QString line = rawLine.trimmed();
         if (line.isEmpty()) continue;
 
-        if (line.startsWith('{') && (line.contains("comment") || line.contains("c:"))) {
+        if (line.startsWith('{') && (line.startsWith("{c:") || line.startsWith("{comment") || line.startsWith("{c}"))) {
             if (insideSectionBlock) {
                 currentSectionHtml += "</div>";
                 gatheredSections.append(currentSectionHtml);
                 currentSectionHtml = "";
             }
 
-            QString sectionName = line;
-            sectionName.remove(QRegularExpression("^\\{c(omment)?:?\\s*"));
-            sectionName.remove('}');
+            // 🚀 THE CURE: Safe Regex Capture Group
+            // This safely grabs anything between the colon and the closing bracket.
+            // If the bracket is missing or the text is empty, it just returns an empty string without crashing!
+            QRegularExpression rx("^\\{c(?:omment)?:?\\s*([^}]*)\\}?", QRegularExpression::CaseInsensitiveOption);
+            QRegularExpressionMatch match = rx.match(line);
 
+            QString sectionName = "";
+            if (match.hasMatch()) {
+                sectionName = match.captured(1).trimmed();
+            }
+
+            // Fallback: If they type an empty {c:} or are half-way through typing {c:V
+            if (sectionName.isEmpty()) {
+                sectionName = "..."; // Keeps the UI stable while typing
+            }
             currentSectionHtml += "<div class='song-section'>";
             currentSectionHtml += QString("<div class='section-heading'>%1</div>").arg(sectionName);
             insideSectionBlock = true;
