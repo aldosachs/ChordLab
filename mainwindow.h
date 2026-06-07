@@ -15,6 +15,8 @@
 class MainWindow : public QMainWindow {
     Q_OBJECT
 
+    class SetListManager;
+
 public:
     enum AppState {
         Idle,

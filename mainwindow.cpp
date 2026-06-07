@@ -23,7 +23,9 @@
 #include <QMenu>
 #include <QActionGroup>
 #include <QTimer>
+#include <QListView>
 #include <qapplication.h>
+#include "setlistmanager.h"
 
 static const QStringList NOTE_SCALE_SHARPS = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
 static const QStringList NOTE_SCALE_FLATS  = {"C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"};
@@ -60,6 +62,24 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     m_isLoadingFile = false;
     m_currentMode = ChordDisplayMode::CIL;
     m_currentTheme = Theme::Light;
+
+    // 1. Initialize the Manager
+    m_setlistManager = new SetlistManager(this);
+
+    // 2. Initialize the View
+    m_setlistView = new QListView(this);
+    m_setlistView->setModel(m_setlistManager);
+    m_setlistView->setDragDropMode(QAbstractItemView::InternalMove); // 🚀 Enables Drag-and-Drop
+    m_setlistView->setSelectionMode(QAbstractItemView::SingleSelection);
+    m_setlistView->hide(); // Start hidden until hamburger is clicked
+
+    connect(m_setlistView, &QListView::activated, this, [this](const QModelIndex &index) {
+        if (index.isValid()) {
+            QString path = m_setlistManager->getFilePath(index.row());
+            loadSongQuietly(path);
+            m_setlistManager->markAsPlayed(index.row()); // Grey it out!
+        }
+    });
 
     // Sequential UI Component Construction
     setupMenus();
@@ -347,6 +367,9 @@ void MainWindow::loadStyleSheetFromFile(const QString &filePath) {
 }
 
 void MainWindow::setupLayout() {
+
+    mainSplitter->addWidget(m_setlistView);
+
     mainSplitter = new QSplitter(Qt::Horizontal, this);
     originalEditor = new QPlainTextEdit(this);
     originalEditor->setPlaceholderText("Original File Content...");

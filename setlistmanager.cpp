@@ -16,3 +16,15 @@ void SetlistManager::loadFromSetFile(const QString &fileName) {
     }
     endResetModel();
 }
+
+bool SetlistManager::dropMimeData(const QMimeData *data, Qt::DropAction action, int row, int column, const QModelIndex &parent) {
+    if (action == Qt::IgnoreAction) return true;
+
+    // Logic to update your m_items vector:
+    // 1. Capture the item currently at the drag source
+    // 2. Remove it from the old position
+    // 3. Insert it at the new 'row' position
+    // 4. emit dataChanged(...) or beginMoveRows(...)
+
+    return true;
+}

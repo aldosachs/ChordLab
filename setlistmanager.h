@@ -1,4 +1,6 @@
-// SetlistManager.h
+#ifndef SETLISTMANAGER_H
+#define SETLISTMANAGER_H
+
 #include <QAbstractListModel>
 #include <QStringList>
 
@@ -10,6 +12,7 @@ struct SetItem {
 
 class SetlistManager : public QAbstractListModel {
     Q_OBJECT
+
 public:
     int rowCount(const QModelIndex &parent = QModelIndex()) const override { return m_items.size(); }
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
@@ -24,3 +27,5 @@ public:
 private:
     QList<SetItem> m_items;
 };
+
+#endif // SETLISTMANAGER_H
