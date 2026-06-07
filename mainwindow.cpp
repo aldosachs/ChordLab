@@ -1070,19 +1070,38 @@ void MainWindow::updatePlayAlongLayoutDensity() {
     parsedEditor->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     parsedEditor->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
 
-    // Apply color palettes dynamically from current system theme setup
-//    if (hasPlayModeStyleOverride) {
-        QString bgColor = (m_currentTheme == Dark) ? "#20204f" : "#e0F0ff";
-        QString txtColor = (m_currentTheme == Dark) ? "#E0E0E0" : "#222222";
-        QString chordColor = (m_currentTheme == Dark) ? "#6080f0" : "#c22222";
-//    }
+    // future User preference override might go here...
+    QString bgColor = (m_currentTheme == Dark) ? "#20204f" : "#e0F0ff";
+    QString txtColor = (m_currentTheme == Dark) ? "#E0E0E0" : "#222222";
+    QString chordColor = (m_currentTheme == Dark) ? "#6080f0" : "#c22222";
+
+    // 🚀 NEW: Extract Metadata for the Play Along Header safely
+    QRegularExpression titleRx(R"(\{(?:title|t):\s*([^}]*)\})", QRegularExpression::CaseInsensitiveOption);
+    QRegularExpression artistRx(R"(\{(?:artist|st|subtitle):\s*([^}]*)\})", QRegularExpression::CaseInsensitiveOption);
+    QString title = titleRx.match(m_rawSongContent).captured(1).trimmed();
+    QString artist = artistRx.match(m_rawSongContent).captured(1).trimmed();
+
+    QString headerHtml = "";
+    if (!title.isEmpty()) {
+        headerHtml += "<div style='text-align: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid " + chordColor + ";'>";
+        headerHtml += "<h1 style='margin: 0; font-size: " + QString::number(baseFontSize + 8) + "pt; color: " + txtColor + ";'>" + title + "</h1>";
+        if (!artist.isEmpty()) {
+            headerHtml += "<h3 style='margin: 5px 0 0 0; font-size: " + QString::number(baseFontSize + 2) + "pt; color: #777; font-weight: normal;'>" + artist + "</h3>";
+        }
+        headerHtml += "</div>";
+    }
+
+    // Now build the base HTML
     QString baseHtml = "<html><head><style>"
-                       "body {"
-                       // two lines
-                            "  background-color: " + bgColor + ";"
-                            "  color: " + txtColor + ";"
-                       "  margin: 10px; padding: 0;"
-                       "}"
+                       "body { background-color: " + bgColor + "; color: " + txtColor + "; margin: 15px; padding: 0; }"
+
+//    QString baseHtml = "<html><head><style>"
+//                       "body {"
+//                       // two lines
+//                            "  background-color: " + bgColor + ";"
+//                            "  color: " + txtColor + ";"
+//                       "  margin: 10px; padding: 0;"
+//                       "}"
                        "h1 { font-size: " + QString::number(baseFontSize + 4) + "pt; font-weight: bold; font-family: sans-serif; margin: 0 0 4px 0; }"
                        ".section-heading {"
                        "  font-size: " + QString::number(baseFontSize + 1) + "pt;"
@@ -1111,10 +1130,10 @@ void MainWindow::updatePlayAlongLayoutDensity() {
                        "}"
                        "</style></head><body>"
                        "<div class='song-canvas' style='line-height: " + QString::number(activeLineHeight) + ";'>"
-                       + m_parsedSongContentGrid +
+                       + headerHtml + m_parsedSongContentGrid +
                        "</div></body></html>";
 
-    hasPlayModeStyleOverride = false;
+//    hasPlayModeStyleOverride = false;
 
     parsedEditor->setHtml(baseHtml);
 }
