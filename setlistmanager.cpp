@@ -75,6 +75,32 @@ void SetlistManager::markAsPlayed(int row) {
     }
 }
 
-//int SetlistManager::rowCount(){
-    //
-//}
+void SetlistManager::loadSetFile(const QString &filePath) {
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        qDebug() << "Could not open setlist:" << filePath;
+        return;
+    }
+
+    m_items.clear(); // Clear existing
+    QTextStream in(&file);
+
+    while (!in.atEnd()) {
+        QString line = in.readLine().trimmed();
+        // Skip header lines or empty lines
+        if (line.startsWith("##") || line.isEmpty()) continue;
+
+        // Assuming your .set format is: "Path\Title [Metadata]"
+        SetItem item;
+        item.title = line; // Adjust this parsing logic to match your .set format exactly
+        item.filePath = line;
+
+        m_items.append(item);
+    }
+
+    // Crucial: Tell the view to refresh
+    beginResetModel();
+    endResetModel();
+
+    file.close();
+}

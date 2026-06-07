@@ -15,7 +15,8 @@ qt_add_executable(ChordLabV001A
     resources.qrc ## resources tracking file
     app.rc
     setlistmanager.h
-    setlistmanager.cpp        ## app resource tracking file
+    setlistmanager.cpp
+    "resources/setlists/Monday Songbook 1.set" "resources/setlists/Monday Songbook 2.set"        ## app resource tracking file
 )
 
 target_link_libraries(ChordLabV001A

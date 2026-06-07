@@ -110,6 +110,8 @@ private:
 
     SetlistManager *m_setlistManager;
     QListView *m_setlistView;
+    void onLoadSetlistTriggered();
+    QStringList getAvailableSetlists();
 
     struct ChordProSection {
         QString header;
@@ -154,6 +156,7 @@ private:
 
     // UI Layout Components
     QSplitter *mainSplitter;
+    QSplitter *editorSplitter; // The new inner splitter
     QPlainTextEdit *originalEditor;
     QTextEdit *parsedEditor;
 

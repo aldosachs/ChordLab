@@ -27,7 +27,7 @@ public:
     void markAsPlayed(int row);
     void loadFromSetFile(const QString &fileName);
     QString getFilePath(int row) const;
-
+    void loadSetFile(const QString &filePath);
 private:
     QList<SetItem> m_items;
 };

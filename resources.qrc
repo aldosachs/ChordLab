@@ -1,16 +1,18 @@
-<!DOCTYPE RCC><RCC version="1.0">
-<qresource prefix="/">
-    <file>resources/icons/play.png</file>
-    <file>resources/icons/pause.png</file>
-    <file>resources/icons/stop.png</file>
-    <file>resources/icons/fastfwdtoend.png</file>
-    <file>resources/icons/rewindtostart.png</file>
-    <file>resources/icons/CL-icon.ico</file>
-    <file>resources/styles/Adaptic(default).qss</file>
-    <file>resources/styles/Darkeum(dark).qss</file>
-    <file>resources/styles/Dtor(light).qss</file>
-    <file>resources/styles/ExcelOffice(green).qss</file>
-    <file>resources/styles/Fibers(red).qss</file>
-    <file>resources/styles/Irrorater(colourful).qss</file> 
-</qresource>
+<RCC>
+    <qresource prefix="/">
+        <file>resources/icons/play.png</file>
+        <file>resources/icons/pause.png</file>
+        <file>resources/icons/stop.png</file>
+        <file>resources/icons/fastfwdtoend.png</file>
+        <file>resources/icons/rewindtostart.png</file>
+        <file>resources/icons/CL-icon.ico</file>
+        <file>resources/styles/Adaptic(default).qss</file>
+        <file>resources/styles/Darkeum(dark).qss</file>
+        <file>resources/styles/Dtor(light).qss</file>
+        <file>resources/styles/ExcelOffice(green).qss</file>
+        <file>resources/styles/Fibers(red).qss</file>
+        <file>resources/styles/Irrorater(colourful).qss</file>
+        <file>resources/setlists/Monday Songbook 1.set</file>
+        <file>resources/setlists/Monday Songbook 2.set</file>
+    </qresource>
 </RCC>

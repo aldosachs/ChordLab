@@ -24,6 +24,7 @@
 #include <QActionGroup>
 #include <QTimer>
 #include <QListView>
+#include <QInputDialog>
 #include <qapplication.h>
 
 static const QStringList NOTE_SCALE_SHARPS = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
@@ -356,6 +357,33 @@ void MainWindow::onHamburgerClicked() {
     }
 }
 
+QStringList MainWindow::getAvailableSetlists() {
+    QDir dir(":/resources/setlists/");
+    // Get all files ending in .set
+    return dir.entryList(QStringList() << "*.set", QDir::Files);
+}
+
+void MainWindow::onLoadSetlistTriggered() {
+    QStringList setlists = getAvailableSetlists();
+
+    if (setlists.isEmpty()) {
+        statusBar()->showMessage("No setlists found in resources!");
+        return;
+    }
+
+    bool ok;
+    QString item = QInputDialog::getItem(this, "Select Setlist",
+                                         "Choose a setlist:", setlists, 0, false, &ok);
+
+    if (ok && !item.isEmpty()) {
+        QString fullPath = ":/resources/setlists/" + item;
+
+        // Tell your manager to load it
+        m_setlistManager->loadSetFile(fullPath);
+        statusBar()->showMessage("Loaded: " + item);
+    }
+}
+
 void MainWindow::loadStyleSheetFromFile(const QString &filePath) {
     QFile file(filePath);
     if (m_debugVerboseLevel){
@@ -378,22 +406,31 @@ void MainWindow::loadStyleSheetFromFile(const QString &filePath) {
 }
 
 void MainWindow::setupLayout() {
-
-    mainSplitter = new QSplitter(Qt::Horizontal, this);
+    // 1. Create your widgets FIRST (don't add to splitters yet)
     originalEditor = new QPlainTextEdit(this);
     originalEditor->setPlaceholderText("Original File Content...");
     QFont monoFont("Consolas", 10);
     originalEditor->setFont(monoFont);
 
-    parsedEditor = new QTextEdit(this);
+    parsedEditor = new QTextEdit(this); // Create it here!
     parsedEditor->setPlaceholderText("Parsed & Standardized Output...");
     parsedEditor->setFont(monoFont);
     parsedEditor->setReadOnly(true);
 
-    mainSplitter->addWidget(m_setlistView);
-    mainSplitter->addWidget(originalEditor);
-    mainSplitter->addWidget(parsedEditor);
+    // 2. Now create the inner splitter and add the existing widgets
+    editorSplitter = new QSplitter(Qt::Horizontal);
+    editorSplitter->addWidget(originalEditor);
+    editorSplitter->addWidget(parsedEditor);
 
+    // 3. Create the main splitter and add the Setlist + the editorSplitter
+    mainSplitter = new QSplitter(Qt::Horizontal);
+    mainSplitter->addWidget(m_setlistView); // Your new manager
+    mainSplitter->addWidget(editorSplitter); // The editor block
+
+    originalEditor->setMinimumWidth(100);
+    parsedEditor->setMinimumWidth(100);
+
+    // 4. Connect the signal (this looks perfect)
     connect(originalEditor, &QPlainTextEdit::textChanged, this, [=]() {
         if (m_isLoadingFile) return;
         m_rawSongContent = originalEditor->toPlainText();
@@ -403,6 +440,7 @@ void MainWindow::setupLayout() {
             parseChordProToGrid(m_rawSongContent);
         }
     });
+
     setCentralWidget(mainSplitter);
 }
 
@@ -430,7 +468,22 @@ void MainWindow::setAppState(AppState state) {
         break;
 
     case OpenEdit:
+
         m_btnModeToggle->setText("Mode: Edit 📝");
+
+        mainSplitter->show();
+        // This now sets: [Setlist Size, EditorSplitter Size]
+        mainSplitter->setSizes(QList<int>({200, this->width() - 200}));
+
+        // This sets the inner splitter: [Original Size, Parsed Size]
+        editorSplitter->setSizes(QList<int>({(this->width()-200)/2, (this->width()-200)/2}));
+
+        originalEditor->show();
+        parsedEditor->show();
+        parsedEditor->setHtml(runInitialParse(m_rawSongContent));
+        break;
+
+/*        m_btnModeToggle->setText("Mode: Edit 📝");
         statusBar()->showMessage("Editing Mode📝: Analyzing ChordPro syntax...");
 
         // Show split panels
@@ -442,7 +495,7 @@ void MainWindow::setAppState(AppState state) {
         mainSplitter->setSizes(QList<int>({this->width() / 2, this->width() / 2}));
         // Render crisp editor text layout without multi-column table interference
         parsedEditor->setHtml(runInitialParse(m_rawSongContent));
-        break;
+        break; */
 
     case PlayAlong:
         m_btnModeToggle->setText("Mode: Play 🎤");
