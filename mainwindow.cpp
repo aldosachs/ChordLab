@@ -398,7 +398,7 @@ void MainWindow::setAppState(AppState state) {
         mainSplitter->show();
         originalEditor->show();
         parsedEditor->show();
-//        mainSplitter->setSizes(QList<int>({400, 400}));
+
         // 🚀 Dynamically split the screen 50/50 instead of forcing 400px
         mainSplitter->setSizes(QList<int>({this->width() / 2, this->width() / 2}));
         // Render crisp editor text layout without multi-column table interference
@@ -1010,25 +1010,29 @@ void MainWindow::updatePlayAlongLayoutDensity() {
     int headerMarginBottom = 4 + m_zoomScaleLevel;
     int sectionMarginBottom = 12 + (m_zoomScaleLevel * 3);
     double activeLineHeight = 1.15 + (m_zoomScaleLevel * 0.04);
+    bool hasPlayModeStyleOverride = true;
 
     parsedEditor->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     parsedEditor->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
 
     // Apply color palettes dynamically from current system theme setup
-//    QString bgColor = (m_currentTheme == Dark) ? "#121212" : "#ffffff";
-//    QString txtColor = (m_currentTheme == Dark) ? "#E0E0E0" : "#222222";
-//    QString chordColor = (m_currentTheme == Dark) ? "#82AAFF" : "#b22222";
-
+//    if (hasPlayModeStyleOverride) {
+        QString bgColor = (m_currentTheme == Dark) ? "#20283f" : "#e0F0ff";
+        QString txtColor = (m_currentTheme == Dark) ? "#E0E0E0" : "#222222";
+        QString chordColor = (m_currentTheme == Dark) ? "#4040FF" : "#c22222";
+//    }
     QString baseHtml = "<html><head><style>"
                        "body {"
-//                       "  background-color: " + bgColor + ";"
-//                       "  color: " + txtColor + ";"
+                       // two lines
+                            "  background-color: " + bgColor + ";"
+                            "  color: " + txtColor + ";"
                        "  margin: 10px; padding: 0;"
                        "}"
                        "h1 { font-size: " + QString::number(baseFontSize + 4) + "pt; font-weight: bold; font-family: sans-serif; margin: 0 0 4px 0; }"
                        ".section-heading {"
                        "  font-size: " + QString::number(baseFontSize + 1) + "pt;"
-//                       "  color: #007acc;"
+                       // next line
+                       "  color: #007acc;"
                        "  font-weight: bold;"
                        "  margin: 0 0 " + QString::number(headerMarginBottom) + "px 0;"
                        "  border-bottom: 2px solid #eef;"
@@ -1039,12 +1043,14 @@ void MainWindow::updatePlayAlongLayoutDensity() {
                        "}"
                        ".chord-line {"
                        "  font-weight: bold;"
-//                       " color: " + chordColor + ";"
+                        // next line
+                       " color: " + chordColor + ";"
                        "  font-family: 'Consolas', 'Courier New', monospace !important;"
                        "  font-size: " + QString::number(baseFontSize) + "pt;"
                        "}"
                        ".lyric-text {"
-//                       "  color: " + txtColor + ";"
+                        // next line
+                       "  color: " + txtColor + ";"
                        "  font-family: 'Consolas', 'Courier New', monospace !important;"
                        "  font-size: " + QString::number(baseFontSize) + "pt;"
                        "}"
@@ -1052,6 +1058,9 @@ void MainWindow::updatePlayAlongLayoutDensity() {
                        "<div class='song-canvas' style='line-height: " + QString::number(activeLineHeight) + ";'>"
                        + m_parsedSongContentGrid +
                        "</div></body></html>";
+
+    hasPlayModeStyleOverride = false;
+
     parsedEditor->setHtml(baseHtml);
 }
 
