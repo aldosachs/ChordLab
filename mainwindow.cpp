@@ -860,6 +860,96 @@ void MainWindow::parseChordProToGrid(const QString &rawInput) {
 
     for (const QString &rawLine : lines) {
         QString line = rawLine.trimmed();
+
+        // 1. 🚀 Use empty lines as formal paragraph breaks for unstructured text
+        if (line.isEmpty()) {
+            if (insideSectionBlock && !inGridBlock && !inTabBlock) {
+                currentSectionHtml += "</div>";
+                gatheredSections.append(currentSectionHtml);
+                currentSectionHtml = "";
+                insideSectionBlock = false;
+            }
+            continue;
+        }
+
+        // 2. Grid & Tab State Toggles (Keep your existing {sog}/{sot} blocks here)
+        if (line.startsWith("{start_of_grid}") || line.startsWith("{sog}")) {
+            inGridBlock = true;
+            currentSectionHtml += "<div class='song-section'><div style='font-family: Consolas; white-space: pre; background: rgba(136, 0, 136, 0.1); padding: 5px; border-radius: 4px;'>";
+            continue;
+        }
+        if (line.startsWith("{end_of_grid}") || line.startsWith("{eog}")) {
+            inGridBlock = false;
+            currentSectionHtml += "</div></div>";
+            continue;
+        }
+        if (line.startsWith("{start_of_tab}") || line.startsWith("{sot}")) {
+            inTabBlock = true;
+            currentSectionHtml += "<div class='song-section'><div style='font-family: Consolas; white-space: pre; background: rgba(0, 136, 0, 0.1); padding: 5px; border-radius: 4px;'>";
+            continue;
+        }
+        if (line.startsWith("{end_of_tab}") || line.startsWith("{eot}")) {
+            inTabBlock = false;
+            currentSectionHtml += "</div></div>";
+            continue;
+        }
+
+        // 3. 🚀 Explicit Section Headers ({c:}, {soc}, and #)
+        bool isChorusStart = line.startsWith("{soc", Qt::CaseInsensitive) || line.startsWith("{start_of_chorus", Qt::CaseInsensitive);
+        bool isCommentStart = line.startsWith("{c:", Qt::CaseInsensitive) || line.startsWith("{comment:", Qt::CaseInsensitive);
+        bool isInformalHeader = line.startsWith("#");
+
+        if (isChorusStart || isCommentStart || isInformalHeader) {
+            if (insideSectionBlock) {
+                currentSectionHtml += "</div>";
+                gatheredSections.append(currentSectionHtml);
+                currentSectionHtml = "";
+            }
+
+            QString sectionName = "";
+            if (isChorusStart) {
+                sectionName = "Chorus";
+            } else if (isInformalHeader) {
+                sectionName = line.mid(1).trimmed(); // Grab text safely after '#'
+            } else {
+                QRegularExpression rx("^\\{c(?:omment)?:?\\s*([^}]*)\\}?", QRegularExpression::CaseInsensitiveOption);
+                QRegularExpressionMatch match = rx.match(line);
+                if (match.hasMatch() && !match.captured(1).trimmed().isEmpty()) sectionName = match.captured(1).trimmed();
+                else sectionName = "...";
+            }
+
+            currentSectionHtml += "<div class='song-section'>";
+            currentSectionHtml += QString("<div class='section-heading'>%1</div>").arg(sectionName);
+            insideSectionBlock = true;
+            continue;
+        }
+
+        // 4. Handle end of chorus explicitly
+        if (line.startsWith("{eoc", Qt::CaseInsensitive) || line.startsWith("{end_of_chorus", Qt::CaseInsensitive)) {
+            if (insideSectionBlock) {
+                currentSectionHtml += "</div>";
+                gatheredSections.append(currentSectionHtml);
+                currentSectionHtml = "";
+                insideSectionBlock = false;
+            }
+            continue;
+        }
+
+        // 5. Ignore Metadata tags in the main body (Title handles them!)
+        if (line.startsWith("{t:") || line.startsWith("{title:") || line.startsWith("{st:") || line.startsWith("{subtitle:") || line.startsWith("{key:") || line.startsWith("{tempo:") || line.startsWith("{capo:")) {
+            continue;
+        }
+
+        // 6. 🚀 THE UNSTRUCTURED AUTOLOADER
+        // If we hit standard text/chords but aren't in a section block, start one automatically!
+        if (!insideSectionBlock && !inGridBlock && !inTabBlock && !line.startsWith("{")) {
+            currentSectionHtml += "<div class='song-section'>";
+            // We deliberately omit the <div class='section-heading'> so it acts as continuous anonymous text!
+            insideSectionBlock = true;
+        }
+
+/*    for (const QString &rawLine : lines) {
+        QString line = rawLine.trimmed();
         if (line.isEmpty()) continue;
 
         // 1. Grid & Tab State Toggles
@@ -883,6 +973,7 @@ void MainWindow::parseChordProToGrid(const QString &rawInput) {
             currentSectionHtml += "</div></div>";
             continue;
         }
+*/
 
         // 2. Specialized Block Routing (Bypass standard lyric logic)
         if (inGridBlock) {
@@ -896,9 +987,6 @@ void MainWindow::parseChordProToGrid(const QString &rawInput) {
         }
 
         // 3. Standard Section Headers
-//        if (line.startsWith('{') && (line.contains("comment") || line.contains("c:"))) {
-
-
         if (line.startsWith('{') && (line.startsWith("{c:") || line.startsWith("{comment") || line.startsWith("{c}"))) {
             if (insideSectionBlock) {
                 currentSectionHtml += "</div>";
@@ -926,8 +1014,6 @@ void MainWindow::parseChordProToGrid(const QString &rawInput) {
             insideSectionBlock = true;
             continue;
         }
-        // is this the right one...
-//        if (line.startsWith('{')) continue;
 
         if (insideSectionBlock) {
             QString chordLine = "";
@@ -1094,14 +1180,6 @@ void MainWindow::updatePlayAlongLayoutDensity() {
     // Now build the base HTML
     QString baseHtml = "<html><head><style>"
                        "body { background-color: " + bgColor + "; color: " + txtColor + "; margin: 15px; padding: 0; }"
-
-//    QString baseHtml = "<html><head><style>"
-//                       "body {"
-//                       // two lines
-//                            "  background-color: " + bgColor + ";"
-//                            "  color: " + txtColor + ";"
-//                       "  margin: 10px; padding: 0;"
-//                       "}"
                        "h1 { font-size: " + QString::number(baseFontSize + 4) + "pt; font-weight: bold; font-family: sans-serif; margin: 0 0 4px 0; }"
                        ".section-heading {"
                        "  font-size: " + QString::number(baseFontSize + 1) + "pt;"
