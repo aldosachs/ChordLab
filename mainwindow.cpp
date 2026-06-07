@@ -139,6 +139,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     // Explicitly make sure NO hard minimum size constraints are left locking the widget layout
     this->setMinimumSize(0, 0);
     this->setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
+    getAvailableSetlists();
 }
 
 void MainWindow::showEvent(QShowEvent *event) {
@@ -359,6 +360,18 @@ void MainWindow::onHamburgerClicked() {
 }
 
 QStringList MainWindow::getAvailableSetlists() {
+    qDebug() << "--- [FORCE DEBUG] getAvailableSetlists called! ---"; // No 'if' wrapper!
+
+    QDir dir(":/resources/setlists/");
+    qDebug() << "Path exists?" << dir.exists();
+
+    QStringList files = dir.entryList(QStringList() << "*.set", QDir::Files);
+    qDebug() << "Files found:" << files;
+
+    return files;
+}
+
+/* QStringList MainWindow::getAvailableSetlists() {
     QString path = ":/resources/setlists/";
     QDir dir(path);
 
@@ -373,10 +386,11 @@ QStringList MainWindow::getAvailableSetlists() {
         for (const QString &file : files) {
             qDebug() << "Found:" << file;
         }
-    }
+//    }
 
     return dir.entryList(QStringList() << "*.set", QDir::Files);
 }
+*/
 
 void MainWindow::onLoadSetlistTriggered() {
     QStringList setlists = getAvailableSetlists();
