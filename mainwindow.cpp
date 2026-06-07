@@ -1647,6 +1647,7 @@ void MainWindow::checkForCompanionAudio(const QString &chordProPath) {
             m_btnTrackSplit->setEnabled(true);
             break;
         }
+    }
 
     for (const QString &ext : audioExtensions) {
         QString targetFile = basePrefix + "_slow" + ext;
@@ -1694,7 +1695,7 @@ QString MainWindow::transposeSingleNoteToken(const QString &noteToken, int semit
         baseNote = cleanNote.left(2);
     }
 
-    // 🚀 THE FIX: Pull modifiers from the ORIGINAL string so 'm7' doesn't become 'M7'
+    // remove modifiers from the ORIGINAL string so 'm7' doesn't become 'M7'
     QString trailingModifiers = noteToken.mid(baseNote.length());
 
     int index = NOTE_SCALE_SHARPS.indexOf(baseNote);
