@@ -1,0 +1,761 @@
+void MainWindow::parseChordProToGrid(const QString &rawInput) {
+    analyzeChordProMetaData(rawInput);
+    QStringList lines = rawInput.split('\n');
+    QStringList gatheredSections;
+    QString currentSectionHtml = "";
+    bool insideSectionBlock = false;
+
+    // Toggle this boolean flag to enable/disable your visual alignment spacer checkline!
+    bool showDiagnosticCheckline = false;
+
+    for (const QString &rawLine : lines) {
+        QString line = rawLine.trimmed();
+        if (line.isEmpty()) continue;
+
+        if (line.startsWith('{') && (line.contains("comment") || line.contains("c:"))) {
+            if (insideSectionBlock) {
+                currentSectionHtml += "</div>";
+                gatheredSections.append(currentSectionHtml);
+                currentSectionHtml = "";
+            }
+
+            QString sectionName = line;
+            sectionName.remove(QRegularExpression("^\\{c(omment)?:?\\s*"));
+            sectionName.remove('}');
+
+            currentSectionHtml += "<div class='song-section'>";
+            currentSectionHtml += QString("<div class='section-heading'>%1</div>").arg(sectionName);
+            insideSectionBlock = true;
+            continue;
+        }
+
+        if (line.startsWith('{')) continue;
+
+        if (insideSectionBlock) {
+            QString chordLine = "";
+            QString dashLine = "";  // Diagnostic marker row
+            QString lyricLine = "";
+
+            // Dual-Cursor Trackers tracking absolute character coordinates
+            int visualChordCursor = 0;
+            int visualLyricCursor = 0;
+            int linePos = 0;
+
+            QRegularExpression chordRegex("\\[(.*?)\\]");
+            auto matches = chordRegex.globalMatch(line);
+
+            while (matches.hasNext()) {
+                auto match = matches.next();
+                int matchStart = match.capturedStart();
+
+                // 1. Process all text preceding the chord token
+                while (linePos < matchStart) {
+                    QChar ch = line[linePos++];
+                    if (ch == ' ') lyricLine += "&nbsp;"; else lyricLine += ch;
+                    visualLyricCursor++;
+
+                    // Equalize chord cursor track with lyric track
+                    while (visualChordCursor < visualLyricCursor) {
+                        chordLine += "&nbsp;";
+                        visualChordCursor++;
+                    }
+                }
+
+                // 2. Parse and Drop Chord Token
+                QString chordText = match.captured(1);
+                QString transposed = transposeChord(chordText, m_transposeShift);
+                int chordLen = transposed.length();
+
+                // Catch up spacing track before drawing chord text anchor
+                while (visualChordCursor < visualLyricCursor) {
+                    chordLine += "&nbsp;";
+                    visualChordCursor++;
+                }
+
+                chordLine += QString("<span class='chord-line'>%1</span>").arg(transposed);
+                visualChordCursor += chordLen; // Jump the cursor forward by physical string length
+
+                linePos = match.capturedEnd(); // Step past closing bracket
+            }
+
+            // 3. Process remaining trailing lyric strings
+            while (linePos < line.length()) {
+                QChar ch = line[linePos++];
+                if (ch == ' ') lyricLine += "&nbsp;"; else lyricLine += ch;
+                visualLyricCursor++;
+
+                while (visualChordCursor < visualLyricCursor) {
+                    chordLine += "&nbsp;";
+                    visualChordCursor++;
+                }
+            }
+
+            // 4. Equalize tail-end balance (handles trailing chords that extend past short lyric fragments)
+            while (visualLyricCursor < visualChordCursor) {
+                lyricLine += "&nbsp;";
+                visualLyricCursor++;
+            }
+
+            // 5. Generate the User's Spacing Checkline
+            if (showDiagnosticCheckline) {
+                for (int d = 0; d < visualChordCursor; ++d) {
+                    dashLine += "-";
+                }
+            }
+
+            // Render output blocks matching structural monospaced font dimensions
+            QString lineBlockHtml = "<div style='white-space: nowrap; line-height: 1.1;'>";
+
+            if (!chordLine.trimmed().isEmpty()) {
+                lineBlockHtml += QString("<p style='margin: 0; padding: 0;' class='chord-line'>%1</p>").arg(chordLine);
+            } else {
+                lineBlockHtml += "<p style='margin: 0; padding: 0;' class='chord-line'>&nbsp;</p>";
+            }
+
+            if (showDiagnosticCheckline && !chordLine.trimmed().isEmpty()) {
+                lineBlockHtml += QString("<p style='margin: 0; padding: 0; color: #555555; font-size: 8pt;'>%1</p>").arg(dashLine);
+            }
+
+            lineBlockHtml += QString("<p style='margin: 0 0 8px 0; padding: 0;' class='lyric-text'>%1</p>").arg(lyricLine.isEmpty() ? "&nbsp;" : lyricLine);
+            lineBlockHtml += "</div>";
+            currentSectionHtml += lineBlockHtml;
+        }
+    }
+
+    if (insideSectionBlock) {
+        currentSectionHtml += "</div>";
+        gatheredSections.append(currentSectionHtml);
+    }
+
+    // Establish dynamic column generation limits
+    int numCols = m_currentSongMetrics.targetColumns;
+    if (m_zoomScaleLevel == 1 && numCols > 2) numCols = 2;
+    else if (m_zoomScaleLevel >= 2) numCols = 1;
+    if (numCols < 1) numCols = 1;
+
+    QString tableGridHtml = "";
+    if (numCols <= 1 || gatheredSections.isEmpty()) {
+        for (const QString &section : gatheredSections) {
+            tableGridHtml += section;
+        }
+    } else {
+        tableGridHtml = "<table width='100%' border='0' cellspacing='0' cellpadding='0'><tr valign='top'>";
+        int sectionsPerCol = qCeil((double)gatheredSections.size() / numCols);
+        int cellWidthPercentage = 100 / numCols;
+        for (int col = 0; col < numCols; ++col) {
+            QString rightPadding = (col < numCols - 1) ? "padding-right: 35px;" : "";
+            tableGridHtml += QString("<td width='%1%' style='%2'>").arg(cellWidthPercentage).arg(rightPadding);
+
+            for (int i = 0; i < sectionsPerCol; ++i) {
+                int index = (col * sectionsPerCol) + i;
+                if (index < gatheredSections.size()) {
+                    tableGridHtml += gatheredSections[index];
+                }
+            }
+            tableGridHtml += "</td>";
+        }
+        tableGridHtml += "</tr></table>";
+    }
+
+    m_parsedSongContentGrid = tableGridHtml;
+    updatePlayAlongLayoutDensity();
+}
+
+void MainWindow::updatePlayAlongLayoutDensity() {
+    // Standardizing baseline scale settings (Dropped to 10pt base down from 12pt to fix overflow issues)
+    int baseFontSize = 10 + (m_zoomScaleLevel * 2);
+    int headerMarginBottom = 4 + m_zoomScaleLevel;
+    int sectionMarginBottom = 12 + (m_zoomScaleLevel * 3);
+    double activeLineHeight = 1.15 + (m_zoomScaleLevel * 0.04);
+
+    parsedEditor->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    parsedEditor->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+
+    // Apply color palettes dynamically from current system theme setup
+//    QString bgColor = (m_currentTheme == Dark) ? "#121212" : "#ffffff";
+//    QString txtColor = (m_currentTheme == Dark) ? "#E0E0E0" : "#222222";
+//    QString chordColor = (m_currentTheme == Dark) ? "#82AAFF" : "#b22222";
+
+    QString baseHtml = "<html><head><style>"
+                       "body {"
+//                       "  background-color: " + bgColor + ";"
+//                       "  color: " + txtColor + ";"
+                       "  margin: 10px; padding: 0;"
+                       "}"
+                       "h1 { font-size: " + QString::number(baseFontSize + 4) + "pt; font-weight: bold; font-family: sans-serif; margin: 0 0 4px 0; }"
+                       ".section-heading {"
+                       "  font-size: " + QString::number(baseFontSize + 1) + "pt;"
+//                       "  color: #007acc;"
+                       "  font-weight: bold;"
+                       "  margin: 0 0 " + QString::number(headerMarginBottom) + "px 0;"
+                       "  border-bottom: 2px solid #eef;"
+                       "  font-family: sans-serif;"
+                       "}"
+                       ".song-section {"
+                       "  margin-bottom: " + QString::number(sectionMarginBottom) + "px;"
+                       "}"
+                       ".chord-line {"
+                       "  font-weight: bold;"
+//                       " color: " + chordColor + ";"
+                       "  font-family: 'Consolas', 'Courier New', monospace !important;"
+                       "  font-size: " + QString::number(baseFontSize) + "pt;"
+                       "}"
+                       ".lyric-text {"
+//                       "  color: " + txtColor + ";"
+                       "  font-family: 'Consolas', 'Courier New', monospace !important;"
+                       "  font-size: " + QString::number(baseFontSize) + "pt;"
+                       "}"
+                       "</style></head><body>"
+                       "<div class='song-canvas' style='line-height: " + QString::number(activeLineHeight) + ";'>"
+                       + m_parsedSongContentGrid +
+                       "</div></body></html>";
+    parsedEditor->setHtml(baseHtml);
+}
+
+// Ensure missing helper hooks exist natively inside compilation unit
+void MainWindow::handlePlaybackStateChanged(QMediaPlayer::PlaybackState state) {
+    switch (state) {
+    case QMediaPlayer::PlayingState:
+        statusBar()->showMessage(tr("▶ Playing: %1").arg(QFileInfo(m_selectedAudioPath).fileName()));
+        break;
+    case QMediaPlayer::PausedState:
+        statusBar()->showMessage("⏸ Playback Paused.");
+        break;
+    case QMediaPlayer::StoppedState:
+        if (m_mediaPlayer->position() >= m_mediaPlayer->duration() && m_mediaPlayer->duration() > 0) {
+            statusBar()->showMessage("Track finished.");
+        } else {
+            statusBar()->showMessage("Playback Stopped.");
+        }
+        break;
+    }
+    updateFunctionKeys();
+}
+
+void MainWindow::keyPressEvent(QKeyEvent *event) {
+    if (currentState == PlayAlong) {
+        if (event->key() == Qt::Key_Space) {
+            if (m_mediaPlayer->playbackState() == QMediaPlayer::PlayingState) {
+                m_mediaPlayer->pause();
+            } else {
+                if (!m_selectedAudioPath.isEmpty()) m_mediaPlayer->play();
+            }
+            event->accept();
+            return;
+        }
+
+        if (event->modifiers() & Qt::ControlModifier) {
+            if (event->key() == Qt::Key_Plus || event->key() == Qt::Key_Equal) {
+                onZoomInTriggered();
+                event->accept();
+                return;
+            }
+            if (event->key() == Qt::Key_Minus) {
+                onZoomOutTriggered();
+                event->accept();
+                return;
+            }
+            if (event->key() == Qt::Key_0) {
+                m_zoomScaleLevel = 0;
+                updatePlayAlongLayoutDensity();
+                event->accept();
+                return;
+            }
+        }
+    }
+    QMainWindow::keyPressEvent(event);
+}
+
+void MainWindow::onZoomInTriggered() {
+    if (m_zoomScaleLevel < 6) {
+        m_zoomScaleLevel++;
+        // if User adjusts the scaling tracking index, ChordLab remembers it instantly
+        saveSongLayoutPreference(m_currentFilePath);
+        if (currentState == PlayAlong) {
+            parseChordProToGrid(m_rawSongContent); // Re-calculate target columns dynamically when zooming!
+        }
+    }
+}
+
+void MainWindow::onZoomOutTriggered() {
+    if (m_zoomScaleLevel > -4) {
+        m_zoomScaleLevel--;
+        // if User adjusts the scaling tracking index, ChordLab remembers it instantly
+        saveSongLayoutPreference(m_currentFilePath);
+        if (currentState == PlayAlong) {
+            parseChordProToGrid(m_rawSongContent);
+        }
+    }
+}
+
+// (Keep your existing processLineContent, transposeChord, analyzeChordProMetaData, getThemeStyles and checkForCompanionAudio exactly as they were written!) 
+void MainWindow::selectAudioTrack(QPushButton *clickedButton, const QString &trackPath, const QString &trackName) {
+    // 1. If this button was already checked and is now being unchecked, stop playback
+    if (!clickedButton->isChecked()) {
+        m_mediaPlayer->stop();
+        m_selectedAudioPath.clear();
+        statusBar()->showMessage("Audio track deselected.");
+        return;
+    }
+
+    // 2. Uncheck the other two audio buttons so only one can be active at a time
+    m_btnTrackFull->setChecked(false);
+    m_btnTrackBkg->setChecked(false);
+    m_btnTrackSlow->setChecked(false);
+
+    // 3. Keep our clicked button highlighted
+    clickedButton->setChecked(true);
+
+    // 4. Update the media player target path
+    m_selectedAudioPath = trackPath;
+    m_mediaPlayer->setSource(QUrl::fromLocalFile(m_selectedAudioPath));
+
+    statusBar()->showMessage(QString("Selected %1: %2").arg(trackName, QFileInfo(trackPath).fileName()));
+}
+// Kept code below this line... and replaced code above...
+
+void MainWindow::analyzeChordProMetaData(const QString &rawInput) {
+    // Reset metrics before scanning
+    m_currentSongMetrics.totalLines = 0;
+    m_currentSongMetrics.maxLineCharacters = 0;
+    m_currentSongMetrics.sectionCount = 0;
+    m_currentSongMetrics.targetColumns = 1;
+
+    QStringList lines = rawInput.split('\n');
+    bool inSection = false;
+
+    for (const QString &rawLine : lines) {
+        QString line = rawLine.trimmed();
+        if (line.isEmpty()) continue;
+
+        if (line.startsWith('{') && (line.contains("comment") || line.contains("c:"))) {
+            m_currentSongMetrics.sectionCount++;
+            inSection = true;
+            continue;
+        }
+
+        if (line.startsWith('{')) continue;
+
+        if (inSection) {
+            m_currentSongMetrics.totalLines++;
+
+            // Strip chords to isolate the true visual text footprint width
+            QString lyricOnlyLine = line;
+            lyricOnlyLine.remove(QRegularExpression("\\[.*?\\]"));
+
+            int cleanLength = lyricOnlyLine.length();
+            if (cleanLength > m_currentSongMetrics.maxLineCharacters) {
+                m_currentSongMetrics.maxLineCharacters = cleanLength;
+            }
+        }
+    }
+
+    // 🚀 ELASTIC LINK MULTI-LAYER ENGINE
+    // Calculate display boundaries dynamically based on the current size of the UI widget
+    int displayWidth = parsedEditor->width();
+    if (displayWidth <= 0) {
+        // Fallback calculation if window hasn't fully drawn yet on startup
+        QScreen *screen = QGuiApplication::primaryScreen();
+        displayWidth = screen ? screen->availableGeometry().size().width() * 0.6 : 800;
+    }
+
+    // Estimate character width in pixels for Consolas/Courier based on current zoom scale
+    int baseFontSize = 10 + (m_zoomScaleLevel * 2);
+    double approxCharWidthPixels = baseFontSize * 0.62;
+
+    // Determine how many characters can physically fit across one column safely
+    int maxCharsPerColumn = qMax(20, static_cast<int>(displayWidth / approxCharWidthPixels));
+
+    if (m_currentSongMetrics.maxLineCharacters == 0) {
+        m_currentSongMetrics.targetColumns = 1;
+    } else {
+        // Calculate how many columns can fit side-by-side without truncating text lines
+        // We add an arbitrary 6-character safety buffer for column margins
+        int allocationWidthPerCol = m_currentSongMetrics.maxLineCharacters + 6;
+        int calculatedCols = displayWidth / (allocationWidthPerCol * approxCharWidthPixels);
+
+        // Clamp layout structure to reasonable parameters (1 to 4 columns/quadrants)
+        m_currentSongMetrics.targetColumns = qBound(1, calculatedCols, 4);
+    }
+
+    // Guard: If the song structure is very short, don't force unnecessary columns
+    if (m_currentSongMetrics.sectionCount < m_currentSongMetrics.targetColumns) {
+        m_currentSongMetrics.targetColumns = qMax(1, m_currentSongMetrics.sectionCount);
+    }
+
+    if (m_debugVerboseLevel) {
+        qDebug() << "=== CHORDLAB ELASTIC GEOMETRY RADAR ===";
+        qDebug() << "Available Widget Width:" << displayWidth << "px";
+        qDebug() << "Current Font Visual Width:" << approxCharWidthPixels << "px/char";
+        qDebug() << "Max Song Line Width:" << m_currentSongMetrics.maxLineCharacters << "chars";
+        qDebug() << "Calculated Optimal Columns:" << m_currentSongMetrics.targetColumns;
+    }
+}
+
+QString MainWindow::getThemeStyles() {
+    if (m_currentTheme == Dark) {
+        return "body { background-color: #121212; color: #E0E0E0; }"
+               ".chord { color: #82AAFF; font-weight: bold; }"
+               ".header-block { background-color: #1A1C2E; border-bottom: 2px solid #30364D; padding: 15px; margin-bottom: 20px; }"
+               ".chorus-box { background-color: #1E2337; border-left: 5px solid #0047AB; padding: 10px; margin: 5px 0; }"
+               ".verse-box { background-color: #121212; padding: 10px; margin: 2px 0; }"
+               ".section-header { background-color: #333333; color: #82AAFF; font-weight: bold; }";
+    }
+    return "body { background-color: white; color: black; }"
+           ".chord { color: darkblue; font-weight: bold; }"
+           ".header-block { background-color: #f8f9fa; border-bottom: 2px solid #ccc; padding: 10px; }"
+           ".chorus-box { background-color: #f0f7ff; border-left: 5px solid darkblue; padding: 10px; margin: 5px 0; }"
+           ".verse-box { background-color: white; padding: 10px; margin: 2px 0; }"
+           ".section-header { background-color: #eeeeee; color: black; font-weight: bold; }";
+}
+
+QString MainWindow::processLineContent(const QString &line) {
+    QString output = "";
+
+    if (m_currentMode == ChordDisplayMode::CIL) {
+        int lastPos = 0;
+        QRegularExpression chordRegex("\\[(.*?)\\]");
+        auto matches = chordRegex.globalMatch(line);
+        while (matches.hasNext()) {
+            auto match = matches.next();
+            output += line.mid(lastPos, match.capturedStart() - lastPos);
+            QString transposed = transposeChord(match.captured(1), m_transposeShift);
+            output += "<span class='chord'>[" + transposed + "]</span>";
+            lastPos = match.capturedEnd();
+        }
+        output += line.mid(lastPos);
+    }
+    else {
+        QString chordLine = "";
+        QString lyricLine = "";
+        int currentPos = 0;
+        QRegularExpression chordRegex("\\[(.*?)\\]");
+        auto matches = chordRegex.globalMatch(line);
+
+        if (!matches.hasNext()) {
+            output = line;
+        } else {
+            while (matches.hasNext()) {
+                auto match = matches.next();
+                int gapLength = match.capturedStart() - currentPos;
+                QString gap = line.mid(currentPos, gapLength);
+                lyricLine += gap;
+                chordLine += QString(gap.length(), ' ');
+                QString transposed = transposeChord(match.captured(1), m_transposeShift);
+                chordLine += "<span class='chord'>" + transposed + "</span>";
+                currentPos = match.capturedEnd();
+            }
+            lyricLine += line.mid(currentPos);
+            output = chordLine + "<br>" + lyricLine;
+        }
+    }
+    return output;
+}
+
+void MainWindow::checkForCompanionAudio(const QString &chordProPath) {
+    m_audioTracks = AudioTracks();
+    m_selectedAudioPath.clear();
+
+    m_btnTrackFull->setChecked(false); m_btnTrackFull->setEnabled(false);
+    m_btnTrackBkg->setChecked(false);  m_btnTrackBkg->setEnabled(false);
+    m_btnTrackSlow->setChecked(false); m_btnTrackSlow->setEnabled(false);
+
+    if (chordProPath.isEmpty()) return;
+
+    QFileInfo info(chordProPath);
+    QString cleanDir = QDir::cleanPath(info.path());
+    QString basePrefix = cleanDir + QDir::separator() + info.completeBaseName();
+
+    qDebug() << "=== ChordLab Audio Matrix Scan ===";
+    qDebug() << "Normalized Base Prefix:" << basePrefix;
+
+    QStringList audioExtensions = { ".wav", ".aiff", ".m4a", ".mp3" };
+
+    for (const QString &ext : audioExtensions) {
+        QString targetFile = basePrefix + ext;
+        QFileInfo check(targetFile);
+        if (check.exists() && check.isFile()) {
+            m_audioTracks.fullPath = targetFile;
+            m_btnTrackFull->setEnabled(true);
+            break;
+        }
+    }
+
+    for (const QString &ext : audioExtensions) {
+        QString targetFile = basePrefix + "_backing" + ext;
+        QFileInfo check(targetFile);
+        if (check.exists() && check.isFile()) {
+            m_audioTracks.backingPath = targetFile;
+            m_btnTrackBkg->setEnabled(true);
+            break;
+        }
+    }
+
+    for (const QString &ext : audioExtensions) {
+        QString targetFile = basePrefix + "_slow" + ext;
+        QFileInfo check(targetFile);
+        if (check.exists() && check.isFile()) {
+            m_audioTracks.slowPath = targetFile;
+            m_btnTrackSlow->setEnabled(true);
+            break;
+        }
+    }
+
+    if (m_btnTrackFull->isEnabled()) {
+        m_btnTrackFull->setChecked(true);
+        m_selectedAudioPath = m_audioTracks.fullPath;
+    }
+    else if (m_btnTrackBkg->isEnabled()) {
+        m_btnTrackBkg->setChecked(true);
+        m_selectedAudioPath = m_audioTracks.backingPath;
+    }
+    else if (m_btnTrackSlow->isEnabled()) {
+        m_btnTrackSlow->setChecked(true);
+        m_selectedAudioPath = m_audioTracks.slowPath;
+    }
+
+    if (!m_selectedAudioPath.isEmpty()) {
+        m_mediaPlayer->setSource(QUrl::fromLocalFile(m_selectedAudioPath));
+        statusBar()->showMessage(tr("Loaded: %1 | Armed: %2")
+                                     .arg(info.fileName(), QFileInfo(m_selectedAudioPath).fileName()));
+    } else {
+        statusBar()->showMessage(tr("Loaded: %1 (No companion audio discovered)").arg(info.fileName()));
+    }
+}
+
+QString MainWindow::transposeSingleNoteToken(const QString &noteToken, int semitones) {
+    if (semitones == 0 || noteToken.isEmpty()) return noteToken;
+
+    bool isLowercase = noteToken[0].isLower();
+    QString cleanNote = noteToken.toUpper();
+
+    QString baseNote = cleanNote.left(1);
+    if (cleanNote.length() > 1 && (cleanNote[1] == '#' || cleanNote[1].toLower() == 'b')) {
+        baseNote = cleanNote.left(2);
+    }
+    QString trailingModifiers = cleanNote.mid(baseNote.length());
+
+    int index = NOTE_SCALE_SHARPS.indexOf(baseNote);
+    if (index == -1) index = NOTE_SCALE_FLATS.indexOf(baseNote);
+    if (index == -1) return noteToken;
+
+    int targetIndex = (index + semitones) % 12;
+    if (targetIndex < 0) targetIndex += 12;
+
+    // Default to sharps in dark theme, flats in light theme for visual comfort
+    QString transposedNote = (m_currentTheme == Dark) ? NOTE_SCALE_SHARPS[targetIndex] : NOTE_SCALE_FLATS[targetIndex];
+    transposedNote += trailingModifiers;
+
+    return isLowercase ? transposedNote.toLower() : transposedNote;
+}
+
+QString MainWindow::transposeChord(const QString &chordText, int semitones) {
+    if (semitones == 0 || chordText.isEmpty()) return chordText;
+
+    // 1. Slash Chord Router [C/B]
+    if (chordText.contains('/')) {
+        QStringList parts = chordText.split('/');
+        if (parts.size() == 2) {
+            return transposeChord(parts[0], semitones) + "/" + transposeSingleNoteToken(parts[1], semitones);
+        }
+    }
+
+    // 2. Single Note Parenthetical Router (g)
+    if (chordText.startsWith('(') && chordText.endsWith(')')) {
+        QString innerNote = chordText.mid(1, chordText.length() - 2);
+        return "(" + transposeSingleNoteToken(innerNote, semitones) + ")";
+    }
+
+    return transposeSingleNoteToken(chordText, semitones);
+}
+
+QString MainWindow::parseGridLine(const QString &line, int delta) {
+    if (line.trimmed().isEmpty()) return line;
+
+    QString result = "";
+    QString currentToken = "";
+
+    for (int i = 0; i < line.length(); ++i) {
+        QChar ch = line[i];
+
+        // Maintain standard structural dividers cleanly
+        if (ch == '|' || ch.isSpace()) {
+            if (!currentToken.isEmpty()) {
+                // Look-ahead check: Only attempt transposition if token starts with a valid musical letter tone
+                QChar firstChar = currentToken.trimmed().isEmpty() ? QChar(' ') : currentToken.trimmed()[0];
+                char upperCheck = firstChar.toUpper().toLatin1();
+
+                if (upperCheck >= 'A' && upperCheck <= 'G') {
+                    result += transposeChord(currentToken, delta);
+                } else {
+                    result += currentToken; // Pass non-chord labels through safely!
+                }
+                currentToken = "";
+            }
+            result += ch;
+        } else {
+            currentToken += ch;
+        }
+    }
+
+    if (!currentToken.isEmpty()) {
+        QChar firstChar = currentToken.trimmed().isEmpty() ? QChar(' ') : currentToken.trimmed()[0];
+        char upperCheck = firstChar.toUpper().toLatin1();
+        if (upperCheck >= 'A' && upperCheck <= 'G') {
+            result += transposeChord(currentToken, delta);
+        } else {
+            result += currentToken;
+        }
+    }
+
+    return result;
+}
+
+QString MainWindow::parseTabLine(const QString &line, int chordDelta, int instrumentDelta) {
+    if (line.trimmed().isEmpty()) return line;
+
+    // Check if it's a structural string line (e.g., E|---, B|---, e|---)
+    QRegularExpression tuningRegex("^([A-G][#b]?)\\|", QRegularExpression::CaseInsensitiveOption);
+    QRegularExpressionMatch tuningMatch = tuningRegex.match(line);
+
+    if (tuningMatch.hasMatch()) {
+        QString result = "";
+        QString originalStringNote = tuningMatch.captured(1);
+
+        QString transposedStringNote = transposeSingleNoteToken(originalStringNote, instrumentDelta);
+        result += transposedStringNote + "|";
+
+        int i = tuningMatch.capturedEnd();
+
+        while (i < line.length()) {
+            if (line[i].isDigit()) {
+                QString fretStr = "";
+                while (i < line.length() && line[i].isDigit()) {
+                    fretStr += line[i++];
+                }
+
+                int originalFret = fretStr.toInt();
+                int newFret = originalFret + instrumentDelta + chordDelta;
+
+                QString outputVisual = "";
+                int logicalVisualLength = 0;
+
+                // 🚀 THE RED 'x' OUT-OF-BOUNDS GUARD
+                if (newFret < 0) {
+                    // We wrap the lower case x inside inline HTML color tags
+                    outputVisual = "<span style='color:#FF3333; font-weight:bold;'>x</span>";
+                    logicalVisualLength = 1; // It physically takes up only ONE character cell on screen!
+                } else {
+                    if (newFret > 24) newFret = 24; // Keep standard fret ceiling safety intact
+                    outputVisual = QString::number(newFret);
+                    logicalVisualLength = outputVisual.length();
+                }
+
+                result += outputVisual;
+
+                // 📐 TRACK PRECISION DASHES USING LOGICAL LENGTH ONLY
+                // This prevents the HTML span tag length from chewing up your structural tab lines!
+                int sizeDifference = logicalVisualLength - fretStr.length();
+                while (sizeDifference > 0 && i < line.length() && line[i] == '-') {
+                    i++;
+                    sizeDifference--;
+                }
+            } else {
+                result += line[i++];
+            }
+        }
+        return result;
+    }
+    else {
+        // --- ROUTINE B: This is a floating chord line above tabs ---
+        // Keeps spacing intervals intact while transposing musical chords cleanly
+        QString result = "";
+        QString currentToken = "";
+
+        for (int i = 0; i < line.length(); ++i) {
+            QChar ch = line[i];
+
+            if (ch.isSpace()) {
+                if (!currentToken.isEmpty()) {
+                    result += transposeChord(currentToken, chordDelta);
+                    currentToken = "";
+                }
+                result += ch;
+            } else {
+                currentToken += ch;
+            }
+        }
+        if (!currentToken.isEmpty()) {
+            result += transposeChord(currentToken, chordDelta);
+        }
+        return result;
+    }
+}
+
+void MainWindow::saveLayoutPreference(const QString &filePath, const SongLayoutState &layout) {
+    QSettings settings;
+    QFileInfo fileInfo(filePath);
+    QString uniqueSongKey = fileInfo.fileName(); // e.g., "HotelCalifornia.pro"
+
+    // Creates a hierarchy: SongLayouts -> HotelCalifornia.pro -> [settings]
+    settings.beginGroup("SongLayouts/" + uniqueSongKey);
+
+    settings.setValue("hasOverride", true);
+    settings.setValue("columns", layout.columnCount);
+    settings.setValue("fontSize", layout.fontSize);
+    settings.setValue("capoShift", m_capoShift);
+
+    settings.endGroup();
+
+    if (m_debugVerboseLevel) {
+        qDebug() << "[Layout] Saved custom layout for:" << uniqueSongKey;
+    }
+}
+
+MainWindow::SongLayoutState MainWindow::loadLayoutPreference(const QString &filePath) {
+    QSettings settings;
+    QFileInfo fileInfo(filePath);
+    QString uniqueSongKey = fileInfo.fileName();
+
+    SongLayoutState layout;
+    layout.hasUserOverride = false; // Default assumption
+
+    settings.beginGroup("SongLayouts/" + uniqueSongKey);
+
+    if (settings.contains("hasOverride")) {
+        layout.hasUserOverride = settings.value("hasOverride").toBool();
+        layout.columnCount = settings.value("columns").toInt();
+        layout.fontSize = settings.value("fontSize").toInt();
+
+        // Optionally load capo/transpose data here too
+    }
+
+    settings.endGroup();
+    return layout;
+}
+
+
+void MainWindow::saveSongLayoutPreference(const QString &filePath) {
+    if (filePath.isEmpty()) return;
+    QSettings settings;
+    QString songKey = QFileInfo(filePath).fileName();
+
+    settings.beginGroup("SongLayouts/" + songKey);
+    settings.setValue("hasOverride", true);
+    settings.setValue("zoomScale", m_zoomScaleLevel);
+    settings.endGroup();
+}
+
+void MainWindow::loadSongLayoutPreference(const QString &filePath) {
+    if (filePath.isEmpty()) return;
+    QSettings settings;
+    QString songKey = QFileInfo(filePath).fileName();
+
+    settings.beginGroup("SongLayouts/" + songKey);
+    if (settings.value("hasOverride", false).toBool()) {
+        m_zoomScaleLevel = settings.value("zoomScale", 0).toInt();
+    } else {
+        m_zoomScaleLevel = 0; // Reset back to default scaling index if unconfigured
+    }
+    settings.endGroup();
+}
