@@ -685,9 +685,6 @@ QString MainWindow::runInitialParse(const QString &rawInput) {
         QString safeInput = rawInput;
         safeInput.replace(QChar(0xA0), ' ');
 
-/*        if (trimmedLine.startsWith("{capo:", Qt::CaseInsensitive)) {
-            m_capoShift = trimmedLine.section(':', 1).chopped(1).trimmed().toInt();
-        } */
         if (trimmedLine.startsWith("{capo:", Qt::CaseInsensitive)) {
             QRegularExpression rx("^\\{capo:\\s*([^}]*)\\}?", QRegularExpression::CaseInsensitiveOption);
             QRegularExpressionMatch match = rx.match(trimmedLine);
@@ -783,21 +780,6 @@ QString MainWindow::runInitialParse(const QString &rawInput) {
             lineHandled = true;
         }
 
-/*        else if (trimmedLine.startsWith("{end_of_chorus}") || trimmedLine.startsWith("{eoc")) {
-            inChorus = false;
-            result += "</div><br>";
-            lineHandled = true;
-        }
-        else if (trimmedLine.startsWith("{c:") || trimmedLine.startsWith("{comment:")) {
-            if (inVerse) result += "</div>";
-            if (inChorus) { result += "</div>"; inChorus = false; }
-
-            QString commentText = trimmedLine.section(':', 1).chopped(1).trimmed();
-            inVerse = true;
-            result += "<div class='verse-box'><span class='section-header'>" + commentText + "</span><br>";
-            lineHandled = true;
-        }
-*/
         else if (trimmedLine.startsWith("{sot")) { inProtectedBlock = true; lineHandled = true; }
         else if (trimmedLine.startsWith("{eot")) { inProtectedBlock = false; lineHandled = true; }
 
@@ -870,6 +852,8 @@ void MainWindow::parseChordProToGrid(const QString &rawInput) {
     QStringList gatheredSections;
     QString currentSectionHtml = "";
     bool insideSectionBlock = false;
+    bool inGridBlock = false;
+    bool inTabBlock = false;
 
     // Toggle this boolean flag to enable/disable your visual alignment spacer checkline!
     bool showDiagnosticCheckline = false;
@@ -877,6 +861,43 @@ void MainWindow::parseChordProToGrid(const QString &rawInput) {
     for (const QString &rawLine : lines) {
         QString line = rawLine.trimmed();
         if (line.isEmpty()) continue;
+
+        // 1. Grid & Tab State Toggles
+        if (line.startsWith("{start_of_grid}") || line.startsWith("{sog}")) {
+            inGridBlock = true;
+            currentSectionHtml += "<div class='song-section'><div style='font-family: Consolas; white-space: pre; background: rgba(136, 0, 136, 0.1); padding: 5px; border-radius: 4px;'>";
+            continue;
+        }
+        if (line.startsWith("{end_of_grid}") || line.startsWith("{eog}")) {
+            inGridBlock = false;
+            currentSectionHtml += "</div></div>";
+            continue;
+        }
+        if (line.startsWith("{start_of_tab}") || line.startsWith("{sot}")) {
+            inTabBlock = true;
+            currentSectionHtml += "<div class='song-section'><div style='font-family: Consolas; white-space: pre; background: rgba(0, 136, 0, 0.1); padding: 5px; border-radius: 4px;'>";
+            continue;
+        }
+        if (line.startsWith("{end_of_tab}") || line.startsWith("{eot}")) {
+            inTabBlock = false;
+            currentSectionHtml += "</div></div>";
+            continue;
+        }
+
+        // 2. Specialized Block Routing (Bypass standard lyric logic)
+        if (inGridBlock) {
+            currentSectionHtml += parseGridLine(line, m_transposeShift) + "<br>";
+            continue;
+        }
+        if (inTabBlock) {
+            int instrumentShift = -(m_capoShift + m_instrumentTuningOffset);
+            currentSectionHtml += parseTabLine(line, m_transposeShift, instrumentShift) + "<br>";
+            continue;
+        }
+
+        // 3. Standard Section Headers
+        if (line.startsWith('{') && (line.contains("comment") || line.contains("c:"))) {
+
 
         if (line.startsWith('{') && (line.startsWith("{c:") || line.startsWith("{comment") || line.startsWith("{c}"))) {
             if (insideSectionBlock) {
@@ -905,8 +926,8 @@ void MainWindow::parseChordProToGrid(const QString &rawInput) {
             insideSectionBlock = true;
             continue;
         }
-
-        if (line.startsWith('{')) continue;
+        // is this the right one...
+//        if (line.startsWith('{')) continue;
 
         if (insideSectionBlock) {
             QString chordLine = "";
@@ -1417,15 +1438,16 @@ void MainWindow::checkForCompanionAudio(const QString &chordProPath) {
 
 QString MainWindow::transposeSingleNoteToken(const QString &noteToken, int semitones) {
     if (semitones == 0 || noteToken.isEmpty()) return noteToken;
-
     bool isLowercase = noteToken[0].isLower();
     QString cleanNote = noteToken.toUpper();
 
     QString baseNote = cleanNote.left(1);
-    if (cleanNote.length() > 1 && (cleanNote[1] == '#' || cleanNote[1].toLower() == 'b')) {
+    if (cleanNote.length() > 1 && (cleanNote[1] == '#' || cleanNote[1] == 'B')) {
         baseNote = cleanNote.left(2);
     }
-    QString trailingModifiers = cleanNote.mid(baseNote.length());
+
+    // 🚀 THE FIX: Pull modifiers from the ORIGINAL string so 'm7' doesn't become 'M7'
+    QString trailingModifiers = noteToken.mid(baseNote.length());
 
     int index = NOTE_SCALE_SHARPS.indexOf(baseNote);
     if (index == -1) index = NOTE_SCALE_FLATS.indexOf(baseNote);
@@ -1435,7 +1457,9 @@ QString MainWindow::transposeSingleNoteToken(const QString &noteToken, int semit
     if (targetIndex < 0) targetIndex += 12;
 
     // Default to sharps in dark theme, flats in light theme for visual comfort
-    QString transposedNote = (m_currentTheme == Dark) ? NOTE_SCALE_SHARPS[targetIndex] : NOTE_SCALE_FLATS[targetIndex];
+    QString transposedNote = (m_currentTheme == Dark) ?
+        NOTE_SCALE_SHARPS[targetIndex] : NOTE_SCALE_FLATS[targetIndex];
+
     transposedNote += trailingModifiers;
 
     return isLowercase ? transposedNote.toLower() : transposedNote;
