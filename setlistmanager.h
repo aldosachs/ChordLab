@@ -14,6 +14,9 @@ class SetlistManager : public QAbstractListModel {
     Q_OBJECT
 
 public:
+
+    explicit SetlistManager(QObject *parent = nullptr);
+
     int rowCount(const QModelIndex &parent = QModelIndex()) const override { return m_items.size(); }
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
 
@@ -23,6 +26,7 @@ public:
 
     void markAsPlayed(int row);
     void loadFromSetFile(const QString &fileName);
+    QString getFilePath(int row) const;
 
 private:
     QList<SetItem> m_items;

@@ -1,3 +1,11 @@
+#include "setlistmanager.h"
+#include <QIODevice>
+#include <QFile>
+
+SetlistManager::SetlistManager(QObject *parent) : QAbstractListModel(parent) {
+    // Initialization code (if any)
+}
+
 void SetlistManager::loadFromSetFile(const QString &fileName) {
     QFile file(fileName);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) return;
@@ -28,3 +36,45 @@ bool SetlistManager::dropMimeData(const QMimeData *data, Qt::DropAction action, 
 
     return true;
 }
+
+QString SetlistManager::getFilePath(int row) const {
+    // Safety check: make sure the row is valid
+    if (row < 0 || row >= m_items.size()) {
+        return QString();
+    }
+    return m_items[row].filePath;
+}
+
+// 1. The data() function tells the View what to show
+QVariant SetlistManager::data(const QModelIndex &index, int role) const {
+    if (!index.isValid()) return QVariant();
+
+    if (role == Qt::DisplayRole) {
+        // Return the song title (or whatever you want displayed)
+        return m_items[index.row()].title;
+    }
+    // You could also add Qt::DecorationRole here to show an icon if it's played!
+    return QVariant();
+}
+
+// 2. The flags() function tells the View that the items are draggable
+Qt::ItemFlags SetlistManager::flags(const QModelIndex &index) const {
+    if (!index.isValid()) return Qt::ItemIsEnabled;
+
+    // We return the default flags PLUS support for drag-and-drop
+    return QAbstractListModel::flags(index) | Qt::ItemIsDragEnabled | Qt::ItemIsDropEnabled;
+}
+
+// 3. The markAsPlayed logic
+void SetlistManager::markAsPlayed(int row) {
+    if (row >= 0 && row < m_items.size()) {
+        m_items[row].isPlayed = true;
+
+        // IMPORTANT: Tell the UI that the data has changed so it repaints
+        emit dataChanged(index(row), index(row));
+    }
+}
+
+//int SetlistManager::rowCount(){
+    //
+//}

@@ -3,6 +3,7 @@
 
 #include <QMainWindow>
 #include <QSplitter>
+#include <QListView>
 #include <QPlainTextEdit>
 #include <QTextEdit>
 #include <QPushButton>
@@ -11,6 +12,7 @@
 #include <QAudioOutput>
 #include <QUrl>
 #include <QKeyEvent>
+#include "setlistmanager.h"
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -106,6 +108,9 @@ private:
 
     void handlePlaybackStateChanged(QMediaPlayer::PlaybackState state);
 
+    SetlistManager *m_setlistManager;
+    QListView *m_setlistView;
+
     struct ChordProSection {
         QString header;
         QString body;
@@ -158,6 +163,7 @@ private:
     QPushButton *m_btnTheme;
     QPushButton *m_viewToggleBtn;
     QPushButton *m_btnModeToggle;
+    QPushButton *m_btnToggleSetlist;
 
     // Audio Selection Buttons
     QPushButton *m_btnTrackFull;

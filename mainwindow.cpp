@@ -25,7 +25,6 @@
 #include <QTimer>
 #include <QListView>
 #include <qapplication.h>
-#include "setlistmanager.h"
 
 static const QStringList NOTE_SCALE_SHARPS = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
 static const QStringList NOTE_SCALE_FLATS  = {"C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"};
@@ -245,6 +244,16 @@ void MainWindow::setupToolBar() {
     QToolBar *settingsToolBar = addToolBar("Critical Settings");
     settingsToolBar->setObjectName("criticalSettingsToolBar");
 
+    // --- Add this button creation block ---
+    m_btnToggleSetlist = new QPushButton("≡ Setlist");
+    m_btnToggleSetlist->setStyleSheet("QPushButton { background-color: #333333; color: white; padding: 5px; font-weight: bold; }");
+
+    // Connect to your existing slot
+    connect(m_btnToggleSetlist, &QPushButton::clicked, this, &MainWindow::onHamburgerClicked);
+
+    // Add it to the layout (or directly to the toolbar)
+    settingsToolBar->addWidget(m_btnToggleSetlist);
+
     m_btnTransposeUp = new QPushButton("Key Up");
     m_btnTransposeDown = new QPushButton("Key Down");
     m_btnTheme = new QPushButton("Light theme...");
@@ -340,8 +349,10 @@ void MainWindow::onHamburgerClicked() {
     if (m_setlistView->isHidden()) {
         m_setlistView->show();
         mainSplitter->setSizes({250, this->width() - 250});
+        m_btnToggleSetlist->setText("× Close Setlist"); // Change button text
     } else {
         m_setlistView->hide();
+        m_btnToggleSetlist->setText("≡ Setlist"); // Reset button text
     }
 }
 
@@ -368,8 +379,6 @@ void MainWindow::loadStyleSheetFromFile(const QString &filePath) {
 
 void MainWindow::setupLayout() {
 
-    mainSplitter->addWidget(m_setlistView);
-
     mainSplitter = new QSplitter(Qt::Horizontal, this);
     originalEditor = new QPlainTextEdit(this);
     originalEditor->setPlaceholderText("Original File Content...");
@@ -381,6 +390,7 @@ void MainWindow::setupLayout() {
     parsedEditor->setFont(monoFont);
     parsedEditor->setReadOnly(true);
 
+    mainSplitter->addWidget(m_setlistView);
     mainSplitter->addWidget(originalEditor);
     mainSplitter->addWidget(parsedEditor);
 
