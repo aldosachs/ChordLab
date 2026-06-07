@@ -316,6 +316,15 @@ void MainWindow::setupToolBar() {
     connect(m_btnTheme, &QPushButton::clicked, this, &MainWindow::toggleTheme);
 }
 
+void MainWindow::onHamburgerClicked() {
+    if (m_setlistView->isHidden()) {
+        m_setlistView->show();
+        mainSplitter->setSizes({250, this->width() - 250});
+    } else {
+        m_setlistView->hide();
+    }
+}
+
 void MainWindow::loadStyleSheetFromFile(const QString &filePath) {
     QFile file(filePath);
     if (m_debugVerboseLevel){

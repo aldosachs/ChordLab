@@ -84,6 +84,8 @@ private:
     void updateFunctionKeys();
     void shiftTransposition(int delta);
 
+    void onHamburgerClicked();
+
     void checkForCompanionAudio(const QString &chordProPath);
     void selectAudioTrack(QPushButton *clickedButton, const QString &filePath, const QString &trackType);
 
