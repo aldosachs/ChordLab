@@ -896,7 +896,7 @@ void MainWindow::parseChordProToGrid(const QString &rawInput) {
         }
 
         // 3. Standard Section Headers
-        if (line.startsWith('{') && (line.contains("comment") || line.contains("c:"))) {
+//        if (line.startsWith('{') && (line.contains("comment") || line.contains("c:"))) {
 
 
         if (line.startsWith('{') && (line.startsWith("{c:") || line.startsWith("{comment") || line.startsWith("{c}"))) {
@@ -1072,9 +1072,9 @@ void MainWindow::updatePlayAlongLayoutDensity() {
 
     // Apply color palettes dynamically from current system theme setup
 //    if (hasPlayModeStyleOverride) {
-        QString bgColor = (m_currentTheme == Dark) ? "#20283f" : "#e0F0ff";
+        QString bgColor = (m_currentTheme == Dark) ? "#20204f" : "#e0F0ff";
         QString txtColor = (m_currentTheme == Dark) ? "#E0E0E0" : "#222222";
-        QString chordColor = (m_currentTheme == Dark) ? "#4040FF" : "#c22222";
+        QString chordColor = (m_currentTheme == Dark) ? "#6080f0" : "#c22222";
 //    }
     QString baseHtml = "<html><head><style>"
                        "body {"
