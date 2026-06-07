@@ -104,3 +104,24 @@ void SetlistManager::loadSetFile(const QString &filePath) {
 
     file.close();
 }
+
+void SetlistManager::setSetlists(const QStringList &files) {
+    // 1. Notify the View that the model is about to change
+    beginResetModel();
+
+    m_items.clear();
+    for (const QString &fileName : files) {
+        SetItem item;
+        item.title = fileName; // Use the filename as the display title
+        item.filePath = ":/resources/setlists/" + fileName;
+        m_items.append(item);
+    }
+
+    // 2. Notify the View that the change is finished
+    endResetModel();
+}
+
+/* int SetlistManager::rowCount(const QModelIndex &parent) const {
+    // This MUST match the size of your m_items!
+    return m_items.size();
+} */

@@ -18,6 +18,8 @@ public:
     explicit SetlistManager(QObject *parent = nullptr);
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const override { return m_items.size(); }
+//    int rowCount(const QModelIndex &parent);
+
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
 
     // Drag and Drop support
@@ -28,6 +30,9 @@ public:
     void loadFromSetFile(const QString &fileName);
     QString getFilePath(int row) const;
     void loadSetFile(const QString &filePath);
+    void setSetlists(const QStringList &files);
+
+
 private:
     QList<SetItem> m_items;
 };

@@ -139,7 +139,13 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     // Explicitly make sure NO hard minimum size constraints are left locking the widget layout
     this->setMinimumSize(0, 0);
     this->setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
-    getAvailableSetlists();
+
+    //getAvailableSetlists();
+    QStringList files = getAvailableSetlists();
+    if (!files.isEmpty()) {
+        // Assuming m_setlistManager is your initialized pointer
+        m_setlistManager->setSetlists(files);
+    }
 }
 
 void MainWindow::showEvent(QShowEvent *event) {
