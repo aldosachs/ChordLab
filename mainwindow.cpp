@@ -685,8 +685,15 @@ QString MainWindow::runInitialParse(const QString &rawInput) {
         QString safeInput = rawInput;
         safeInput.replace(QChar(0xA0), ' ');
 
-        if (trimmedLine.startsWith("{capo:", Qt::CaseInsensitive)) {
+/*        if (trimmedLine.startsWith("{capo:", Qt::CaseInsensitive)) {
             m_capoShift = trimmedLine.section(':', 1).chopped(1).trimmed().toInt();
+        } */
+        if (trimmedLine.startsWith("{capo:", Qt::CaseInsensitive)) {
+            QRegularExpression rx("^\\{capo:\\s*([^}]*)\\}?", QRegularExpression::CaseInsensitiveOption);
+            QRegularExpressionMatch match = rx.match(trimmedLine);
+            if (match.hasMatch()) {
+                m_capoShift = match.captured(1).trimmed().toInt();
+            }
         }
 
         // --- Block Boundary Interceptions ---
@@ -758,7 +765,24 @@ QString MainWindow::runInitialParse(const QString &rawInput) {
             result += "<div class='chorus-box'><span class='section-header'>Chorus</span><br>";
             lineHandled = true;
         }
-        else if (trimmedLine.startsWith("{end_of_chorus}") || trimmedLine.startsWith("{eoc")) {
+        else if (trimmedLine.startsWith("{c:") || trimmedLine.startsWith("{comment:")) {
+            if (inVerse) result += "</div>";
+            if (inChorus) { result += "</div>"; inChorus = false; }
+
+            // Safe Regex Extraction
+            QRegularExpression rx("^\\{c(?:omment)?:?\\s*([^}]*)\\}?", QRegularExpression::CaseInsensitiveOption);
+            QRegularExpressionMatch match = rx.match(trimmedLine);
+
+            QString commentText = "..."; // Prevents empty layout collapse while typing
+            if (match.hasMatch() && !match.captured(1).trimmed().isEmpty()) {
+                commentText = match.captured(1).trimmed();
+            }
+
+            inVerse = true;
+            result += "<div class='verse-box'><span class='section-header'>" + commentText + "</span><br>";
+            lineHandled = true;
+        }
+/*        else if (trimmedLine.startsWith("{end_of_chorus}") || trimmedLine.startsWith("{eoc")) {
             inChorus = false;
             result += "</div><br>";
             lineHandled = true;
@@ -772,6 +796,7 @@ QString MainWindow::runInitialParse(const QString &rawInput) {
             result += "<div class='verse-box'><span class='section-header'>" + commentText + "</span><br>";
             lineHandled = true;
         }
+*/
         else if (trimmedLine.startsWith("{sot")) { inProtectedBlock = true; lineHandled = true; }
         else if (trimmedLine.startsWith("{eot")) { inProtectedBlock = false; lineHandled = true; }
 
@@ -859,7 +884,7 @@ void MainWindow::parseChordProToGrid(const QString &rawInput) {
                 currentSectionHtml = "";
             }
 
-            // 🚀 THE CURE: Safe Regex Capture Group
+            // Safe Regex Capture Group
             // This safely grabs anything between the colon and the closing bracket.
             // If the bracket is missing or the text is empty, it just returns an empty string without crashing!
             QRegularExpression rx("^\\{c(?:omment)?:?\\s*([^}]*)\\}?", QRegularExpression::CaseInsensitiveOption);
