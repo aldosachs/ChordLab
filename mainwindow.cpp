@@ -298,26 +298,32 @@ void MainWindow::setupToolBar() {
                             "QPushButton:checked { background-color: #006644; color: white; border-color: #00FF88; }";
     m_btnTrackFull = new QPushButton("Full");
     m_btnTrackBkg  = new QPushButton("Bkg");
+    m_btnTrackSplit  = new QPushButton("Split");
     m_btnTrackSlow = new QPushButton("Slow");
 
     m_btnTrackFull->setCheckable(true);
     m_btnTrackBkg->setCheckable(true);
+    m_btnTrackSplit->setCheckable(true);
     m_btnTrackSlow->setCheckable(true);
 
     m_btnTrackFull->setStyleSheet(audioBtnStyle);
     m_btnTrackBkg->setStyleSheet(audioBtnStyle);
+    m_btnTrackSplit->setStyleSheet(audioBtnStyle);
     m_btnTrackSlow->setStyleSheet(audioBtnStyle);
 
     m_btnTrackFull->setEnabled(false);
     m_btnTrackBkg->setEnabled(false);
+    m_btnTrackSplit->setEnabled(false);
     m_btnTrackSlow->setEnabled(false);
 
     layout->addWidget(m_btnTrackFull);
     layout->addWidget(m_btnTrackBkg);
+    layout->addWidget(m_btnTrackSplit);
     layout->addWidget(m_btnTrackSlow);
 
     connect(m_btnTrackFull, &QPushButton::clicked, this, [=]() { selectAudioTrack(m_btnTrackFull, m_audioTracks.fullPath, "Full Track"); });
     connect(m_btnTrackBkg,  &QPushButton::clicked, this, [=]() { selectAudioTrack(m_btnTrackBkg, m_audioTracks.backingPath, "Backing Track"); });
+    connect(m_btnTrackSplit, &QPushButton::clicked, this, [=]() { selectAudioTrack(m_btnTrackSplit, m_audioTracks.splitPath, "Split Stereo Track"); });
     connect(m_btnTrackSlow, &QPushButton::clicked, this, [=]() { selectAudioTrack(m_btnTrackSlow, m_audioTracks.slowPath, "Slow Practice Track"); });
 
     QPushButton *btnReset = new QPushButton("Reset Key");
@@ -1432,9 +1438,10 @@ void MainWindow::selectAudioTrack(QPushButton *clickedButton, const QString &tra
         return;
     }
 
-    // 2. Uncheck the other two audio buttons so only one can be active at a time
+    // 2. Uncheck the other three audio buttons so only one can be active at a time
     m_btnTrackFull->setChecked(false);
     m_btnTrackBkg->setChecked(false);
+    m_btnTrackSplit->setChecked(false);
     m_btnTrackSlow->setChecked(false);
 
     // 3. Keep our clicked button highlighted
@@ -1598,6 +1605,7 @@ void MainWindow::checkForCompanionAudio(const QString &chordProPath) {
 
     m_btnTrackFull->setChecked(false); m_btnTrackFull->setEnabled(false);
     m_btnTrackBkg->setChecked(false);  m_btnTrackBkg->setEnabled(false);
+    m_btnTrackSplit->setChecked(false);  m_btnTrackSplit->setEnabled(false);
     m_btnTrackSlow->setChecked(false); m_btnTrackSlow->setEnabled(false);
 
     if (chordProPath.isEmpty()) return;
@@ -1632,6 +1640,15 @@ void MainWindow::checkForCompanionAudio(const QString &chordProPath) {
     }
 
     for (const QString &ext : audioExtensions) {
+        QString targetFile = basePrefix + "_split" + ext;
+        QFileInfo check(targetFile);
+        if (check.exists() && check.isFile()) {
+            m_audioTracks.splitPath = targetFile;
+            m_btnTrackSplit->setEnabled(true);
+            break;
+        }
+
+    for (const QString &ext : audioExtensions) {
         QString targetFile = basePrefix + "_slow" + ext;
         QFileInfo check(targetFile);
         if (check.exists() && check.isFile()) {
@@ -1648,6 +1665,10 @@ void MainWindow::checkForCompanionAudio(const QString &chordProPath) {
     else if (m_btnTrackBkg->isEnabled()) {
         m_btnTrackBkg->setChecked(true);
         m_selectedAudioPath = m_audioTracks.backingPath;
+    }
+    else if (m_btnTrackSplit->isEnabled()) {
+        m_btnTrackSplit->setChecked(true);
+        m_selectedAudioPath = m_audioTracks.splitPath;
     }
     else if (m_btnTrackSlow->isEnabled()) {
         m_btnTrackSlow->setChecked(true);

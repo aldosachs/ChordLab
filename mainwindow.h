@@ -34,6 +34,7 @@ public:
     struct AudioTracks {
         QString fullPath;
         QString backingPath;
+        QString splitPath;
         QString slowPath;
     };
 
@@ -172,7 +173,8 @@ private:
     // Audio Selection Buttons
     QPushButton *m_btnTrackFull;
     QPushButton *m_btnTrackBkg;
-    QPushButton *m_btnTrackSlow;
+    QPushButton *m_btnTrackSplit;
+    QPushButton *m_btnTrackSlow;    
 
     // The 4 Context-Aware Function Buttons
     QPushButton *m_btnFn1;
