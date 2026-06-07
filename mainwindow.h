@@ -140,6 +140,7 @@ private:
     // --- Telemetry & Testing ---
     bool m_debugTelemetryEnabled;   // Toggles detailed string parsing dumps to Qt Console
     bool m_debugVerboseLevel;       // Toggles verbose administrative dumps to Qt Console
+    bool m_debug_Setlist;
 
     // --- Advanced Sub-Parsing Engines ---
     QString transposeSingleNoteToken(const QString &noteToken, int semitones);

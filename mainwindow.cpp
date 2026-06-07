@@ -59,6 +59,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     m_instrumentTuningOffset = 0;     // default to standard guitar tuning
     m_debugTelemetryEnabled = false;   // enable/disable tracking telemetry out to Qt App Output window
     m_debugVerboseLevel = true;
+    m_debug_Setlist = true;
     m_isLoadingFile = false;
     m_currentMode = ChordDisplayMode::CIL;
     m_currentTheme = Theme::Light;
@@ -358,8 +359,22 @@ void MainWindow::onHamburgerClicked() {
 }
 
 QStringList MainWindow::getAvailableSetlists() {
-    QDir dir(":/resources/setlists/");
-    // Get all files ending in .set
+    QString path = ":/resources/setlists/";
+    QDir dir(path);
+
+    if (m_debug_Setlist) {
+        qDebug() << "--- [Setlist Debug] ---";
+        qDebug() << "Checking path:" << path;
+        qDebug() << "Directory exists?" << dir.exists();
+
+        QStringList files = dir.entryList(QStringList() << "*.set", QDir::Files);
+        qDebug() << "Files found count:" << files.size();
+
+        for (const QString &file : files) {
+            qDebug() << "Found:" << file;
+        }
+    }
+
     return dir.entryList(QStringList() << "*.set", QDir::Files);
 }
 
