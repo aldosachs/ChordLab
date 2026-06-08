@@ -372,7 +372,6 @@ void MainWindow::onHamburgerClicked() {
 }
 
 QStringList MainWindow::getAvailableSetlists() {
-    qDebug() << "--- [FORCE DEBUG] getAvailableSetlists called! ---"; // No 'if' wrapper!
 
     QDir dir(":/resources/setlists/");
     qDebug() << "Path exists?" << dir.exists();
@@ -382,27 +381,6 @@ QStringList MainWindow::getAvailableSetlists() {
 
     return files;
 }
-
-/* QStringList MainWindow::getAvailableSetlists() {
-    QString path = ":/resources/setlists/";
-    QDir dir(path);
-
-    if (m_debug_Setlist) {
-        qDebug() << "--- [Setlist Debug] ---";
-        qDebug() << "Checking path:" << path;
-        qDebug() << "Directory exists?" << dir.exists();
-
-        QStringList files = dir.entryList(QStringList() << "*.set", QDir::Files);
-        qDebug() << "Files found count:" << files.size();
-
-        for (const QString &file : files) {
-            qDebug() << "Found:" << file;
-        }
-//    }
-
-    return dir.entryList(QStringList() << "*.set", QDir::Files);
-}
-*/
 
 void MainWindow::onLoadSetlistTriggered() {
     QStringList setlists = getAvailableSetlists();
@@ -740,7 +718,7 @@ void MainWindow::handleFileSave() {
             initialPath = QDir::homePath();
         }
 
-        // 🚀 Synchronized: Opens the Save Dialog right in the same folder as Open Dialog!
+        // synchronized: Opens the Save Dialog right in the same folder as Open Dialog!
         QString saveName = QFileDialog::getSaveFileName(
             this,
             tr("Save ChordPro File"),
@@ -997,7 +975,7 @@ void MainWindow::parseChordProToGrid(const QString &rawInput) {
     for (const QString &rawLine : lines) {
         QString line = rawLine.trimmed();
 
-        // 1. 🚀 Use empty lines as formal paragraph breaks for unstructured text
+        // 1. use empty lines as formal paragraph breaks for unstructured text
         if (line.isEmpty()) {
             if (insideSectionBlock && !inGridBlock && !inTabBlock) {
                 currentSectionHtml += "</div>";
@@ -1030,7 +1008,7 @@ void MainWindow::parseChordProToGrid(const QString &rawInput) {
             continue;
         }
 
-        // 3. 🚀 Explicit Section Headers ({c:}, {soc}, and #)
+        // 3. explicit Section Headers ({c:}, {soc}, and #)
         bool isChorusStart = line.startsWith("{soc", Qt::CaseInsensitive) || line.startsWith("{start_of_chorus", Qt::CaseInsensitive);
         bool isCommentStart = line.startsWith("{c:", Qt::CaseInsensitive) || line.startsWith("{comment:", Qt::CaseInsensitive);
         bool isInformalHeader = line.startsWith("#");
@@ -1084,33 +1062,6 @@ void MainWindow::parseChordProToGrid(const QString &rawInput) {
             insideSectionBlock = true;
         }
 
-/*    for (const QString &rawLine : lines) {
-        QString line = rawLine.trimmed();
-        if (line.isEmpty()) continue;
-
-        // 1. Grid & Tab State Toggles
-        if (line.startsWith("{start_of_grid}") || line.startsWith("{sog}")) {
-            inGridBlock = true;
-            currentSectionHtml += "<div class='song-section'><div style='font-family: Consolas; white-space: pre; background: rgba(136, 0, 136, 0.1); padding: 5px; border-radius: 4px;'>";
-            continue;
-        }
-        if (line.startsWith("{end_of_grid}") || line.startsWith("{eog}")) {
-            inGridBlock = false;
-            currentSectionHtml += "</div></div>";
-            continue;
-        }
-        if (line.startsWith("{start_of_tab}") || line.startsWith("{sot}")) {
-            inTabBlock = true;
-            currentSectionHtml += "<div class='song-section'><div style='font-family: Consolas; white-space: pre; background: rgba(0, 136, 0, 0.1); padding: 5px; border-radius: 4px;'>";
-            continue;
-        }
-        if (line.startsWith("{end_of_tab}") || line.startsWith("{eot}")) {
-            inTabBlock = false;
-            currentSectionHtml += "</div></div>";
-            continue;
-        }
-*/
-
         // 2. Specialized Block Routing (Bypass standard lyric logic)
         if (inGridBlock) {
             currentSectionHtml += parseGridLine(line, m_transposeShift) + "<br>";
@@ -1141,7 +1092,7 @@ void MainWindow::parseChordProToGrid(const QString &rawInput) {
                 sectionName = match.captured(1).trimmed();
             }
 
-            // Fallback: If they type an empty {c:} or are half-way through typing {c:V
+            // fallback: If they type an empty {c:} or are half-way through typing {c:V
             if (sectionName.isEmpty()) {
                 sectionName = "..."; // Keeps the UI stable while typing
             }
@@ -1247,7 +1198,7 @@ void MainWindow::parseChordProToGrid(const QString &rawInput) {
         gatheredSections.append(currentSectionHtml);
     }
 
-    // Establish dynamic column generation limits
+    // establish dynamic column generation limits
     int numCols = m_currentSongMetrics.targetColumns;
     if (m_zoomScaleLevel == 1 && numCols > 2) numCols = 2;
     else if (m_zoomScaleLevel >= 2) numCols = 1;
@@ -1297,7 +1248,7 @@ void MainWindow::updatePlayAlongLayoutDensity() {
     QString txtColor = (m_currentTheme == Dark) ? "#E0E0E0" : "#222222";
     QString chordColor = (m_currentTheme == Dark) ? "#6080f0" : "#c22222";
 
-    // 🚀 NEW: Extract Metadata for the Play Along Header safely
+    // extract Metadata for the Play Along Header safely
     QRegularExpression titleRx(R"(\{(?:title|t):\s*([^}]*)\})", QRegularExpression::CaseInsensitiveOption);
     QRegularExpression artistRx(R"(\{(?:artist|st|subtitle):\s*([^}]*)\})", QRegularExpression::CaseInsensitiveOption);
     QString title = titleRx.match(m_rawSongContent).captured(1).trimmed();
@@ -1428,7 +1379,6 @@ void MainWindow::onZoomOutTriggered() {
     }
 }
 
-// (Keep your existing processLineContent, transposeChord, analyzeChordProMetaData, getThemeStyles and checkForCompanionAudio exactly as they were written!) 
 void MainWindow::selectAudioTrack(QPushButton *clickedButton, const QString &trackPath, const QString &trackName) {
     // 1. If this button was already checked and is now being unchecked, stop playback
     if (!clickedButton->isChecked()) {
@@ -1453,7 +1403,6 @@ void MainWindow::selectAudioTrack(QPushButton *clickedButton, const QString &tra
 
     statusBar()->showMessage(QString("Selected %1: %2").arg(trackName, QFileInfo(trackPath).fileName()));
 }
-// Kept code below this line... and replaced code above...
 
 void MainWindow::analyzeChordProMetaData(const QString &rawInput) {
     // Reset metrics before scanning
@@ -1490,13 +1439,10 @@ void MainWindow::analyzeChordProMetaData(const QString &rawInput) {
             if (cleanLength > m_currentSongMetrics.maxLineCharacters) {
                 m_currentSongMetrics.maxLineCharacters = cleanLength;
             }
-/*            if (cleanLength > m_currentSongMetrics.maxLineCharacters) {
-                m_currentSongMetrics.maxLineCharacters = cleanLength;
-            }*/
         }
     }
 
-    // 🚀 ELASTIC LINK MULTI-LAYER ENGINE
+    // elastic LINK MULTI-LAYER ENGINE
     // Calculate display boundaries dynamically based on the current size of the UI widget
     int displayWidth = parsedEditor->width();
     if (displayWidth <= 0) {
@@ -1516,8 +1462,7 @@ void MainWindow::analyzeChordProMetaData(const QString &rawInput) {
         m_currentSongMetrics.targetColumns = 1;
     } else {
         // Calculate how many columns can fit side-by-side without truncating text lines
-        // We add an arbitrary 6-character safety buffer for column margins
-//        int allocationWidthPerCol = m_currentSongMetrics.maxLineCharacters + 6;
+
         int allocationWidthPerCol = qMin(m_currentSongMetrics.maxLineCharacters, 48) + 2;
         int calculatedCols = displayWidth / (allocationWidthPerCol * approxCharWidthPixels);
 
@@ -1805,7 +1750,7 @@ QString MainWindow::parseTabLine(const QString &line, int chordDelta, int instru
                 QString outputVisual = "";
                 int logicalVisualLength = 0;
 
-                // 🚀 THE RED 'x' OUT-OF-BOUNDS GUARD
+                // red 'x' out-of-bounds guard...
                 if (newFret < 0) {
                     // We wrap the lower case x inside inline HTML color tags
                     outputVisual = "<span style='color:#FF3333; font-weight:bold;'>x</span>";
