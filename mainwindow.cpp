@@ -164,7 +164,7 @@ void MainWindow::showEvent(QShowEvent *event) {
             this->resize(this->width() > 1024 ? this->width() : 1024, 768);
         }
 
-        // 🚀 THE CURE: Defer loading song structures by 50ms!
+        // Defer loading song structures by 50ms!
         // This lets the OS window manager completely finish sizing the central splitter
         // and central widgets, ensuring the Radar reads the true physical layout width!
         QTimer::singleShot(50, this, [=]() {
@@ -174,6 +174,7 @@ void MainWindow::showEvent(QShowEvent *event) {
 
             if (!lastFile.isEmpty() && QFile::exists(lastFile)) {
                 loadSongQuietly(lastFile);
+                // need to also check & reload companion audio files????
                 setAppState(static_cast<AppState>(lastMode));
             } else {
                 setAppState(Idle);
@@ -553,6 +554,51 @@ void MainWindow::loadSongQuietly(const QString &filePath) {
     m_isLoadingFile = true;
     m_currentFilePath = filePath;
 
+    // --- RECALL PER-SONG TRACKING PREFERENCE ---
+    loadSongLayoutPreference(filePath);
+
+    // --- 1. Load the Text Content ---
+    QFile file(filePath);
+    if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        QTextStream in(&file);
+        m_rawSongContent = in.readAll();
+        originalEditor->setPlainText(m_rawSongContent);
+        file.close();
+    }
+
+    // --- 2. Detect & Load Companion Audio ---
+    QFileInfo info(filePath);
+    QString baseDir = info.absolutePath();
+    QString baseName = info.completeBaseName();
+
+    // Define the formats you want to support
+    QStringList audioExtensions = {".mp3", ".wav", ".ogg", ".m4a"};
+    bool audioFound = false;
+
+    for (const QString &ext : audioExtensions) {
+        QString potentialAudio = baseDir + "/" + baseName + ext;
+        if (QFile::exists(potentialAudio)) {
+            // Call your actual audio loading function here
+            this->initializeAudioPlayer(potentialAudio);
+            audioFound = true;
+            break; // Stop once we find the first match
+        }
+    }
+
+    if (!audioFound) {
+        // Optional: clear the audio player if no file is found
+        this->stopAndClearAudioPlayer();
+    }
+
+    m_isLoadingFile = false;
+}
+
+/* void MainWindow::loadSongQuietly(const QString &filePath) {
+    if (filePath.isEmpty() || !QFile::exists(filePath)) return;
+
+    m_isLoadingFile = true;
+    m_currentFilePath = filePath;
+
     // --- 🚀 RECALL PER-SONG TRACKING PREFERENCE ---
     // Read the song's specific layout preference block before generating the display data
     loadSongLayoutPreference(filePath);
@@ -566,7 +612,8 @@ void MainWindow::loadSongQuietly(const QString &filePath) {
     }
 
     m_isLoadingFile = false;
-}
+}*/
+
 void MainWindow::updateFunctionKeys() {
     // 1. Break old signal routing tables cleanly
     disconnect(m_btnFn1, &QPushButton::clicked, nullptr, nullptr);
