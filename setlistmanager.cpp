@@ -1,29 +1,18 @@
 #include "setlistmanager.h"
 #include <QIODevice>
 #include <QFile>
+#include <QDebug>
+#include <QRegularExpression>
+#include <QBrush>
+#include <QStandardItem>
+#include <QAbstractListModel>
 
-SetlistManager::SetlistManager(QObject *parent) : QAbstractListModel(parent) {
+/* SetlistManager::SetlistManager(QObject *parent) : QAbstractListModel(parent) {
+    // Initialization code (if any)
+}*/
+SetlistManager::SetlistManager(QObject *parent) : QStandardItemModel(parent) {
     // Initialization code (if any)
 }
-
-/* void SetlistManager::loadFromSetFile(const QString &fileName) {
-    QFile file(fileName);
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) return;
-    
-    beginResetModel();
-    m_items.clear();
-    QTextStream in(&file);
-    while (!in.atEnd()) {
-        QString line = in.readLine().trimmed();
-        if (line.startsWith("\"")) { // Parse your format: "MSB 2\MSB 2.1 Yesterday [F 92 bpm]"
-            SetItem item;
-            item.filePath = line.mid(1, line.lastIndexOf('"') - 1); // Clean up the path
-            item.title = item.filePath.section('\\', -1);           // Get the filename
-            m_items.append(item);
-        }
-    }
-    endResetModel();
-} */
 
 bool SetlistManager::dropMimeData(const QMimeData *data, Qt::DropAction action, int row, int column, const QModelIndex &parent) {
     if (action == Qt::IgnoreAction) return true;
@@ -62,20 +51,65 @@ Qt::ItemFlags SetlistManager::flags(const QModelIndex &index) const {
     if (!index.isValid()) return Qt::ItemIsEnabled;
 
     // We return the default flags PLUS support for drag-and-drop
-    return QAbstractListModel::flags(index) | Qt::ItemIsDragEnabled | Qt::ItemIsDropEnabled;
+    return QStandardItemModel::flags(index) | Qt::ItemIsDragEnabled | Qt::ItemIsDropEnabled;
 }
 
 // 3. The markAsPlayed logic
-void SetlistManager::markAsPlayed(int row) {
-    if (row >= 0 && row < m_items.size()) {
-        m_items[row].isPlayed = true;
-
-        // IMPORTANT: Tell the UI that the data has changed so it repaints
-        emit dataChanged(index(row), index(row));
+void SetlistManager::markAsPlayed(const QModelIndex &index) {
+    QStandardItem *item = this->itemFromIndex(index);
+    if (item) {
+        item->setForeground(QBrush(Qt::gray)); // Grey it out!
     }
 }
 
 void SetlistManager::loadSetFile(const QString &filePath) {
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        qDebug() << "Could not open setlist:" << filePath;
+        return;
+    }
+
+    // 1. Create the Parent Item (The Setlist File)
+    QFileInfo fileInfo(filePath);
+    QStandardItem *parentItem = new QStandardItem(fileInfo.fileName()); // e.g., "Monday Songbook 1.set"
+    parentItem->setEditable(false);
+    // Make the parent look a bit different (e.g., bold)
+    QFont parentFont = parentItem->font();
+    parentFont.setBold(true);
+    parentItem->setFont(parentFont);
+
+    QTextStream in(&file);
+    while (!in.atEnd()) {
+        QString line = in.readLine().trimmed();
+
+        // Skip header lines or empty lines
+        if (line.startsWith("##") || line.isEmpty()) continue;
+
+        // Clean up any quotes the user might have typed
+        line.remove('"');
+
+        // 2. Create the Child Item (The Song)
+        // Extract just the song name for the UI by splitting at slashes
+        QString displayTitle = line.split(QRegularExpression("[/\\\\]")).last();
+        if (displayTitle.isEmpty()) displayTitle = line; // Fallback
+
+        QStandardItem *childItem = new QStandardItem(displayTitle);
+        childItem->setEditable(false);
+
+        // 🤫 Secretly store the actual relative path inside the item!
+        childItem->setData(line, FilePathRole);
+
+        // 3. Append the Song underneath the Setlist
+        parentItem->appendRow(childItem);
+    }
+
+    // 4. Append the fully loaded Setlist to the Model
+    this->appendRow(parentItem);
+
+    file.close();
+}
+
+/* void SetlistManager::loadSetFile(const QString &filePath) {
     QFile file(filePath);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
         qDebug() << "Could not open setlist:" << filePath;
@@ -103,7 +137,7 @@ void SetlistManager::loadSetFile(const QString &filePath) {
     endResetModel();
 
     file.close();
-}
+} */
 
 void SetlistManager::setSetlists(const QStringList &files) {
     // 1. Notify the View that the model is about to change

@@ -3,6 +3,10 @@
 
 #include <QAbstractListModel>
 #include <QStringList>
+#include <QStandardItemModel>
+#include <QFile>
+#include <QTextStream>
+#include <QFileInfo>
 
 struct SetItem {
     QString title;
@@ -10,7 +14,7 @@ struct SetItem {
     bool isPlayed = false;
 };
 
-class SetlistManager : public QAbstractListModel {
+class SetlistManager : public QStandardItemModel {
     Q_OBJECT
 
 public:
@@ -20,6 +24,11 @@ public:
     int rowCount(const QModelIndex &parent = QModelIndex()) const override { return m_items.size(); }
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
     Qt::ItemFlags flags(const QModelIndex &index) const override;
+
+    // Define a custom role to hold the actual file path invisibly
+    enum ItemRoles {
+        FilePathRole = Qt::UserRole + 1
+    };
 
     // Drag and Drop overrides for internal reordering
     Qt::DropActions supportedDropActions() const override;
@@ -33,7 +42,7 @@ public:
     void revertToOriginal();       // Restores from m_originalItems
     void createBackup();
 
-    void markAsPlayed(int row);
+    void markAsPlayed(const QModelIndex &index);
     void loadSetFile(const QString &fileName);
     QString getFilePath(int row) const;
     void setSetlists(const QStringList &files);

@@ -3,7 +3,7 @@
 
 #include <QMainWindow>
 #include <QSplitter>
-#include <QListView>
+#include <QTreeView>
 #include <QPlainTextEdit>
 #include <QTextEdit>
 #include <QPushButton>
@@ -110,7 +110,7 @@ private:
     void handlePlaybackStateChanged(QMediaPlayer::PlaybackState state);
 
     SetlistManager *m_setlistManager;
-    QListView *m_setlistView;
+    QTreeView *m_setlistView;
     void onLoadSetlistTriggered();
     QStringList getAvailableSetlists();
 

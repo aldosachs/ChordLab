@@ -23,7 +23,7 @@
 #include <QMenu>
 #include <QActionGroup>
 #include <QTimer>
-#include <QListView>
+#include <QTreeView>
 #include <QInputDialog>
 #include <qapplication.h>
 
@@ -68,17 +68,24 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     m_setlistManager = new SetlistManager(this);
 
     // 2. Initialize the View
-    m_setlistView = new QListView(this);
+    m_setlistView = new QTreeView(this); // 🚀 Now a TreeView!
     m_setlistView->setModel(m_setlistManager);
-    m_setlistView->setDragDropMode(QAbstractItemView::InternalMove); // 🚀 Enables Drag-and-Drop
+    m_setlistView->setHeaderHidden(true); // Hides the column headers
+    m_setlistView->setDragDropMode(QAbstractItemView::InternalMove);
     m_setlistView->setSelectionMode(QAbstractItemView::SingleSelection);
-    m_setlistView->hide(); // Start hidden until hamburger is clicked
+    m_setlistView->hide();
 
-    connect(m_setlistView, &QListView::activated, this, [this](const QModelIndex &index) {
-        if (index.isValid()) {
-            QString path = m_setlistManager->getFilePath(index.row());
+    connect(m_setlistView, &QTreeView::clicked, this, [this](const QModelIndex &index) {
+        if (!index.isValid()) return;
+
+        QStandardItem *item = m_setlistManager->itemFromIndex(index);
+
+        // 🧠 Check if it has a parent. If it does, it's a Song!
+        if (item && item->parent() != nullptr) {
+            // Retrieve the path we secretly stored earlier
+            QString path = item->data(SetlistManager::FilePathRole).toString();
             loadSongQuietly(path);
-            m_setlistManager->markAsPlayed(index.row()); // Grey it out!
+            m_setlistManager->markAsPlayed(index);
         }
     });
 
