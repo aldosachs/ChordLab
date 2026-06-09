@@ -502,20 +502,6 @@ void MainWindow::setAppState(AppState state) {
         parsedEditor->setHtml(runInitialParse(m_rawSongContent));
         break;
 
-/*        m_btnModeToggle->setText("Mode: Edit 📝");
-        statusBar()->showMessage("Editing Mode📝: Analyzing ChordPro syntax...");
-
-        // Show split panels
-        mainSplitter->show();
-        originalEditor->show();
-        parsedEditor->show();
-
-        // 🚀 Dynamically split the screen 50/50 instead of forcing 400px
-        mainSplitter->setSizes(QList<int>({this->width() / 2, this->width() / 2}));
-        // Render crisp editor text layout without multi-column table interference
-        parsedEditor->setHtml(runInitialParse(m_rawSongContent));
-        break; */
-
     case PlayAlong:
         m_btnModeToggle->setText("Mode: Play 🎤");
         statusBar()->showMessage("Play-along Mode 🎤Active. Space: Toggle Play | Ctrl +/-: Zoom");
@@ -548,52 +534,10 @@ void MainWindow::closeEvent(QCloseEvent *event) {
     QMainWindow::closeEvent(event);
 }
 
+
+
+
 void MainWindow::loadSongQuietly(const QString &filePath) {
-    if (filePath.isEmpty() || !QFile::exists(filePath)) return;
-
-    m_isLoadingFile = true;
-    m_currentFilePath = filePath;
-
-    // --- RECALL PER-SONG TRACKING PREFERENCE ---
-    loadSongLayoutPreference(filePath);
-
-    // --- 1. Load the Text Content ---
-    QFile file(filePath);
-    if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        QTextStream in(&file);
-        m_rawSongContent = in.readAll();
-        originalEditor->setPlainText(m_rawSongContent);
-        file.close();
-    }
-
-    // --- 2. Detect & Load Companion Audio ---
-    QFileInfo info(filePath);
-    QString baseDir = info.absolutePath();
-    QString baseName = info.completeBaseName();
-
-    // Define the formats you want to support
-    QStringList audioExtensions = {".mp3", ".wav", ".ogg", ".m4a"};
-    bool audioFound = false;
-
-    for (const QString &ext : audioExtensions) {
-        QString potentialAudio = baseDir + "/" + baseName + ext;
-        if (QFile::exists(potentialAudio)) {
-            // Call your actual audio loading function here
-            this->initializeAudioPlayer(potentialAudio);
-            audioFound = true;
-            break; // Stop once we find the first match
-        }
-    }
-
-    if (!audioFound) {
-        // Optional: clear the audio player if no file is found
-        this->stopAndClearAudioPlayer();
-    }
-
-    m_isLoadingFile = false;
-}
-
-/* void MainWindow::loadSongQuietly(const QString &filePath) {
     if (filePath.isEmpty() || !QFile::exists(filePath)) return;
 
     m_isLoadingFile = true;
@@ -611,8 +555,22 @@ void MainWindow::loadSongQuietly(const QString &filePath) {
         file.close();
     }
 
+    // Reset transpositions (the logic you had in handleFileOpen)
+    m_transposeShift = 0;
+    m_capoShift = 0;
+    m_instrumentTuningOffset = 0;
+
+    // Apply layout preference
+    loadSongLayoutPreference(filePath);
+
+    // Trigger UI state
+    setAppState(OpenEdit);
+
+    // Trigger Audio check
+    checkForCompanionAudio(filePath);
+
     m_isLoadingFile = false;
-}*/
+}
 
 void MainWindow::updateFunctionKeys() {
     // 1. Break old signal routing tables cleanly
@@ -695,6 +653,27 @@ void MainWindow::updateFunctionKeys() {
 }
 
 void MainWindow::handleFileOpen() {
+    // 1. Get the path
+    QString appDir = QCoreApplication::applicationDirPath();
+    QString initialPath = QDir(appDir + "/resources/pieces").exists() ?
+                              appDir + "/resources/pieces" : QDir::homePath();
+
+    QString fileName = QFileDialog::getOpenFileName(
+        this, tr("Open ChordPro File"), initialPath,
+        tr("ChordPro Files (*.chopro *.cho *.pro *.txt *.crd)")
+        );
+
+    if (fileName.isEmpty()) return;
+
+    // 2. Delegate EVERYTHING to your master loader
+    // This now handles text loading, layout, audio checking, and state setting!
+    loadSongQuietly(fileName);
+
+    // 3. Just provide user feedback
+    statusBar()->showMessage(tr("Loaded: ") + fileName);
+}
+
+/* void MainWindow::handleFileOpen() {
     // Determine the location where the executable is currently running
     QString appDir = QCoreApplication::applicationDirPath();
 
@@ -750,6 +729,7 @@ void MainWindow::handleFileOpen() {
     checkForCompanionAudio(m_currentFilePath);
     statusBar()->showMessage(tr("Loaded: ") + fileName);
 }
+*/
 
 void MainWindow::handleFileSave() {
     if (m_currentFilePath.isEmpty()) {
@@ -1292,7 +1272,7 @@ void MainWindow::updatePlayAlongLayoutDensity() {
     // future User preference override might go here...
     QString bgColor = (m_currentTheme == Dark) ? "#20204f" : "#e0F0ff";
     QString txtColor = (m_currentTheme == Dark) ? "#E0E0E0" : "#222222";
-    QString chordColor = (m_currentTheme == Dark) ? "#6080f0" : "#c22222";
+    QString chordColor = (m_currentTheme == Dark) ? "#ffb060" : "#c22222";
 
     // extract Metadata for the Play Along Header safely
     QRegularExpression titleRx(R"(\{(?:title|t):\s*([^}]*)\})", QRegularExpression::CaseInsensitiveOption);

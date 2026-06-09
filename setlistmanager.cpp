@@ -121,7 +121,28 @@ void SetlistManager::setSetlists(const QStringList &files) {
     endResetModel();
 }
 
-/* int SetlistManager::rowCount(const QModelIndex &parent) const {
-    // This MUST match the size of your m_items!
-    return m_items.size();
-} */
+bool SetlistManager::moveRows(const QModelIndex &parent, int sourceRow, int count,
+                              const QModelIndex &destinationParent, int destinationChild) {
+    // 1. Tell Qt we are about to change the model layout
+    beginMoveRows(parent, sourceRow, sourceRow + count - 1, destinationParent, destinationChild);
+
+    // 2. Move the actual data in our m_items list
+    for (int i = 0; i < count; ++i) {
+        SetItem item = m_items.takeAt(sourceRow);
+        m_items.insert(destinationChild, item);
+    }
+
+    // 3. Finalize the move
+    endMoveRows();
+    return true;
+}
+
+void SetlistManager::createBackup() {
+    m_originalItems = m_items; // QList assignment is deep, so this is safe!
+}
+
+void SetlistManager::revertToOriginal() {
+    beginResetModel(); // Tells the View to refresh entirely
+    m_items = m_originalItems;
+    endResetModel();
+}
