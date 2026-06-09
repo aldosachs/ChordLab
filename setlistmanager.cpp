@@ -69,6 +69,56 @@ void SetlistManager::loadSetFile(const QString &filePath) {
         return;
     }
 
+    // 1. Create the Setlist (Parent) Node
+    QFileInfo fileInfo(filePath);
+    QStandardItem *parentItem = new QStandardItem(fileInfo.fileName()); // e.g., "Monday Songbook 1.set"
+    parentItem->setEditable(false);
+
+    // Make the parent visually distinct (bold)
+    QFont parentFont = parentItem->font();
+    parentFont.setBold(true);
+    parentItem->setFont(parentFont);
+
+    // 2. Read the file and add Songs (Child Nodes)
+    QTextStream in(&file);
+    while (!in.atEnd()) {
+        QString line = in.readLine().trimmed();
+
+        // Skip headers/comments and empty lines
+        if (line.startsWith("##") || line.isEmpty()) continue;
+
+        // Clean up any quotes the user might have typed
+        line.remove('"');
+
+        // 3. Create the Song (Child) Node
+        // Extract just the filename from the path for the UI (split at slashes)
+        // e.g., "MSB 1\MSB 1.1 Yellow submarine" -> "MSB 1.1 Yellow submarine"
+        QString displayTitle = line.split(QRegularExpression("[/\\\\]")).last();
+        if (displayTitle.isEmpty()) displayTitle = line; // Fallback just in case
+
+        QStandardItem *childItem = new QStandardItem(displayTitle);
+        childItem->setEditable(false);
+
+        // 🤫 Secretly store the FULL relative path inside the item so ChordLab can open it
+        childItem->setData(line, FilePathRole);
+        qDebug() << "-->" << line;
+        // 4. Attach the song underneath the setlist parent
+        parentItem->appendRow(childItem);
+    }
+
+    // 5. Finally, attach the fully populated setlist to the main model
+    this->appendRow(parentItem);
+
+    file.close();
+}
+
+/* void SetlistManager::loadSetFile(const QString &filePath) {
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        qDebug() << "Could not open setlist:" << filePath;
+        return;
+    }
+
     // 1. Create the Parent Item (The Setlist File)
     QFileInfo fileInfo(filePath);
     QStandardItem *parentItem = new QStandardItem(fileInfo.fileName()); // e.g., "Monday Songbook 1.set"
@@ -108,7 +158,7 @@ void SetlistManager::loadSetFile(const QString &filePath) {
 
     file.close();
 }
-
+/*
 /* void SetlistManager::loadSetFile(const QString &filePath) {
     QFile file(filePath);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {

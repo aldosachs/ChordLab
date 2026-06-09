@@ -24,6 +24,7 @@
 #include <QActionGroup>
 #include <QTimer>
 #include <QTreeView>
+#include <QHeaderView>
 #include <QInputDialog>
 #include <qapplication.h>
 
@@ -71,11 +72,15 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     m_setlistView = new QTreeView(this); // 🚀 Now a TreeView!
     m_setlistView->setModel(m_setlistManager);
     m_setlistView->setHeaderHidden(true); // Hides the column headers
+    m_setlistView->header()->setSectionResizeMode(0, QHeaderView::Stretch);
     m_setlistView->setDragDropMode(QAbstractItemView::InternalMove);
     m_setlistView->setSelectionMode(QAbstractItemView::SingleSelection);
     m_setlistView->hide();
 
-    onLoadSetlistTriggered();
+    if (!onLoadSetlistLoadedCheck) {
+        onLoadSetlistTriggered();
+        onLoadSetlistLoadedCheck = true; // only execute on load trigger once...
+    }
 
     connect(m_setlistView, &QTreeView::clicked, this, [this](const QModelIndex &index) {
         if (!index.isValid()) return;
@@ -88,6 +93,19 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
             QString path = item->data(SetlistManager::FilePathRole).toString();
             loadSongQuietly(path);
             m_setlistManager->markAsPlayed(index);
+        }
+    });
+
+    // Make expansions smooth/animated
+    m_setlistView->setAnimated(true);
+
+    // Auto-collapse other setlists when one is opened
+    connect(m_setlistView, &QTreeView::expanded, this, [this](const QModelIndex &expandedIndex) {
+        for (int i = 0; i < m_setlistManager->rowCount(); ++i) {
+            QModelIndex idx = m_setlistManager->index(i, 0);
+            if (idx != expandedIndex) {
+                m_setlistView->collapse(idx);
+            }
         }
     });
 
@@ -408,7 +426,7 @@ void MainWindow::onLoadSetlistTriggered() {
     // 4. THE MISSING LINK: Loop through the files and feed them to the Manager
     for (const QFileInfo &fileInfo : fileList) {
         QString fullPath = fileInfo.absoluteFilePath();
-        m_setlistManager->loadSetFile(fullPath); // 🚀 This builds the tree!
+        m_setlistManager->loadSetFile(fullPath); // this builds out the tree list with the setlist file line-items!
     }
 /*    if (setlists.isEmpty()) {
         statusBar()->showMessage("No setlists found in resources!");
@@ -698,64 +716,6 @@ void MainWindow::handleFileOpen() {
     // 3. Just provide user feedback
     statusBar()->showMessage(tr("Loaded: ") + fileName);
 }
-
-/* void MainWindow::handleFileOpen() {
-    // Determine the location where the executable is currently running
-    QString appDir = QCoreApplication::applicationDirPath();
-
-    // Look for a local 'resources/pieces' directory relative to the build/installation folder
-    QString initialPath = appDir + "/resources/pieces";
-
-    // Fallback gracefully if that folder structure doesn't exist yet
-    if (!QDir(initialPath).exists()) {
-        initialPath = QDir::homePath(); // fallback to standard system User Documents folder
-    }
-
-    QString fileName = QFileDialog::getOpenFileName(
-        this,
-        tr("Open ChordPro File"),
-        initialPath, // 🚀 Automatically spins up inside your targeted pieces directory!
-        tr("ChordPro Files (*.chopro *.cho *.pro *.txt *.crd)")
-        );
-
-    if (fileName.isEmpty()) return;
-
-    m_currentFilePath = fileName;
-
-    // 🚀 RESET COUNTERS: Prevent cumulative transposition states on new files
-    m_transposeShift = 0;
-    m_capoShift = 0;
-    m_instrumentTuningOffset = 0;
-
-    // Clear status bar indicators if you have them displayed on screen
-    statusBar()->showMessage("Loaded new song. Transposition tracking reset to 0.");
-
-    QFile file(fileName);
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        QMessageBox::warning(this, tr("Error"), tr("Could not open file: ") + file.errorString());
-        return;
-        // Render out the baseline layout cleanly
-        parsedEditor->setHtml(runInitialParse(m_rawSongContent));
-    }
-
-    QTextStream in(&file);
-    QString content = in.readAll();
-    file.close();
-
-    m_rawSongContent = content;
-
-    m_isLoadingFile = true; // Block signal loops safely
-    originalEditor->setPlainText(content);
-    m_isLoadingFile = false; // RE-ENABLE safely (fixed bug here)
-
-    loadSongLayoutPreference(fileName);
-    // Set state explicitly handles rendering separation cleanly
-    setAppState(OpenEdit);
-
-    checkForCompanionAudio(m_currentFilePath);
-    statusBar()->showMessage(tr("Loaded: ") + fileName);
-}
-*/
 
 void MainWindow::handleFileSave() {
     if (m_currentFilePath.isEmpty()) {
