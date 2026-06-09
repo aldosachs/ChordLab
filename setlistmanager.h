@@ -17,12 +17,13 @@ public:
     explicit SetlistManager(QObject *parent = nullptr);
 
     // Standard Model Overrides
-    int rowCount(const QModelIndex &parent = QModelIndex()) const override;
+    int rowCount(const QModelIndex &parent = QModelIndex()) const override { return m_items.size(); }
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
     Qt::ItemFlags flags(const QModelIndex &index) const override;
 
     // Drag and Drop overrides for internal reordering
     Qt::DropActions supportedDropActions() const override;
+    Qt::DropActions supportedDragActions() const override;
     bool dropMimeData(const QMimeData *data, Qt::DropAction action, int row, int column, const QModelIndex &parent);
     bool moveRows(const QModelIndex &sourceParent, int sourceRow, int count,
                   const QModelIndex &destinationParent, int destinationChild) override;

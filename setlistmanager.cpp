@@ -6,7 +6,7 @@ SetlistManager::SetlistManager(QObject *parent) : QAbstractListModel(parent) {
     // Initialization code (if any)
 }
 
-void SetlistManager::loadFromSetFile(const QString &fileName) {
+/* void SetlistManager::loadFromSetFile(const QString &fileName) {
     QFile file(fileName);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) return;
     
@@ -23,7 +23,7 @@ void SetlistManager::loadFromSetFile(const QString &fileName) {
         }
     }
     endResetModel();
-}
+} */
 
 bool SetlistManager::dropMimeData(const QMimeData *data, Qt::DropAction action, int row, int column, const QModelIndex &parent) {
     if (action == Qt::IgnoreAction) return true;
@@ -145,4 +145,14 @@ void SetlistManager::revertToOriginal() {
     beginResetModel(); // Tells the View to refresh entirely
     m_items = m_originalItems;
     endResetModel();
+}
+
+// Allow the list to accept movement (reordering)
+Qt::DropActions SetlistManager::supportedDropActions() const {
+    return Qt::MoveAction;
+}
+
+// Allow the items to be moved (dragged)
+Qt::DropActions SetlistManager::supportedDragActions() const {
+    return Qt::MoveAction;
 }
