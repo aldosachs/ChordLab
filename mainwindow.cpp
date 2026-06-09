@@ -75,6 +75,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     m_setlistView->setSelectionMode(QAbstractItemView::SingleSelection);
     m_setlistView->hide();
 
+    onLoadSetlistTriggered();
+
     connect(m_setlistView, &QTreeView::clicked, this, [this](const QModelIndex &index) {
         if (!index.isValid()) return;
 
@@ -392,7 +394,23 @@ QStringList MainWindow::getAvailableSetlists() {
 void MainWindow::onLoadSetlistTriggered() {
     QStringList setlists = getAvailableSetlists();
 
-    if (setlists.isEmpty()) {
+    QString setlistDir = QCoreApplication::applicationDirPath() + "/resources/setlists";
+    QDir dir(setlistDir);
+
+    // 2. Find the files (which your logs show is already working!)
+    QStringList filters;
+    filters << "*.set";
+    QFileInfoList fileList = dir.entryInfoList(filters, QDir::Files);
+
+    // 3. Optional: Clear the model first so you don't get duplicates if this is called twice
+    m_setlistManager->clear();
+
+    // 4. THE MISSING LINK: Loop through the files and feed them to the Manager
+    for (const QFileInfo &fileInfo : fileList) {
+        QString fullPath = fileInfo.absoluteFilePath();
+        m_setlistManager->loadSetFile(fullPath); // 🚀 This builds the tree!
+    }
+/*    if (setlists.isEmpty()) {
         statusBar()->showMessage("No setlists found in resources!");
         return;
     }
@@ -408,6 +426,7 @@ void MainWindow::onLoadSetlistTriggered() {
         m_setlistManager->loadSetFile(fullPath);
         statusBar()->showMessage("Loaded: " + item);
     }
+*/
 }
 
 void MainWindow::loadStyleSheetFromFile(const QString &filePath) {
