@@ -410,6 +410,7 @@ QStringList MainWindow::getAvailableSetlists() {
 }
 
 void MainWindow::onLoadSetlistTriggered() {
+    qDebug() << "--> top of onLoadSetlistTriggered()";
     QStringList setlists = getAvailableSetlists();
 
     QString setlistDir = QCoreApplication::applicationDirPath() + "/resources/setlists";
@@ -428,23 +429,22 @@ void MainWindow::onLoadSetlistTriggered() {
         QString fullPath = fileInfo.absoluteFilePath();
         m_setlistManager->loadSetFile(fullPath); // this builds out the tree list with the setlist file line-items!
     }
-/*    if (setlists.isEmpty()) {
+    if (setlists.isEmpty()) {
         statusBar()->showMessage("No setlists found in resources!");
         return;
     }
 
-    bool ok;
-    QString item = QInputDialog::getItem(this, "Select Setlist",
-                                         "Choose a setlist:", setlists, 0, false, &ok);
+//    bool ok;
+//    QString item = QInputDialog::getItem(this, "Select Setlist",
+//                                         "Choose a setlist:", setlists, 0, false, &ok);
 
-    if (ok && !item.isEmpty()) {
-        QString fullPath = ":/resources/setlists/" + item;
+//    if (ok && !item.isEmpty()) {
+//        QString fullPath = ":/resources/setlists/" + item;
 
         // Tell your manager to load it
-        m_setlistManager->loadSetFile(fullPath);
-        statusBar()->showMessage("Loaded: " + item);
-    }
-*/
+//        m_setlistManager->loadSetFile(fullPath);
+//        statusBar()->showMessage("Loaded: " + item);
+//    }
 }
 
 void MainWindow::loadStyleSheetFromFile(const QString &filePath) {

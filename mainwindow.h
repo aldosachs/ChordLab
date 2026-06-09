@@ -20,7 +20,7 @@ class MainWindow : public QMainWindow {
     class SetListManager;
 
 public:
-    bool onLoadSetlistLoadedCheck = false;
+    bool onLoadSetlistLoadedCheck;
 
     enum AppState {
         Idle,
