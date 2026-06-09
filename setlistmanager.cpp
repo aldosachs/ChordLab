@@ -117,6 +117,7 @@ void SetlistManager::loadSetFile(const QString &filePath) {
     file.close();
     endResetModel();
 } */
+
 void SetlistManager::loadSetFile(const QString &filePath) {
     // 1. CLEAR the model, not an external list
     beginResetModel();
@@ -175,6 +176,64 @@ void SetlistManager::loadSetFile(const QString &filePath) {
 
     endInsertRows();
 }
+
+void SetlistManager::setSetlists(const QStringList &files) {
+    beginResetModel();
+    this->clear(); // Wipes the whole model tree
+
+    for (const QString &fileName : files) {
+        QStandardItem *item = new QStandardItem(fileName);
+        item->setData(":/resources/setlists/" + fileName, FilePathRole);
+        this->appendRow(item);
+    }
+    endResetModel();
+}
+
+bool SetlistManager::moveRows(const QModelIndex &sourceParent, int sourceRow, int count,
+                              const QModelIndex &destinationParent, int destinationChild) {
+    // QStandardItemModel's built-in moveRow function does the heavy lifting
+    return this->moveRow(sourceParent, sourceRow, destinationParent, destinationChild);
+}
+
+//void SetlistManager::createBackup() {
+//    m_originalItems = m_items; // QList assignment is deep, so this is safe!
+//}
+/*
+ * 3. createBackup / revertToOriginal (The "Undo" logic)
+
+Since you are using a tree structure now, a simple list assignment won't work for backups. The cleanest way to implement "revert" is to re-read the original file or create a deep copy of the QStandardItem tree.
+
+Recommendation: Keep it simple. If the user wants to "revert," just call loadSetFile(currentFilePath) again, which will wipe the model and reload it fresh from the disk.
+Why this is better
+
+By removing m_items, you move from an imperative style (where you constantly tell the model "here is the list, update yourself") to a declarative style (where you build a tree structure and let the Model/View architecture handle the rendering and storage).
+
+Immediate Actions:
+
+    Search your header file (setlistmanager.h) and delete the declaration of m_items and m_originalItems.
+
+    Delete the SetItem struct if it is no longer used elsewhere.
+
+    Replace all m_items references in your .cpp file with this-> methods (like this->rowCount(), this->item(row), etc.).
+
+This will fix the "ghost data" issue where your logic was trying to update a list that the view was completely ignoring!
+ */
+void SetlistManager::revertToOriginal() {
+//    beginResetModel(); // Tells the View to refresh entirely
+//    loadSetFile(currentFilePath); // add and use filepath variable to this function???
+//    endResetModel();
+}
+
+// Allow the list to accept movement (reordering)
+Qt::DropActions SetlistManager::supportedDropActions() const {
+    return Qt::MoveAction;
+}
+
+// Allow the items to be moved (dragged)
+Qt::DropActions SetlistManager::supportedDragActions() const {
+    return Qt::MoveAction;
+}
+
 
 /* void SetlistManager::loadSetFile(const QString &filePath) {
     QFile file(filePath);
@@ -251,7 +310,7 @@ void SetlistManager::loadSetFile(const QString &filePath) {
     endResetModel();
 
     file.close();
-} */
+}
 
 void SetlistManager::setSetlists(const QStringList &files) {
     // 1. Notify the View that the model is about to change
@@ -284,23 +343,4 @@ bool SetlistManager::moveRows(const QModelIndex &parent, int sourceRow, int coun
     endMoveRows();
     return true;
 }
-
-void SetlistManager::createBackup() {
-    m_originalItems = m_items; // QList assignment is deep, so this is safe!
-}
-
-void SetlistManager::revertToOriginal() {
-    beginResetModel(); // Tells the View to refresh entirely
-    m_items = m_originalItems;
-    endResetModel();
-}
-
-// Allow the list to accept movement (reordering)
-Qt::DropActions SetlistManager::supportedDropActions() const {
-    return Qt::MoveAction;
-}
-
-// Allow the items to be moved (dragged)
-Qt::DropActions SetlistManager::supportedDragActions() const {
-    return Qt::MoveAction;
-}
+*/

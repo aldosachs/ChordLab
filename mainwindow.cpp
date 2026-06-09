@@ -77,10 +77,10 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     m_setlistView->setSelectionMode(QAbstractItemView::SingleSelection);
     m_setlistView->hide();
 
-    if (!onLoadSetlistLoadedCheck) {
-        onLoadSetlistTriggered();
-        onLoadSetlistLoadedCheck = true; // only execute on load trigger once...
-    }
+//    if (!onLoadSetlistLoadedCheck) {
+        onLoadSetlistTriggered();   // this might be called more than once???
+//        onLoadSetlistLoadedCheck = true; // only execute on load trigger once...
+//    }
 
     connect(m_setlistView, &QTreeView::clicked, this, [this](const QModelIndex &index) {
         if (!index.isValid()) return;
