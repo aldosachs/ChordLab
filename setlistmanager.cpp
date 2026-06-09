@@ -62,7 +62,12 @@ void SetlistManager::markAsPlayed(const QModelIndex &index) {
     }
 }
 
+/*
 void SetlistManager::loadSetFile(const QString &filePath) {
+
+    beginResetModel(); // Tell the view the data is about to change
+    m_items.clear();
+
     QFile file(filePath);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
         qDebug() << "Could not open setlist:" << filePath;
@@ -110,6 +115,65 @@ void SetlistManager::loadSetFile(const QString &filePath) {
     this->appendRow(parentItem);
 
     file.close();
+    endResetModel();
+} */
+void SetlistManager::loadSetFile(const QString &filePath) {
+    // 1. CLEAR the model, not an external list
+    beginResetModel();
+    this->clear(); // <--- CRITICAL: This clears all QStandardItems from the model
+    endResetModel();
+
+    // Now re-populate
+    beginInsertRows(QModelIndex(), 0, 0); // Optional: if you want more granular signals
+
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        qDebug() << "Could not open setlist:" << filePath;
+        return;
+    }
+
+    QFileInfo fileInfo(filePath);
+    QStandardItem *parentItem = new QStandardItem(fileInfo.fileName());
+    parentItem->setEditable(false);
+
+// ... [Your existing logic to parse lines and create childItem] ...
+    // Make the parent visually distinct (bold)
+    QFont parentFont = parentItem->font();
+    parentFont.setBold(true);
+    parentItem->setFont(parentFont);
+
+    // 2. Read the file and add Songs (Child Nodes)
+    QTextStream in(&file);
+    while (!in.atEnd()) {
+        QString line = in.readLine().trimmed();
+
+        // Skip headers/comments and empty lines
+        if (line.startsWith("##") || line.isEmpty()) continue;
+
+        // Clean up any quotes the user might have typed
+        line.remove('"');
+
+        // 3. Create the Song (Child) Node
+        // Extract just the filename from the path for the UI (split at slashes)
+        // e.g., "MSB 1\MSB 1.1 Yellow submarine" -> "MSB 1.1 Yellow submarine"
+        QString displayTitle = line.split(QRegularExpression("[/\\\\]")).last();
+        if (displayTitle.isEmpty()) displayTitle = line; // Fallback just in case
+
+        QStandardItem *childItem = new QStandardItem(displayTitle);
+        childItem->setEditable(false);
+
+        // 🤫 Secretly store the FULL relative path inside the item so ChordLab can open it
+        childItem->setData(line, FilePathRole);
+        qDebug() << "-->" << line;
+        // 4. Attach the song underneath the setlist parent
+        parentItem->appendRow(childItem);
+    }
+// existing...
+
+    this->appendRow(parentItem); // Add the parent to the cleared model
+    file.close();
+
+    endInsertRows();
 }
 
 /* void SetlistManager::loadSetFile(const QString &filePath) {
