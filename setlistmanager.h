@@ -23,6 +23,7 @@ public:
 
     // Drag and Drop overrides for internal reordering
     Qt::DropActions supportedDropActions() const override;
+    bool dropMimeData(const QMimeData *data, Qt::DropAction action, int row, int column, const QModelIndex &parent);
     bool moveRows(const QModelIndex &sourceParent, int sourceRow, int count,
                   const QModelIndex &destinationParent, int destinationChild) override;
 
@@ -32,9 +33,8 @@ public:
     void createBackup();
 
     void markAsPlayed(int row);
-    void loadFromSetFile(const QString &fileName);
+    void loadSetFile(const QString &fileName);
     QString getFilePath(int row) const;
-    void loadSetFile(const QString &filePath);
     void setSetlists(const QStringList &files);
 
 private:
