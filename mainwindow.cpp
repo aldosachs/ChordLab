@@ -279,8 +279,6 @@ void MainWindow::setupMenus() {
 }
 
 void MainWindow::setupToolBar() {
-//    QToolBar *settingsToolBar = addToolBar("Critical Settings");
-    m_settingsToolBar->setObjectName("criticalSettingsToolBar");
 
     m_settingsToolBar = addToolBar("Critical Settings");
     m_settingsToolBar->setObjectName("criticalSettingsToolBar");
