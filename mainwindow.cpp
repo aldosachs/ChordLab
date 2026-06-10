@@ -275,10 +275,13 @@ void MainWindow::setupToolBar() {
     QToolBar *settingsToolBar = addToolBar("Critical Settings");
     settingsToolBar->setObjectName("criticalSettingsToolBar");
 
+    m_settingsToolBar = addToolBar("Critical Settings");
+    m_settingsToolBar->setObjectName("criticalSettingsToolBar");
+
     // 2. Initialize your Setlist Actions
-    m_actAddSong = new QAction(QIcon(":/icons/add_sg.png"), "Add song", this);
-    m_actRemoveSong = new QAction(QIcon(":/icons/remove_sg.png"), "Remove song", this);
-    m_actSaveSetlist = new QAction(QIcon(":/icons/save_sl.png"), "Save setlist", this);
+    m_actAddSong = new QAction(QIcon(":/resources/icons/add_sg.png"), "Add song", this);
+    m_actRemoveSong = new QAction(QIcon(":/resources/icons/remove_sg.png"), "Remove song", this);
+    m_actSaveSetlist = new QAction(QIcon(":/resources/icons/save_sl.png"), "Save setlist", this);
 
     // Connect them to your slots
     connect(m_actAddSong, &QAction::triggered, this, &MainWindow::handleAddSongToSetlist);

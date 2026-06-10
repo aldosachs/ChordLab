@@ -67,6 +67,12 @@ public:
         int targetColumns = 1;       // Auto-calculated initial columns layout rule (1, 2, or 3)
     };
 
+    QToolBar *m_settingsToolBar; // Promote from local variable to member
+    QAction *m_actAddSong;
+    QAction *m_actRemoveSong;
+    QAction *m_actSaveSetlist;
+
+
 protected:
     // This allows intercepting the Spacebar and Zoom keys anywhere inside the window frame
     void keyPressEvent(QKeyEvent *event) override;
@@ -148,11 +154,6 @@ private:
     bool m_debugTelemetryEnabled;   // Toggles detailed string parsing dumps to Qt Console
     bool m_debugVerboseLevel;       // Toggles verbose administrative dumps to Qt Console
     bool m_debug_Setlist;
-
-    QToolBar *m_settingsToolBar; // Promote from local variable to member
-    QAction *m_actAddSong;
-    QAction *m_actRemoveSong;
-    QAction *m_actSaveSetlist;
 
     // --- Advanced Sub-Parsing Engines ---
     QString transposeSingleNoteToken(const QString &noteToken, int semitones);
