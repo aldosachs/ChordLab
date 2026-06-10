@@ -77,7 +77,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     m_setlistView->setSelectionMode(QAbstractItemView::SingleSelection);
     m_setlistView->hide();
 
-    onLoadSetlistTriggered();   // this might be called more than once???
+    onLoadSetlistTriggered();
 
     connect(m_setlistView, &QTreeView::clicked, this, [this](const QModelIndex &index) {
         if (index.isValid()) {
@@ -158,7 +158,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
         }
     }
 
-    // Explicitly make sure NO hard minimum size constraints are left locking the widget layout
+    // Explicitly make sure NO hard minimum size constraints can lock the widget layout
     this->setMinimumSize(0, 0);
     this->setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
 }
@@ -410,10 +410,10 @@ void MainWindow::onLoadSetlistTriggered() {
     filters << "*.set";
     QFileInfoList fileList = dir.entryInfoList(filters, QDir::Files);
 
-    // 3. Optional: Clear the model first so you don't get duplicates if this is called twice
+    // 3. Clear the model first so you don't get duplicates if this is called twice
     m_setlistManager->clear();
 
-    // 4. THE MISSING LINK: Loop through the files and feed them to the Manager
+    // 4. Loop through the files and feed them to the Manager
     for (const QFileInfo &fileInfo : fileList) {
         QString fullPath = fileInfo.absoluteFilePath();
         m_setlistManager->loadSetFile(fullPath); // this builds out the tree list with the setlist file line-items!
