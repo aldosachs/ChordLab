@@ -412,7 +412,7 @@ void MainWindow::onHamburgerClicked() {
     if (m_setlistView->isHidden()) {
         m_setlistView->show();
         mainSplitter->setSizes({250, this->width() - 250});
-        m_btnToggleSetlist->setText("× Close Setlist");
+        m_btnToggleSetlist->setText("× Close Sets");
         m_btnAddSong->setEnabled(true);
         m_btnRemoveSong->setEnabled(true);
         m_btnSaveSetlist->setEnabled(true);
@@ -421,7 +421,7 @@ void MainWindow::onHamburgerClicked() {
                  << "| parent visible =" << m_setlistView->parentWidget()->isVisible();
     } else {
         m_setlistView->hide();
-        m_btnToggleSetlist->setText("≡ Setlist");
+        m_btnToggleSetlist->setText("≡ Sets");
         m_btnAddSong->setEnabled(false);
         m_btnRemoveSong->setEnabled(false);
         m_btnSaveSetlist->setEnabled(false);
@@ -486,7 +486,7 @@ void MainWindow::handleSetlistItemDoubleClicked(const QModelIndex &index) {
 
     if (!m_setlistView->isHidden()) {
         m_setlistView->hide();
-        m_btnToggleSetlist->setText("≡ Setlist");
+        m_btnToggleSetlist->setText("≡ Sets");
 
         // deselect the setlist buttons
         m_btnAddSong->setEnabled(false);
