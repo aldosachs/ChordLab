@@ -26,12 +26,14 @@ QString SetlistManager::getFilePath(const QModelIndex &index) const {
     return QString();
 }
 
-
 // 2. The flags() function tells the View that the items are draggable
 Qt::ItemFlags SetlistManager::flags(const QModelIndex &index) const {
-    if (!index.isValid()) return Qt::ItemIsEnabled;
+    if (!index.isValid()) {
+        // Allow dropping onto the empty background (root)
+        return Qt::ItemIsDropEnabled;
+    }
 
-    // We return the default flags PLUS support for drag-and-drop
+    // Combine standard flags with Drag & Drop permissions
     return QStandardItemModel::flags(index) | Qt::ItemIsDragEnabled | Qt::ItemIsDropEnabled;
 }
 

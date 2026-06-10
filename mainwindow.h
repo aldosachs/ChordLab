@@ -82,6 +82,10 @@ private slots:
     void togglePlaybackMode();
     void loadStyleSheetFromFile(const QString &filePath);
 
+    void handleAddSongToSetlist();
+    void handleRemoveSongFromSetlist();
+    void handleSaveSetlist();
+
 private:
     void setupMenus();
     void setupToolBar();

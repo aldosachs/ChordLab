@@ -104,6 +104,12 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
         }
     });
 
+    // Enable drag-and-drop on the View
+    m_setlistView->setDragEnabled(true);
+    m_setlistView->setAcceptDrops(true);
+    m_setlistView->setDropIndicatorShown(true);
+    m_setlistView->setDragDropMode(QAbstractItemView::InternalMove); // The magic flag...
+
     // Sequential UI Component Construction
     setupMenus();
     setupLayout(); // Prepares central widgets and splitters
@@ -269,6 +275,16 @@ void MainWindow::setupToolBar() {
     QToolBar *settingsToolBar = addToolBar("Critical Settings");
     settingsToolBar->setObjectName("criticalSettingsToolBar");
 
+    // 2. Initialize your Setlist Actions
+    m_actAddSong = new QAction(QIcon(":/icons/add.png"), "Add Song", this);
+    m_actRemoveSong = new QAction(QIcon(":/icons/remove.png"), "Remove", this);
+    m_actSaveSetlist = new QAction(QIcon(":/icons/save.png"), "Save Setlist", this);
+
+    // Connect them to your slots
+    connect(m_actAddSong, &QAction::triggered, this, &MainWindow::handleAddSongToSetlist);
+    connect(m_actRemoveSong, &QAction::triggered, this, &MainWindow::handleRemoveSongFromSetlist);
+    connect(m_actSaveSetlist, &QAction::triggered, this, &MainWindow::handleSaveSetlist);
+
     // --- Add this button creation block ---
     m_btnToggleSetlist = new QPushButton("≡ Setlist");
     m_btnToggleSetlist->setStyleSheet("QPushButton { background-color: #333333; color: white; padding: 5px; font-weight: bold; }");
@@ -380,10 +396,90 @@ void MainWindow::onHamburgerClicked() {
     if (m_setlistView->isHidden()) {
         m_setlistView->show();
         mainSplitter->setSizes({250, this->width() - 250});
+        m_btnToggleSetlist->setText("× Close Setlist");
+
+        // Add the setlist buttons to the toolbar
+        m_settingsToolBar->addSeparator();
+        m_settingsToolBar->addAction(m_actAddSong);
+        m_settingsToolBar->addAction(m_actRemoveSong);
+        m_settingsToolBar->addAction(m_actSaveSetlist);
+
+    } else {
+        m_setlistView->hide();
+        m_btnToggleSetlist->setText("≡ Setlist");
+
+        // Remove the setlist buttons from the toolbar
+        m_settingsToolBar->removeAction(m_actAddSong);
+        m_settingsToolBar->removeAction(m_actRemoveSong);
+        m_settingsToolBar->removeAction(m_actSaveSetlist);
+
+        // Optionally, remove the separator if you added one
+        // (You may need to iterate through actions or keep a pointer to the separator)
+    }
+}
+void MainWindow::handleAddSongToSetlist() {
+    // 1. Find out which setlist is currently selected in the tree
+    QModelIndex currentIndex = m_setlistView->currentIndex();
+
+    if (!currentIndex.isValid()) {
+        qDebug() << "Please select a setlist first!";
+        return; // No setlist selected, abort.
+    }
+
+    // 2. If the user clicked a song instead of the parent setlist, get the parent
+    QStandardItem *selectedItem = m_setlistManager->itemFromIndex(currentIndex);
+    QStandardItem *parentSetlist = selectedItem->parent() ? selectedItem->parent() : selectedItem;
+
+    // 3. Open a File Dialog to pick a song from your resources/pieces folder
+    QString defaultDir = QCoreApplication::applicationDirPath() + "/resources/pieces";
+    QString newSongPath = QFileDialog::getOpenFileName(this, "Add Song to Setlist", defaultDir, "ChordPro Files (*.cho *.pro *.txt)");
+
+    if (!newSongPath.isEmpty()) {
+        // 4. Create the new child item
+        QFileInfo fileInfo(newSongPath);
+        QStandardItem *newSongItem = new QStandardItem(fileInfo.baseName());
+        newSongItem->setEditable(false);
+
+        // Secretly store the path just like you did in your loadSetFile function [cite: 372]
+        // Note: You might need to convert this to a relative path based on your setup
+        newSongItem->setData(newSongPath, Qt::UserRole + 1); // Assuming FilePathRole is Qt::UserRole + 1
+
+        // 5. Append it to the setlist
+        parentSetlist->appendRow(newSongItem);
+
+        // Expand the tree to show the newly added song
+        m_setlistView->expand(parentSetlist->index());
+    }
+}
+/*
+void MainWindow::onHamburgerClicked() {
+    if (m_setlistView->isHidden()) {
+        m_setlistView->show();
+        mainSplitter->setSizes({250, this->width() - 250});
         m_btnToggleSetlist->setText("× Close Setlist"); // Change button text
     } else {
         m_setlistView->hide();
         m_btnToggleSetlist->setText("≡ Setlist"); // Reset button text
+    }
+}
+*/
+
+void MainWindow::handleRemoveSongFromSetlist() {
+    QModelIndex currentIndex = m_setlistView->currentIndex();
+
+    if (!currentIndex.isValid()) {
+        return; // Nothing selected
+    }
+
+    QStandardItem *selectedItem = m_setlistManager->itemFromIndex(currentIndex);
+
+    // Check if it's a child (a song) and not a parent (a setlist)
+    if (selectedItem->parent()) {
+        // Remove the row from the parent
+        selectedItem->parent()->removeRow(selectedItem->row());
+    } else {
+        qDebug() << "Cannot remove a whole setlist from this button!";
+        // Optional: Add logic here if you DO want users to delete whole setlists.
     }
 }
 
@@ -421,6 +517,40 @@ void MainWindow::onLoadSetlistTriggered() {
     if (setlists.isEmpty()) {
         statusBar()->showMessage("No setlists found in resources!");
         return;
+    }
+}
+
+void MainWindow::handleSaveSetlist() {
+    // 1. Get the currently active setlist
+    QModelIndex currentIndex = m_setlistView->currentIndex();
+    if (!currentIndex.isValid()) return;
+
+    QStandardItem *selectedItem = m_setlistManager->itemFromIndex(currentIndex);
+    QStandardItem *parentSetlist = selectedItem->parent() ? selectedItem->parent() : selectedItem;
+
+    // 2. Figure out the file path for this setlist
+    // (You might need to store the .set file path in the parent item's data role when you first load it)
+    QString setlistFileName = parentSetlist->text();
+    QString savePath = QCoreApplication::applicationDirPath() + "/resources/setlists/" + setlistFileName;
+
+    // 3. Open the file for writing
+    QFile file(savePath);
+    if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        QTextStream out(&file);
+
+        // 4. Loop through the children and write their secretly stored paths [cite: 372]
+        for (int i = 0; i < parentSetlist->rowCount(); ++i) {
+            QStandardItem *childSong = parentSetlist->child(i);
+            QString songPath = childSong->data(Qt::UserRole + 1).toString();
+
+            // Write the path wrapped in quotes to match your text file format [cite: 84]
+            out << "\"" << songPath << "\"\n";
+        }
+        file.close();
+        qDebug() << "Setlist saved successfully!";
+        statusBar()->showMessage("Setlist Saved.", 3000);
+    } else {
+        qDebug() << "Failed to save setlist!";
     }
 }
 
