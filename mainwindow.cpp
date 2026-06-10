@@ -41,7 +41,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     connect(m_mediaPlayer, &QMediaPlayer::playbackStateChanged, this, &MainWindow::handlePlaybackStateChanged);
 
     setWindowTitle("ChordLab V002A");
-    QIcon icon(":/resources/icons/CL-icon.ico");
+    QIcon icon(":/resources/icons/CL-Music-V0.2.ico");
     setWindowIcon(icon);
 
     QSettings::setDefaultFormat(QSettings::IniFormat);
@@ -276,9 +276,9 @@ void MainWindow::setupToolBar() {
     settingsToolBar->setObjectName("criticalSettingsToolBar");
 
     // 2. Initialize your Setlist Actions
-    m_actAddSong = new QAction(QIcon(":/icons/add.png"), "Add Song", this);
-    m_actRemoveSong = new QAction(QIcon(":/icons/remove.png"), "Remove", this);
-    m_actSaveSetlist = new QAction(QIcon(":/icons/save.png"), "Save Setlist", this);
+    m_actAddSong = new QAction(QIcon(":/icons/add_sg.png"), "Add song", this);
+    m_actRemoveSong = new QAction(QIcon(":/icons/remove_sg.png"), "Remove song", this);
+    m_actSaveSetlist = new QAction(QIcon(":/icons/save_sl.png"), "Save setlist", this);
 
     // Connect them to your slots
     connect(m_actAddSong, &QAction::triggered, this, &MainWindow::handleAddSongToSetlist);

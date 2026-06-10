@@ -14,5 +14,6 @@
         <file>resources/styles/Irrorater(colourful).qss</file>
         <file>resources/setlists/Monday Songbook 1.set</file>
         <file>resources/setlists/Monday Songbook 2.set</file>
+        <file>resources/icons/CL-Music-V0.2.ico</file>
     </qresource>
 </RCC>
