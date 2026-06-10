@@ -430,17 +430,72 @@ void MainWindow::handleSetlistItemClicked(const QModelIndex &index) {
     // Safety check: If the user clicked a top-level Setlist file container, do nothing
     if (!index.parent().isValid()) return;
 
+    // Extract the relative path we stored inside the item's custom data role
+    QString relativePath = index.data(Qt::UserRole + 1).toString();
+
+    if (relativePath.isEmpty()) {
+        qDebug() << "relativePath.isEmpty is true, no file";
+        return;
+    }
+
+    // Reconstruct the base path matching your directory structure
+    QString fullPath = QCoreApplication::applicationDirPath() + "/resources/pieces/" + relativePath;
+
+    // --- THE SMART RESOLVER ---
+    QFileInfo fileInfo(fullPath);
+
+    if (fileInfo.isDir()) {
+        // It's a folder! Let's find the master chord file inside
+        QDir dir(fullPath);
+        QStringList filters = {"*.cho", "*.pro", "*.txt", "*.crd"};
+        QStringList files = dir.entryList(filters, QDir::Files);
+
+        if (!files.isEmpty()) {
+            // Grab the first valid chord file inside the folder
+            fullPath = dir.absoluteFilePath(files.first());
+            qDebug() << "After !files.isEmpty, just fullPath = " << "|" << fullPath << "|";
+        } else {
+            qDebug() << "❌ Folder contains no valid chord files:" << fullPath;
+            return;
+        }
+    } else if (!fileInfo.exists()) {
+        // It's not a folder, but the exact string doesn't exist. Probably missing an extension!
+        qDebug() << "After !fileInfo.exists, just fullPath = " << "|" << fullPath << "|";
+        if (QFile::exists(fullPath + ".cho")) {
+            fullPath += ".cho";
+        } else if (QFile::exists(fullPath + ".pro")) {
+            fullPath += ".pro";
+        } else if (QFile::exists(fullPath + ".txt")) {
+            fullPath += ".txt";
+        } else {
+            qDebug() << "❌ File completely missing from hard drive:" << fullPath;
+            return;
+        }
+    }
+
+    // Fire your existing parser/loader function!
+    qDebug() << "✅ Loading verified song -->" << fullPath;
+    this->loadSongQuietly(fullPath);
+}
+
+/* void MainWindow::handleSetlistItemClicked(const QModelIndex &index) {
+    // Safety check: If the user clicked a top-level Setlist file container, do nothing
+    if (!index.parent().isValid()) return;
+
     // Extract the relative path we stored inside the item's custom data role [cite: 284]
     QString relativePath = index.data(Qt::UserRole + 1).toString();
-    if (relativePath.isEmpty()) return;
-
+    if (relativePath.isEmpty()) {
+        qDebug() << "relativePath.isEmpty is true, no file";
+        return;
+    }
     // Reconstruct the full absolute path matching your directory structure
     QString fullPath = QCoreApplication::applicationDirPath() + "/resources/pieces/" + relativePath;
 
     // Fire your existing parser/loader function!
     // (Swap 'loadSongQuietly' out for your exact song loading method name if it differs)
+    qDebug() << "loading song quietly --> " + fullPath;
     this->loadSongQuietly(fullPath);
-}
+} */
 
 QStringList MainWindow::getAvailableSetlists() {
 

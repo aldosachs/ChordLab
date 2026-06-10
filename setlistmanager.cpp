@@ -36,7 +36,7 @@ QString SetlistManager::getFilePath(const QModelIndex &index) const {
     // Combine standard flags with Drag & Drop permissions
     return QStandardItemModel::flags(index) | Qt::ItemIsDragEnabled | Qt::ItemIsDropEnabled;
 }
-
+*/
 // 3. The markAsPlayed logic
 void SetlistManager::markAsPlayed(const QModelIndex &index) {
     QStandardItem *item = this->itemFromIndex(index);
@@ -44,7 +44,7 @@ void SetlistManager::markAsPlayed(const QModelIndex &index) {
         item->setForeground(QBrush(Qt::gray)); // Grey it out!
     }
 }
-*/
+
 Qt::ItemFlags SetlistManager::flags(const QModelIndex &index) const {
     if (!index.isValid()) {
         // Empty background area of the view frame
