@@ -1,11 +1,14 @@
 <RCC>
     <qresource prefix="/">
+        <file>resources/icons/CL-Music-V0.2.ico</file>
         <file>resources/icons/play.png</file>
         <file>resources/icons/pause.png</file>
         <file>resources/icons/stop.png</file>
         <file>resources/icons/fastfwdtoend.png</file>
         <file>resources/icons/rewindtostart.png</file>
-        <file>resources/icons/CL-icon.ico</file>
+        <file>resources/icons/add_sg.png</file>
+        <file>resources/icons/remove_sg.png</file>
+        <file>resources/icons/save_sl.png</file>
         <file>resources/styles/Adaptic(default).qss</file>
         <file>resources/styles/Darkeum(dark).qss</file>
         <file>resources/styles/Dtor(light).qss</file>
