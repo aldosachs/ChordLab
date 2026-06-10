@@ -68,11 +68,7 @@ public:
     };
 
     QToolBar *m_settingsToolBar; // Promote from local variable to member
-    QAction *m_actAddSong;
-    QAction *m_actRemoveSong;
-    QAction *m_actSaveSetlist;
-    QAction *m_spacerAction;
-
+    QWidget *m_setlistActionsWidget;  // check this...
 
 protected:
     // This allows intercepting the Spacebar and Zoom keys anywhere inside the window frame
@@ -197,6 +193,10 @@ private:
     QPushButton *m_btnFn2;
     QPushButton *m_btnFn3;
     QPushButton *m_btnFn4;
+
+    QPushButton *m_btnAddSong;  // setlist operations
+    QPushButton *m_btnRemoveSong;
+    QPushButton *m_btnSaveSetlist;
 
     // Internal State Variables
     AppState currentState;

@@ -283,7 +283,15 @@ void MainWindow::setupToolBar() {
     m_settingsToolBar = addToolBar("Critical Settings");
     m_settingsToolBar->setObjectName("criticalSettingsToolBar");
 
-    // 2. Initialize your Setlist Actions
+/*    // 2. Initialize your Setlist Actions
+    m_btnAddSong    = new QPushButton(QIcon(":/resources/icons/add_sg.png"), "", this);
+    m_btnRemoveSong = new QPushButton(QIcon(":/resources/icons/remove_sg.png"), "", this);
+    m_btnSaveSetlist= new QPushButton(QIcon(":/resources/icons/save_sl.png"), "", this);
+
+    slLayout->addWidget(m_btnAddSong);
+    slLayout->addWidget(m_btnRemoveSong);
+    slLayout->addWidget(m_btnSaveSetlist);
+
     m_actAddSong = new QAction(QIcon(":/resources/icons/add_sg.png"), "Add song", this);
     m_actRemoveSong = new QAction(QIcon(":/resources/icons/remove_sg.png"), "Remove song", this);
     m_actSaveSetlist = new QAction(QIcon(":/resources/icons/save_sl.png"), "Save setlist", this);
@@ -292,16 +300,50 @@ void MainWindow::setupToolBar() {
     connect(m_actAddSong, &QAction::triggered, this, &MainWindow::handleAddSongToSetlist);
     connect(m_actRemoveSong, &QAction::triggered, this, &MainWindow::handleRemoveSongFromSetlist);
     connect(m_actSaveSetlist, &QAction::triggered, this, &MainWindow::handleSaveSetlist);
-
+*/
     // --- Add this button creation block ---
-    m_btnToggleSetlist = new QPushButton("≡ Setlist");
-    m_btnToggleSetlist->setStyleSheet("QPushButton { background-color: #333333; color: white; padding: 5px; font-weight: bold; }");
+    m_btnToggleSetlist = new QPushButton("≡ Sets");
+    m_btnToggleSetlist->setStyleSheet("QPushButton { background-color: #333333; color: white; padding: 5px; width: 20px; font-weight: bold; }");
+
+//    m_setlistActionsWidget = new QWidget(this);  // add as member in .h
+//    QHBoxLayout *slLayout = new QHBoxLayout(m_setlistActionsWidget);
+//    slLayout->setContentsMargins(0, 0, 0, 0);
+//    slLayout->setSpacing(4);
 
     // Connect to your existing slot
     connect(m_btnToggleSetlist, &QPushButton::clicked, this, &MainWindow::onHamburgerClicked);
 
     // Add it to the layout (or directly to the toolbar)
     m_settingsToolBar->addWidget(m_btnToggleSetlist);
+
+    // --- Setlist companion buttons (hidden until hamburger opens) ---
+    m_setlistActionsWidget = new QWidget(this);
+    QHBoxLayout *slLayout = new QHBoxLayout(m_setlistActionsWidget);
+    slLayout->setContentsMargins(2, 0, 2, 0);
+    slLayout->setSpacing(4);
+
+    m_btnAddSong     = new QPushButton(QIcon(":/resources/icons/add_sg.png"), "Add", this);
+    m_btnRemoveSong  = new QPushButton(QIcon(":/resources/icons/remove_sg.png"), "Remove", this);
+    m_btnSaveSetlist = new QPushButton(QIcon(":/resources/icons/save_sl.png"), "Save", this);
+
+    QString setlistBtnStyle = "QPushButton { background-color: #444444; color: white; "
+                              "padding: 4px 8px; font-size: 9pt; }";
+    m_btnAddSong->setStyleSheet(setlistBtnStyle);
+    m_btnRemoveSong->setStyleSheet(setlistBtnStyle);
+    m_btnSaveSetlist->setStyleSheet(setlistBtnStyle);
+
+    slLayout->addWidget(m_btnAddSong);
+    slLayout->addWidget(m_btnRemoveSong);
+    slLayout->addWidget(m_btnSaveSetlist);
+
+    connect(m_btnAddSong,     &QPushButton::clicked, this, &MainWindow::handleAddSongToSetlist);
+    connect(m_btnRemoveSong,  &QPushButton::clicked, this, &MainWindow::handleRemoveSongFromSetlist);
+    connect(m_btnSaveSetlist, &QPushButton::clicked, this, &MainWindow::handleSaveSetlist);
+
+    m_setlistActionsWidget->hide();
+    m_settingsToolBar->addWidget(m_setlistActionsWidget);
+
+    m_settingsToolBar->addSeparator();
 
     m_btnTransposeUp = new QPushButton("Key Up");
     m_btnTransposeDown = new QPushButton("Key Down");
@@ -332,8 +374,8 @@ void MainWindow::setupToolBar() {
     layout->addWidget(m_btnFn2);
     layout->addWidget(m_btnFn3);
     layout->addWidget(m_btnFn4);
-
-    QString audioBtnStyle = "QPushButton { background-color: #2D2D2D; color: #777777; border: 1px solid #444; border-radius: 4px; padding: 5px; min-width: 50px; font-weight: bold; }"
+                                                                                                                                                         // was 50px
+    QString audioBtnStyle = "QPushButton { background-color: #2D2D2D; color: #777777; border: 1px solid #444; border-radius: 4px; padding: 5px; min-width: 20px; font-weight: bold; }"
                             "QPushButton:enabled { color: #E0E0E0; border-color: #555; }"
                             "QPushButton:checked { background-color: #006644; color: white; border-color: #00FF88; }";
     m_btnTrackFull = new QPushButton("Full");
@@ -388,8 +430,6 @@ void MainWindow::setupToolBar() {
     layout->addWidget(btnReset);
     layout->addWidget(m_btnTransposeUp);
 
-//    m_settingsToolBar->addWidget(container); moved down to bottom - redundant now...
-
     m_viewToggleBtn = new QPushButton("ChordPro-CIL");
     m_viewToggleBtn->setStyleSheet("QPushButton { background-color: #0047AB; color: white; }");
     connect(m_viewToggleBtn, &QPushButton::clicked, this, &MainWindow::toggleDisplayMode);
@@ -403,6 +443,19 @@ void MainWindow::setupToolBar() {
 }
 
 void MainWindow::onHamburgerClicked() {
+    if (m_setlistView->isHidden()) {
+        m_setlistView->show();
+        mainSplitter->setSizes({250, this->width() - 250});
+        m_btnToggleSetlist->setText("× Close Setlist");
+        m_setlistActionsWidget->show();
+    } else {
+        m_setlistView->hide();
+        m_btnToggleSetlist->setText("≡ Setlist");
+        m_setlistActionsWidget->hide();
+    }
+}
+
+/* void MainWindow::onHamburgerClicked() {
     if (m_setlistView->isHidden()) {
         m_setlistView->show();
         mainSplitter->setSizes({250, this->width() - 250}); // Setlist on the Left (250px wide)
@@ -421,7 +474,7 @@ void MainWindow::onHamburgerClicked() {
             m_settingsToolBar->removeAction(m_actRemoveSong);
             m_settingsToolBar->removeAction(m_actSaveSetlist);
     }
-}
+} */
 
 void MainWindow::handleSetlistItemClicked(const QModelIndex &index) {
     // Safety check: If the user clicked a top-level Setlist file container, do nothing
@@ -476,6 +529,19 @@ void MainWindow::handleSetlistItemClicked(const QModelIndex &index) {
 }
 
 void MainWindow::handleSetlistItemDoubleClicked(const QModelIndex &index) {
+    if (!index.parent().isValid()) return;
+
+    if (!m_setlistView->isHidden()) {
+        m_setlistView->hide();
+        m_btnToggleSetlist->setText("≡ Setlist");
+        m_setlistActionsWidget->hide();   // ← one clean line replaces all the old remove logic
+    }
+
+    setAppState(PlayAlong);
+    this->setFocus();
+}
+
+/* void MainWindow::handleSetlistItemDoubleClicked(const QModelIndex &index) {
     // Safety check: Ignore double-clicks on the parent Setlist container
     if (!index.parent().isValid()) return;
     qDebug() << "in handleSetlistItemDoubleClicked";
@@ -487,11 +553,7 @@ void MainWindow::handleSetlistItemDoubleClicked(const QModelIndex &index) {
         m_btnToggleSetlist->setText("≡ Setlist");
 
         // Remove toolbar buttons as if the hamburger was clicked
-/* delete        if (m_spacerAction) {
-            m_settingsToolBar->removeAction(m_spacerAction);
-            delete m_spacerAction;    // MAYBE---m_spacerAction = nullptr; in constructor
-            m_spacerAction = nullptr;
-        } */
+
         m_spacerAction = nullptr;  // check this
         m_settingsToolBar->removeAction(m_actAddSong);
         m_settingsToolBar->removeAction(m_actRemoveSong);
@@ -503,7 +565,7 @@ void MainWindow::handleSetlistItemDoubleClicked(const QModelIndex &index) {
 
     // 3. Optional: Give focus to the main window or player so the Spacebar works immediately
     this->setFocus();
-}
+} */
 
 QStringList MainWindow::getAvailableSetlists() {
 
