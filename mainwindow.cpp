@@ -894,7 +894,7 @@ void MainWindow::handleFileOpen() {
     // This now handles text loading, layout, audio checking, and state setting!
     loadSongQuietly(fileName);
 
-    // 3. Just provide user feedback
+    // 3. Provide user feedback
     statusBar()->showMessage(tr("Loaded: ") + fileName);
 }
 
