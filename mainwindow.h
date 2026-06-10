@@ -68,7 +68,6 @@ public:
     };
 
     QToolBar *m_settingsToolBar; // Promote from local variable to member
-    QWidget *m_setlistActionsWidget;  // check this...
 
 protected:
     // This allows intercepting the Spacebar and Zoom keys anywhere inside the window frame

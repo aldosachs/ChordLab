@@ -270,7 +270,7 @@ void MainWindow::setupToolBar() {
     m_settingsToolBar = addToolBar("Critical Settings");
     m_settingsToolBar->setObjectName("criticalSettingsToolBar");
 
-    // 2. Initialize your Setlist Actions
+    // Initialize your Setlist Actions
     // --- Add this button creation block ---
     m_btnToggleSetlist = new QPushButton("≡ Sets");
     m_btnToggleSetlist->setStyleSheet("QPushButton { background-color: #333333; color: white; padding: 5px; width: 20px; font-weight: bold; }");
@@ -281,39 +281,33 @@ void MainWindow::setupToolBar() {
     // Add it to the layout (or directly to the toolbar)
     m_settingsToolBar->addWidget(m_btnToggleSetlist);
 
-    // --- Setlist companion buttons (hidden until hamburger opens) ---
-    m_setlistActionsWidget = new QWidget(this);
-    QHBoxLayout *slLayout = new QHBoxLayout(m_setlistActionsWidget);
-    slLayout->setContentsMargins(2, 0, 2, 0);
-    slLayout->setSpacing(4);
-
+    // --- Setlist companion buttons (enable/disable approach) ---
     m_btnAddSong     = new QPushButton(QIcon(":/resources/icons/add_sg.png"), "Add", this);
     m_btnRemoveSong  = new QPushButton(QIcon(":/resources/icons/remove_sg.png"), "Remove", this);
     m_btnSaveSetlist = new QPushButton(QIcon(":/resources/icons/save_sl.png"), "Save", this);
-    QString setlistBtnStyle = "QPushButton { background-color: #AA4444 !important; "
-                              "color: white !important; "
-                              "padding: 4px 8px; font-size: 9pt; "
-                              "border: 2px solid red; }";  // make them obvious!
-//    QString setlistBtnStyle = "QPushButton { background-color: #444444; color: white; "
-//                              "padding: 4px 8px; font-size: 9pt; }";
+
+    QString setlistBtnStyle = "QPushButton { background-color: #4A4A4A; color: #FFFFFF; "
+                              "padding: 4px 8px; font-size: 9pt; border: 1px solid #666; "
+                              "min-width: 12px; border-radius: 3px; }"
+                              "QPushButton:disabled { background-color: #2A2A2A; "
+                              "color: #555555; border-color: #444; }";
+
     m_btnAddSong->setStyleSheet(setlistBtnStyle);
     m_btnRemoveSong->setStyleSheet(setlistBtnStyle);
     m_btnSaveSetlist->setStyleSheet(setlistBtnStyle);
 
-    m_btnAddSong->setFixedWidth(70);  // style, size & location checking...
-    m_btnRemoveSong->setFixedWidth(70);
-    m_btnSaveSetlist->setFixedWidth(70);
-
-    slLayout->addWidget(m_btnAddSong);
-    slLayout->addWidget(m_btnRemoveSong);
-    slLayout->addWidget(m_btnSaveSetlist);
+    m_btnAddSong->setEnabled(false);
+    m_btnRemoveSong->setEnabled(false);
+    m_btnSaveSetlist->setEnabled(false);
 
     connect(m_btnAddSong,     &QPushButton::clicked, this, &MainWindow::handleAddSongToSetlist);
     connect(m_btnRemoveSong,  &QPushButton::clicked, this, &MainWindow::handleRemoveSongFromSetlist);
     connect(m_btnSaveSetlist, &QPushButton::clicked, this, &MainWindow::handleSaveSetlist);
 
-    m_setlistActionsWidget->hide();
-    m_settingsToolBar->addWidget(m_setlistActionsWidget);
+    // Add DIRECTLY to toolbar — no wrapper widget!
+    m_settingsToolBar->addWidget(m_btnAddSong);
+    m_settingsToolBar->addWidget(m_btnRemoveSong);
+    m_settingsToolBar->addWidget(m_btnSaveSetlist);
 
     m_settingsToolBar->addSeparator();
 
@@ -493,7 +487,11 @@ void MainWindow::handleSetlistItemDoubleClicked(const QModelIndex &index) {
     if (!m_setlistView->isHidden()) {
         m_setlistView->hide();
         m_btnToggleSetlist->setText("≡ Setlist");
-        m_setlistActionsWidget->hide();   // ← one clean line replaces all the old remove logic
+
+        // deselect the setlist buttons
+        m_btnAddSong->setEnabled(false);
+        m_btnRemoveSong->setEnabled(false);
+        m_btnSaveSetlist->setEnabled(false);
     }
 
     setAppState(PlayAlong);
