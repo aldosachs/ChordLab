@@ -1985,3 +1985,4 @@ void MainWindow::loadSongLayoutPreference(const QString &filePath) {
     }
     settings.endGroup();
 }
+
