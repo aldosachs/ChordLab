@@ -111,6 +111,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     m_setlistView->setDragDropMode(QAbstractItemView::InternalMove); // The magic flag...
 
     connect(m_setlistView, &QTreeView::clicked, this, &MainWindow::handleSetlistItemClicked);
+    connect(m_setlistView, &QTreeView::doubleClicked, this, &MainWindow::handleSetlistItemDoubleClicked);
 
     connect(m_setlistManager, &QStandardItemModel::rowsInserted, this, [this]() { m_isSetlistDirty = true; });
     connect(m_setlistManager, &QStandardItemModel::rowsRemoved, this, [this]() { m_isSetlistDirty = true; });
@@ -406,23 +407,30 @@ void MainWindow::onHamburgerClicked() {
         mainSplitter->setSizes({250, this->width() - 250});
         m_btnToggleSetlist->setText("× Close Setlist");
 
-        // Add the setlist buttons to the toolbar
-        m_settingsToolBar->addSeparator();
-        m_settingsToolBar->addAction(m_actAddSong);
-        m_settingsToolBar->addAction(m_actRemoveSong);
-        m_settingsToolBar->addAction(m_actSaveSetlist);
+        // 1. Create the expanding spacer
+        QWidget* spacer = new QWidget();
+        spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 
+        // 2. Add the spacer FIRST, tracking its action pointer
+        m_spacerAction = settingsToolBar->addWidget(spacer);
+
+        // 3. Add your buttons AFTER the spacer so they get pushed right
+        settingsToolBar->addAction(m_actAddSong);
+        settingsToolBar->addAction(m_actRemoveSong);
+        settingsToolBar->addAction(m_actSaveSetlist);
     } else {
         m_setlistView->hide();
         m_btnToggleSetlist->setText("≡ Setlist");
 
-        // Remove the setlist buttons from the toolbar
-        m_settingsToolBar->removeAction(m_actAddSong);
-        m_settingsToolBar->removeAction(m_actRemoveSong);
-        m_settingsToolBar->removeAction(m_actSaveSetlist);
-
-        // Optionally, remove the separator if you added one
-        // (You may need to iterate through actions or keep a pointer to the separator)
+        // Remove the dynamically added elements
+        if (m_spacerAction) {
+            settingsToolBar->removeAction(m_spacerAction);
+            delete m_spacerAction; // Clean up the memory
+            m_spacerAction = nullptr;
+        }
+        settingsToolBar->removeAction(m_actAddSong);
+        settingsToolBar->removeAction(m_actRemoveSong);
+        settingsToolBar->removeAction(m_actSaveSetlist);
     }
 }
 
@@ -478,24 +486,33 @@ void MainWindow::handleSetlistItemClicked(const QModelIndex &index) {
     this->loadSongQuietly(fullPath);
 }
 
-/* void MainWindow::handleSetlistItemClicked(const QModelIndex &index) {
-    // Safety check: If the user clicked a top-level Setlist file container, do nothing
+void MainWindow::handleSetlistItemDoubleClicked(const QModelIndex &index) {
+    // Safety check: Ignore double-clicks on the parent Setlist container
     if (!index.parent().isValid()) return;
 
-    // Extract the relative path we stored inside the item's custom data role [cite: 284]
-    QString relativePath = index.data(Qt::UserRole + 1).toString();
-    if (relativePath.isEmpty()) {
-        qDebug() << "relativePath.isEmpty is true, no file";
-        return;
-    }
-    // Reconstruct the full absolute path matching your directory structure
-    QString fullPath = QCoreApplication::applicationDirPath() + "/resources/pieces/" + relativePath;
+    // 1. Close the setlist gracefully by simulating a hamburger click
+    // (Or manually hiding the view if you prefer to bypass the hamburger toggle logic)
+    if (!m_setlistView->isHidden()) {
+        m_setlistView->hide();
+        m_btnToggleSetlist->setText("≡ Setlist");
 
-    // Fire your existing parser/loader function!
-    // (Swap 'loadSongQuietly' out for your exact song loading method name if it differs)
-    qDebug() << "loading song quietly --> " + fullPath;
-    this->loadSongQuietly(fullPath);
-} */
+        // Remove toolbar buttons as if the hamburger was clicked
+        if (m_spacerAction) {
+            settingsToolBar->removeAction(m_spacerAction);
+            delete m_spacerAction;
+            m_spacerAction = nullptr;
+        }
+        settingsToolBar->removeAction(m_actAddSong);
+        settingsToolBar->removeAction(m_actRemoveSong);
+        settingsToolBar->removeAction(m_actSaveSetlist);
+    }
+
+    // 2. Snap the application into PlayAlong mode
+    setAppState(PlayAlong); // [cite: 486, 487]
+
+    // 3. Optional: Give focus to the main window or player so the Spacebar works immediately
+    this->setFocus();
+}
 
 QStringList MainWindow::getAvailableSetlists() {
 

@@ -71,6 +71,7 @@ public:
     QAction *m_actAddSong;
     QAction *m_actRemoveSong;
     QAction *m_actSaveSetlist;
+    QAction *m_spacerAction;
 
 
 protected:
@@ -92,6 +93,7 @@ private slots:
     void handleRemoveSongFromSetlist();
     void handleSaveSetlist();
     void handleSetlistItemClicked(const QModelIndex &index);
+    void handleSetlistItemDoubleClicked(const QModelIndex &index);
 
 private:
     void setupMenus();
