@@ -404,6 +404,27 @@ void MainWindow::setupToolBar() {
 void MainWindow::onHamburgerClicked() {
     if (m_setlistView->isHidden()) {
         m_setlistView->show();
+        mainSplitter->setSizes({250, this->width() - 250}); // Setlist on the Left (250px wide)
+        m_btnToggleSetlist->setText("× Close Setlist");
+
+            // 🚀 No spacer action! Add the buttons directly so they stay on the left side
+            m_settingsToolBar->addAction(m_actAddSong);
+            m_settingsToolBar->addAction(m_actRemoveSong);
+            m_settingsToolBar->addAction(m_actSaveSetlist);
+    } else {
+        m_setlistView->hide();
+            m_btnToggleSetlist->setText("≡ Setlist");
+
+            // Clean up the buttons when hidden
+            m_settingsToolBar->removeAction(m_actAddSong);
+            m_settingsToolBar->removeAction(m_actRemoveSong);
+            m_settingsToolBar->removeAction(m_actSaveSetlist);
+    }
+}
+
+/* void MainWindow::onHamburgerClicked() {
+    if (m_setlistView->isHidden()) {
+        m_setlistView->show();
 
         // 🚀 Allocate remaining width to the left side, and 250px to the right side (Setlist)
         mainSplitter->setSizes({this->width() - 250, 250});
@@ -433,7 +454,7 @@ void MainWindow::onHamburgerClicked() {
             m_settingsToolBar->removeAction(m_actSaveSetlist);
     }
 }
-
+*/
 /* void MainWindow::onHamburgerClicked() {
     if (m_setlistView->isHidden()) {
         m_setlistView->show();
@@ -701,8 +722,8 @@ void MainWindow::setupLayout() {
 
     // 3. Create the main splitter and add the Setlist + the editorSplitter
     mainSplitter = new QSplitter(Qt::Horizontal);
-    mainSplitter->addWidget(editorSplitter); // The editor block
     mainSplitter->addWidget(m_setlistView);  // Setlist manager
+    mainSplitter->addWidget(editorSplitter); // The editor block
 
     originalEditor->setMinimumWidth(100);
     parsedEditor->setMinimumWidth(100);
