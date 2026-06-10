@@ -78,21 +78,19 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     m_setlistView->hide();
 
 //    if (!onLoadSetlistLoadedCheck) {
-        onLoadSetlistTriggered();   // this might be called more than once???
+    onLoadSetlistTriggered();   // this might be called more than once???
 //        onLoadSetlistLoadedCheck = true; // only execute on load trigger once...
 //    }
 
     connect(m_setlistView, &QTreeView::clicked, this, [this](const QModelIndex &index) {
-        if (!index.isValid()) return;
+        if (index.isValid()) {
+            // Pass the whole index, not just the row!
+            QString path = m_setlistManager->getFilePath(index);
 
-        QStandardItem *item = m_setlistManager->itemFromIndex(index);
-
-        // 🧠 Check if it has a parent. If it does, it's a Song!
-        if (item && item->parent() != nullptr) {
-            // Retrieve the path we secretly stored earlier
-            QString path = item->data(SetlistManager::FilePathRole).toString();
-            loadSongQuietly(path);
-            m_setlistManager->markAsPlayed(index);
+            if (!path.isEmpty()) {
+                loadSongQuietly(path);
+                m_setlistManager->markAsPlayed(index); // Update this too if it uses row!
+            }
         }
     });
 

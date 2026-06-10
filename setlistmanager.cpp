@@ -23,25 +23,22 @@ bool SetlistManager::dropMimeData(const QMimeData *data, Qt::DropAction action, 
     return true;
 }
 
-QString SetlistManager::getFilePath(int row) const {
-    // Safety check: make sure the row is valid
-    if (row < 0 || row >= m_items.size()) {
+QString SetlistManager::getFilePath(const QModelIndex &index) const {
+    // 1. Safety check
+    if (!index.isValid()) {
         return QString();
     }
-    return m_items[row].filePath;
-}
 
-// 1. The data() function tells the View what to show
-QVariant SetlistManager::data(const QModelIndex &index, int role) const {
-    if (!index.isValid()) return QVariant();
-
-    if (role == Qt::DisplayRole) {
-        // Return the song title (or whatever you want displayed)
-        return m_items[index.row()].title;
+    // 2. Get the specific item from the tree
+    QStandardItem *item = itemFromIndex(index);
+    if (item) {
+        // 3. Extract our secretly stored file path!
+        return item->data(FilePathRole).toString();
     }
-    // You could also add Qt::DecorationRole here to show an icon if it's played!
-    return QVariant();
+
+    return QString();
 }
+
 
 // 2. The flags() function tells the View that the items are draggable
 Qt::ItemFlags SetlistManager::flags(const QModelIndex &index) const {
@@ -60,9 +57,9 @@ void SetlistManager::markAsPlayed(const QModelIndex &index) {
 }
 
 void SetlistManager::loadSetFile(const QString &filePath) {
-    // 1. CLEAR the model, not an external list
+    // 1. CLEAR the model
     beginResetModel();
-    this->clear(); // <--- CRITICAL: This clears all QStandardItems from the model
+    this->clear(); // <--- this clears all QStandardItems from the model
     endResetModel();
 
     // Now re-populate
