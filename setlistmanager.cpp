@@ -5,22 +5,9 @@
 #include <QRegularExpression>
 #include <QBrush>
 #include <QStandardItem>
-#include <QAbstractListModel>
 
 SetlistManager::SetlistManager(QObject *parent) : QStandardItemModel(parent) {
     // Initialization code (if any)
-}
-
-bool SetlistManager::dropMimeData(const QMimeData *data, Qt::DropAction action, int row, int column, const QModelIndex &parent) {
-    if (action == Qt::IgnoreAction) return true;
-
-    // Logic to update:
-    // 1. Capture the item currently at the drag source
-    // 2. Remove it from the old position
-    // 3. Insert it at the new 'row' position
-    // 4. emit dataChanged(...) or beginMoveRows(...)
-
-    return true;
 }
 
 QString SetlistManager::getFilePath(const QModelIndex &index) const {
@@ -57,10 +44,12 @@ void SetlistManager::markAsPlayed(const QModelIndex &index) {
 }
 
 void SetlistManager::loadSetFile(const QString &filePath) {
+    // Save this path so we know what to reload later!
+    m_currentLoadedSetlist = filePath;
+
     // 1. CLEAR the model
     beginResetModel();
     this->clear(); // <--- this clears all QStandardItems from the model
-    endResetModel();
 
     // Now re-populate
     beginInsertRows(QModelIndex(), 0, 0); // Optional: if you want more granular signals
@@ -112,30 +101,13 @@ void SetlistManager::loadSetFile(const QString &filePath) {
     file.close();
 
     endInsertRows();
-}
-
-void SetlistManager::setSetlists(const QStringList &files) {
-    beginResetModel();
-    this->clear(); // Wipes the whole model tree
-
-    for (const QString &fileName : files) {
-        QStandardItem *item = new QStandardItem(fileName);
-        item->setData(":/resources/setlists/" + fileName, FilePathRole);
-        this->appendRow(item);
-    }
     endResetModel();
 }
 
-bool SetlistManager::moveRows(const QModelIndex &sourceParent, int sourceRow, int count,
-                              const QModelIndex &destinationParent, int destinationChild) {
-    // QStandardItemModel's built-in moveRow function does the heavy lifting
-    return this->moveRow(sourceParent, sourceRow, destinationParent, destinationChild);
-}
-
 void SetlistManager::revertToOriginal() {
-    //    beginResetModel(); // Tells the View to refresh entirely
-    //    loadSetFile(currentFilePath); // add and use filepath variable to this function???
-    //    endResetModel();
+    if (!m_currentLoadedSetlist.isEmpty()) {
+        loadSetFile(m_currentLoadedSetlist);
+    }
 }
 
 // Allow the list to accept movement (reordering)
@@ -147,7 +119,3 @@ Qt::DropActions SetlistManager::supportedDropActions() const {
 Qt::DropActions SetlistManager::supportedDragActions() const {
     return Qt::MoveAction;
 }
-
-
-
-

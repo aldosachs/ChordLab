@@ -77,10 +77,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     m_setlistView->setSelectionMode(QAbstractItemView::SingleSelection);
     m_setlistView->hide();
 
-//    if (!onLoadSetlistLoadedCheck) {
     onLoadSetlistTriggered();   // this might be called more than once???
-//        onLoadSetlistLoadedCheck = true; // only execute on load trigger once...
-//    }
 
     connect(m_setlistView, &QTreeView::clicked, this, [this](const QModelIndex &index) {
         if (index.isValid()) {
@@ -164,12 +161,6 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     // Explicitly make sure NO hard minimum size constraints are left locking the widget layout
     this->setMinimumSize(0, 0);
     this->setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
-
-    // this probably needs a better logical home than as an afterthought in MainWindow::MainWindow???
-    QStringList files = getAvailableSetlists();
-    if (!files.isEmpty()) {
-        m_setlistManager->setSetlists(files);
-    }
 }
 
 void MainWindow::showEvent(QShowEvent *event) {
