@@ -404,6 +404,39 @@ void MainWindow::setupToolBar() {
 void MainWindow::onHamburgerClicked() {
     if (m_setlistView->isHidden()) {
         m_setlistView->show();
+
+        // 🚀 Allocate remaining width to the left side, and 250px to the right side (Setlist)
+        mainSplitter->setSizes({this->width() - 250, 250});
+        m_btnToggleSetlist->setText("× Close Setlist");
+
+            // Keep the expanding spacer to shove actions to the far right
+            QWidget* spacer = new QWidget();
+            spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+            m_spacerAction = m_settingsToolBar->addWidget(spacer); // Tracks spacer
+
+        // Add the setlist buttons after the spacer so they align on the right edge
+        m_settingsToolBar->addAction(m_actAddSong);
+            m_settingsToolBar->addAction(m_actRemoveSong);
+            m_settingsToolBar->addAction(m_actSaveSetlist);
+    } else {
+        m_setlistView->hide();
+            m_btnToggleSetlist->setText("≡ Setlist");
+
+            // Clean up the spacer and actions smoothly
+            if (m_spacerAction) {
+                m_settingsToolBar->removeAction(m_spacerAction);
+                delete m_spacerAction;
+                m_spacerAction = nullptr;
+        }
+        m_settingsToolBar->removeAction(m_actAddSong);
+            m_settingsToolBar->removeAction(m_actRemoveSong);
+            m_settingsToolBar->removeAction(m_actSaveSetlist);
+    }
+}
+
+/* void MainWindow::onHamburgerClicked() {
+    if (m_setlistView->isHidden()) {
+        m_setlistView->show();
         mainSplitter->setSizes({250, this->width() - 250});
         m_btnToggleSetlist->setText("× Close Setlist");
 
@@ -433,6 +466,7 @@ void MainWindow::onHamburgerClicked() {
         m_settingsToolBar->removeAction(m_actSaveSetlist);
     }
 }
+*/
 
 void MainWindow::handleSetlistItemClicked(const QModelIndex &index) {
     // Safety check: If the user clicked a top-level Setlist file container, do nothing
@@ -667,8 +701,8 @@ void MainWindow::setupLayout() {
 
     // 3. Create the main splitter and add the Setlist + the editorSplitter
     mainSplitter = new QSplitter(Qt::Horizontal);
-    mainSplitter->addWidget(m_setlistView); // Your new manager
     mainSplitter->addWidget(editorSplitter); // The editor block
+    mainSplitter->addWidget(m_setlistView);  // Setlist manager
 
     originalEditor->setMinimumWidth(100);
     parsedEditor->setMinimumWidth(100);
