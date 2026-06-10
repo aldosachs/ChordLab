@@ -79,7 +79,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 
     onLoadSetlistTriggered();
 
-    connect(m_setlistView, &QTreeView::clicked, this, [this](const QModelIndex &index) {
+/* delete    connect(m_setlistView, &QTreeView::clicked, this, [this](const QModelIndex &index) {
         if (index.isValid()) {
             // Pass the whole index, not just the row!
             QString path = m_setlistManager->getFilePath(index);
@@ -90,6 +90,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
             }
         }
     });
+*/
 
     // Make expansions smooth/animated
     m_setlistView->setAnimated(true);
@@ -279,7 +280,7 @@ void MainWindow::setupMenus() {
 
 void MainWindow::setupToolBar() {
     QToolBar *settingsToolBar = addToolBar("Critical Settings");
-    settingsToolBar->setObjectName("criticalSettingsToolBar");
+//    settingsToolBar->setObjectName("criticalSettingsToolBar");
 
     m_settingsToolBar = addToolBar("Critical Settings");
     m_settingsToolBar->setObjectName("criticalSettingsToolBar");
@@ -302,7 +303,7 @@ void MainWindow::setupToolBar() {
     connect(m_btnToggleSetlist, &QPushButton::clicked, this, &MainWindow::onHamburgerClicked);
 
     // Add it to the layout (or directly to the toolbar)
-    settingsToolBar->addWidget(m_btnToggleSetlist);
+    m_settingsToolBar->addWidget(m_btnToggleSetlist);
 
     m_btnTransposeUp = new QPushButton("Key Up");
     m_btnTransposeDown = new QPushButton("Key Down");
@@ -389,7 +390,7 @@ void MainWindow::setupToolBar() {
     layout->addWidget(btnReset);
     layout->addWidget(m_btnTransposeUp);
 
-    settingsToolBar->addWidget(container);
+//    settingsToolBar->addWidget(container);
 
     m_viewToggleBtn = new QPushButton("ChordPro-CIL");
     m_viewToggleBtn->setStyleSheet("QPushButton { background-color: #0047AB; color: white; }");
@@ -486,11 +487,12 @@ void MainWindow::handleSetlistItemDoubleClicked(const QModelIndex &index) {
         m_btnToggleSetlist->setText("≡ Setlist");
 
         // Remove toolbar buttons as if the hamburger was clicked
-        if (m_spacerAction) {
+/* delete        if (m_spacerAction) {
             m_settingsToolBar->removeAction(m_spacerAction);
-            delete m_spacerAction;
+            delete m_spacerAction;    // MAYBE---m_spacerAction = nullptr; in constructor
             m_spacerAction = nullptr;
-        }
+        } */
+        m_spacerAction = nullptr;  // check this
         m_settingsToolBar->removeAction(m_actAddSong);
         m_settingsToolBar->removeAction(m_actRemoveSong);
         m_settingsToolBar->removeAction(m_actSaveSetlist);

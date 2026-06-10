@@ -71,7 +71,7 @@ void SetlistManager::loadSetFile(const QString &filePath) {
     m_currentLoadedSetlist = filePath;
 
     // 1. Re-populate the model
-    beginInsertRows(QModelIndex(), 0, 0); // Optional: if you want more granular signals
+//    beginInsertRows(QModelIndex(), 0, 0); // Optional: if you want more granular signals
 
     QFile file(filePath);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
@@ -119,8 +119,7 @@ void SetlistManager::loadSetFile(const QString &filePath) {
     this->appendRow(parentItem); // Add the parent to the cleared model
     file.close();
 
-    endInsertRows();
-//    endResetModel();
+//    endInsertRows();
 }
 
 void SetlistManager::revertToOriginal() {
