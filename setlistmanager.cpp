@@ -97,7 +97,7 @@ void SetlistManager::loadSetFile(const QString &filePath) {
     file.close();
 
     endInsertRows();
-    endResetModel();
+//    endResetModel();
 }
 
 void SetlistManager::revertToOriginal() {
