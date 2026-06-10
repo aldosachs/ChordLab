@@ -422,18 +422,6 @@ void MainWindow::onLoadSetlistTriggered() {
         statusBar()->showMessage("No setlists found in resources!");
         return;
     }
-
-//    bool ok;
-//    QString item = QInputDialog::getItem(this, "Select Setlist",
-//                                         "Choose a setlist:", setlists, 0, false, &ok);
-
-//    if (ok && !item.isEmpty()) {
-//        QString fullPath = ":/resources/setlists/" + item;
-
-        // Tell your manager to load it
-//        m_setlistManager->loadSetFile(fullPath);
-//        statusBar()->showMessage("Loaded: " + item);
-//    }
 }
 
 void MainWindow::loadStyleSheetFromFile(const QString &filePath) {
@@ -566,9 +554,6 @@ void MainWindow::closeEvent(QCloseEvent *event) {
     settings.setValue("app/lastMode", static_cast<int>(currentState));
     QMainWindow::closeEvent(event);
 }
-
-
-
 
 void MainWindow::loadSongQuietly(const QString &filePath) {
     if (filePath.isEmpty() || !QFile::exists(filePath)) return;

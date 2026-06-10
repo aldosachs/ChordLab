@@ -47,11 +47,7 @@ void SetlistManager::loadSetFile(const QString &filePath) {
     // Save this path so we know what to reload later!
     m_currentLoadedSetlist = filePath;
 
-    // 1. CLEAR the model
-    beginResetModel();
-    this->clear(); // <--- this clears all QStandardItems from the model
-
-    // Now re-populate
+    // 1. Re-populate the model
     beginInsertRows(QModelIndex(), 0, 0); // Optional: if you want more granular signals
 
     QFile file(filePath);
