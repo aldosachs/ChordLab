@@ -40,7 +40,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 
     connect(m_mediaPlayer, &QMediaPlayer::playbackStateChanged, this, &MainWindow::handlePlaybackStateChanged);
 
-    setWindowTitle("ChordLab V002A");
+    setWindowTitle("ChordLab V0.2beta");
     QIcon icon(":/resources/icons/CL-Music-V0.2.ico");
     setWindowIcon(icon);
 
