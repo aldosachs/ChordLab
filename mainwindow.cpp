@@ -412,25 +412,25 @@ void MainWindow::onHamburgerClicked() {
         spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 
         // 2. Add the spacer FIRST, tracking its action pointer
-        m_spacerAction = settingsToolBar->addWidget(spacer);
+        m_spacerAction = m_settingsToolBar->addWidget(spacer);
 
         // 3. Add your buttons AFTER the spacer so they get pushed right
-        settingsToolBar->addAction(m_actAddSong);
-        settingsToolBar->addAction(m_actRemoveSong);
-        settingsToolBar->addAction(m_actSaveSetlist);
+        m_settingsToolBar->addAction(m_actAddSong);
+        m_settingsToolBar->addAction(m_actRemoveSong);
+        m_settingsToolBar->addAction(m_actSaveSetlist);
     } else {
         m_setlistView->hide();
         m_btnToggleSetlist->setText("≡ Setlist");
 
         // Remove the dynamically added elements
         if (m_spacerAction) {
-            settingsToolBar->removeAction(m_spacerAction);
+            m_settingsToolBar->removeAction(m_spacerAction);
             delete m_spacerAction; // Clean up the memory
             m_spacerAction = nullptr;
         }
-        settingsToolBar->removeAction(m_actAddSong);
-        settingsToolBar->removeAction(m_actRemoveSong);
-        settingsToolBar->removeAction(m_actSaveSetlist);
+        m_settingsToolBar->removeAction(m_actAddSong);
+        m_settingsToolBar->removeAction(m_actRemoveSong);
+        m_settingsToolBar->removeAction(m_actSaveSetlist);
     }
 }
 
@@ -498,17 +498,17 @@ void MainWindow::handleSetlistItemDoubleClicked(const QModelIndex &index) {
 
         // Remove toolbar buttons as if the hamburger was clicked
         if (m_spacerAction) {
-            settingsToolBar->removeAction(m_spacerAction);
+            m_settingsToolBar->removeAction(m_spacerAction);
             delete m_spacerAction;
             m_spacerAction = nullptr;
         }
-        settingsToolBar->removeAction(m_actAddSong);
-        settingsToolBar->removeAction(m_actRemoveSong);
-        settingsToolBar->removeAction(m_actSaveSetlist);
+        m_settingsToolBar->removeAction(m_actAddSong);
+        m_settingsToolBar->removeAction(m_actRemoveSong);
+        m_settingsToolBar->removeAction(m_actSaveSetlist);
     }
 
     // 2. Snap the application into PlayAlong mode
-    setAppState(PlayAlong); // [cite: 486, 487]
+    setAppState(PlayAlong);
 
     // 3. Optional: Give focus to the main window or player so the Spacebar works immediately
     this->setFocus();
