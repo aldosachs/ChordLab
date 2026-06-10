@@ -145,10 +145,10 @@ private:
 
     QString m_parsedSongContentGrid;
 
-    int m_zoomScaleLevel;
-
-    void onZoomInTriggered();
-    void onZoomOutTriggered();
+//    int m_zoomScaleLevel;
+    int m_zoomCoarse = 0;      // Ctrl+/-         coarse zoom, steps of 2pt
+    int m_zoomFine   = 0;      // Ctrl+Shift+/-   fine zoom, steps of 0.5pt
+    int m_columnOverride = 0;  // 0=auto (Radar), 1-4=manual lock
 
     // --- Transposition & Instrument Mapping Matrix ---
     int m_transposeShift = 0;           // Concert Pitch / Singer shift (Key Up/Down)

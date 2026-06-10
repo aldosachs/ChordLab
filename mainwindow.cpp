@@ -61,7 +61,9 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     // Clear Internal State Variables Before UI Draws
     m_currentFilePath = "";
     m_parsedSongContentGrid = "";
-    m_zoomScaleLevel = 0;
+    m_zoomCoarse = 0;
+    m_zoomFine   = 0;
+    m_columnOverride = 0;
     m_transposeShift = 0;
     m_capoShift = 0;                  // default to open neck
     m_instrumentTuningOffset = 0;     // default to standard guitar tuning
@@ -297,7 +299,7 @@ void MainWindow::setupMenus() {
         QMessageBox::about(this, "About QPlayer", "ChordLab\nVersion 0.3beta\n11-Jun-2026...\nA chordpro multimedia app \nfor musicians.");
     });
 
-    QSettings settings;
+//    QSettings settings;
     QString currentPath = settings.value("theme/lastStyle").toString();
     qDebug() << "Available resources at :/resources/styles:" << themeDir.entryList();
     for (const QString &themeFile : themes) {
@@ -697,17 +699,15 @@ void MainWindow::setupLayout() {
     // 1. Create your widgets FIRST (don't add to splitters yet)
     originalEditor = new QPlainTextEdit(this);
     originalEditor->setPlaceholderText("Original File Content...");
+
+    parsedEditor = new QTextEdit(this);
+    parsedEditor->setPlaceholderText("Parsed & Standardized Output...");
+    parsedEditor->setReadOnly(true);
+
     QFont monoFont(m_currentFont, 10);
     monoFont.setStyleHint(QFont::TypeWriter);
     originalEditor->setFont(monoFont);
     parsedEditor->setFont(monoFont);
-//    QFont monoFont("Consolas", 10);
-//    originalEditor->setFont(monoFont);
-
-    parsedEditor = new QTextEdit(this); // Create it here!
-    parsedEditor->setPlaceholderText("Parsed & Standardized Output...");
-    parsedEditor->setFont(monoFont);
-    parsedEditor->setReadOnly(true);
 
     // 2. Now create the inner splitter and add the existing widgets
     editorSplitter = new QSplitter(Qt::Horizontal);
@@ -1019,7 +1019,7 @@ QString MainWindow::runInitialParse(const QString &rawInput) {
     }
 
     QString result = "<html><head><style>"
-                     "body { font-family: 'Consolas', monospace; white-space: pre; font-size: 10pt; }"
+                     "body { font-family: '" + m_currentFont + "', 'Courier New', monospace; white-space: pre; font-size: 10pt; }"
                      + getThemeStyles() +
                      "</style></head><body>";
 
@@ -1461,11 +1461,17 @@ void MainWindow::parseChordProToGrid(const QString &rawInput) {
         gatheredSections.append(currentSectionHtml);
     }
 
+    int numCols = (m_columnOverride > 0) ? m_columnOverride
+                                         : m_currentSongMetrics.targetColumns;
+    if (m_zoomCoarse == 1 && numCols > 2) numCols = 2;
+    else if (m_zoomCoarse >= 2) numCols = 1;
+    if (numCols < 1) numCols = 1;
+
     // establish dynamic column generation limits
-    int numCols = m_currentSongMetrics.targetColumns;
+/*    int numCols = m_currentSongMetrics.targetColumns;
     if (m_zoomScaleLevel == 1 && numCols > 2) numCols = 2;
     else if (m_zoomScaleLevel >= 2) numCols = 1;
-    if (numCols < 1) numCols = 1;
+    if (numCols < 1) numCols = 1; */
 
     QString tableGridHtml = "";
     if (numCols <= 1 || gatheredSections.isEmpty()) {
@@ -1496,6 +1502,82 @@ void MainWindow::parseChordProToGrid(const QString &rawInput) {
 }
 
 void MainWindow::updatePlayAlongLayoutDensity() {
+    double baseFontSize       = 10.0 + (m_zoomCoarse * 2.0) + (m_zoomFine * 0.5);
+    double activeLineHeight   = 1.10 + (m_zoomCoarse * 0.03) + (m_zoomFine * 0.008);
+    int sectionMarginBottom   = 8    + (m_zoomCoarse * 2)    + m_zoomFine;
+    int headerMarginBottom    = 3    + (m_zoomCoarse / 2);
+
+    parsedEditor->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    parsedEditor->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+
+    QString bgColor    = (m_currentTheme == Dark) ? "#20204f" : "#e0F0ff";
+    QString txtColor   = (m_currentTheme == Dark) ? "#E0E0E0" : "#222222";
+    QString chordColor = (m_currentTheme == Dark) ? "#ffb060" : "#c22222";
+    QString headColor  = (m_currentTheme == Dark) ? "#6699ff" : "#0055aa";
+
+    QRegularExpression titleRx(R"(\{(?:title|t):\s*([^}]*)\})", QRegularExpression::CaseInsensitiveOption);
+    QRegularExpression artistRx(R"(\{(?:artist|st|subtitle):\s*([^}]*)\})", QRegularExpression::CaseInsensitiveOption);
+    QString title  = titleRx.match(m_rawSongContent).captured(1).trimmed();
+    QString artist = artistRx.match(m_rawSongContent).captured(1).trimmed();
+
+    QString headerHtml = "";
+    if (!title.isEmpty()) {
+        headerHtml += "<div style='text-align: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid " + chordColor + ";'>";
+        headerHtml += "<h1 style='margin: 0; font-size: " + QString::number(baseFontSize + 8, 'f', 1) + "pt; color: " + txtColor + ";'>" + title + "</h1>";
+        if (!artist.isEmpty()) {
+            headerHtml += "<h3 style='margin: 5px 0 0 0; font-size: " + QString::number(baseFontSize + 2, 'f', 1) + "pt; color: #777; font-weight: normal;'>" + artist + "</h3>";
+        }
+        headerHtml += "</div>";
+    }
+
+    QString baseHtml = "<html><head><style>"
+                       "body { background-color: " + bgColor + "; color: " + txtColor + "; margin: 12px 18px; padding: 0;"
+                                                            "  font-family: '" + m_currentFont + "', 'Courier New', monospace; }"
+                                         "h1 { font-size: " + QString::number(baseFontSize + 4, 'f', 1) + "pt; font-weight: bold; font-family: sans-serif; margin: 0 0 4px 0; }"
+                                                                     ".section-heading {"
+                                                                     "  font-size: " + QString::number(baseFontSize + 1, 'f', 1) + "pt;"
+                                                                     "  color: " + headColor + ";"
+                                     "  font-weight: bold;"
+                                     "  font-family: '" + m_currentFont + "', 'Courier New', monospace;"
+                                         "  margin: 0 0 " + QString::number(headerMarginBottom) + "px 0;"
+                                                               "  padding: 0;"
+                                                               "  border-bottom: 1px solid " + headColor + "44;"
+                                     "}"
+                                     ".song-section { margin-bottom: " + QString::number(sectionMarginBottom) + "px; }"
+                                                                ".chord-line {"
+                                                                "  font-weight: bold;"
+                                                                "  color: " + chordColor + ";"
+                                      "  font-family: '" + m_currentFont + "', 'Courier New', monospace;"
+                                         "  font-size: " + QString::number(baseFontSize, 'f', 1) + "pt;"
+                                                                 "  margin: 0; padding: 0;"
+                                                                 "}"
+                                                                 ".lyric-text {"
+                                                                 "  color: " + txtColor + ";"
+                                    "  font-family: '" + m_currentFont + "', 'Courier New', monospace;"
+                                         "  font-size: " + QString::number(baseFontSize, 'f', 1) + "pt;"
+                                                                 "  margin: 0 0 2px 0; padding: 0;"
+                                                                 "}"
+                                                                 "</style></head><body>"
+                                                                 "<div class='song-canvas' style='line-height: " + QString::number(activeLineHeight, 'f', 3) + ";'>"
+                       + headerHtml + m_parsedSongContentGrid +
+                       "</div></body></html>";
+
+    parsedEditor->setHtml(baseHtml);
+
+    // Live status bar feedback
+    int activeCols = (m_columnOverride > 0) ? m_columnOverride : m_currentSongMetrics.targetColumns;
+    statusBar()->showMessage(
+        QString("Font: %1pt | Columns: %2%3 | Zoom: %4 coarse / %5 fine")
+            .arg(baseFontSize, 0, 'f', 1)
+            .arg(activeCols)
+            .arg(m_columnOverride > 0 ? " (manual)" : " (auto)")
+            .arg(m_zoomCoarse)
+            .arg(m_zoomFine),
+        5000
+        );
+}
+
+/* void MainWindow::updatePlayAlongLayoutDensity() {
     // Standardizing baseline scale settings (Dropped to 10pt base down from 12pt to fix overflow issues)
     int baseFontSize = 10 + (m_zoomScaleLevel * 2);
     int headerMarginBottom = 4 + m_zoomScaleLevel;
@@ -1547,13 +1629,13 @@ void MainWindow::updatePlayAlongLayoutDensity() {
                        "  font-weight: bold;"
                         // next line
                        " color: " + chordColor + ";"
-                       "  font-family: 'Consolas', 'Courier New', monospace !important;"
+                       "font-family: '" + m_currentFont + "', 'Courier New', monospace;"
                        "  font-size: " + QString::number(baseFontSize) + "pt;"
                        "}"
                        ".lyric-text {"
                         // next line
                        "  color: " + txtColor + ";"
-                       "  font-family: 'Consolas', 'Courier New', monospace !important;"
+                       "font-family: '" + m_currentFont + "', 'Courier New', monospace;"
                        "  font-size: " + QString::number(baseFontSize) + "pt;"
                        "}"
                        "</style></head><body>"
@@ -1564,7 +1646,7 @@ void MainWindow::updatePlayAlongLayoutDensity() {
 //    hasPlayModeStyleOverride = false;
 
     parsedEditor->setHtml(baseHtml);
-}
+} */
 
 // Ensure missing helper hooks exist natively inside compilation unit
 void MainWindow::handlePlaybackStateChanged(QMediaPlayer::PlaybackState state) {
@@ -1587,6 +1669,80 @@ void MainWindow::handlePlaybackStateChanged(QMediaPlayer::PlaybackState state) {
 }
 
 void MainWindow::keyPressEvent(QKeyEvent *event) {
+    if (currentState == PlayAlong) {
+        bool ctrl  = event->modifiers() & Qt::ControlModifier;
+        bool shift = event->modifiers() & Qt::ShiftModifier;
+        int  key   = event->key();
+
+        // Spacebar — play/pause
+        if (key == Qt::Key_Space && !ctrl && !shift) {
+            if (m_mediaPlayer->playbackState() == QMediaPlayer::PlayingState) {
+                m_mediaPlayer->pause();
+            } else {
+                if (!m_selectedAudioPath.isEmpty()) m_mediaPlayer->play();
+            }
+            event->accept(); return;
+        }
+
+        if (ctrl && !shift) {
+            // Coarse zoom in/out
+            if (key == Qt::Key_Plus || key == Qt::Key_Equal) {
+                if (m_zoomCoarse < 6) m_zoomCoarse++;
+                saveSongLayoutPreference(m_currentFilePath);
+                parseChordProToGrid(m_rawSongContent);
+                event->accept(); return;
+            }
+            if (key == Qt::Key_Minus) {
+                if (m_zoomCoarse > -4) m_zoomCoarse--;
+                saveSongLayoutPreference(m_currentFilePath);
+                parseChordProToGrid(m_rawSongContent);
+                event->accept(); return;
+            }
+            // Reset all zoom and columns
+            if (key == Qt::Key_0) {
+                m_zoomCoarse = 0;
+                m_zoomFine   = 0;
+                m_columnOverride = 0;
+                saveSongLayoutPreference(m_currentFilePath);
+                parseChordProToGrid(m_rawSongContent);
+                event->accept(); return;
+            }
+            // Column override — Ctrl+Right/Left
+            if (key == Qt::Key_Right) {
+                int current = (m_columnOverride > 0) ? m_columnOverride
+                                                     : m_currentSongMetrics.targetColumns;
+                if (current < 4) m_columnOverride = current + 1;
+                parseChordProToGrid(m_rawSongContent);
+                event->accept(); return;
+            }
+            if (key == Qt::Key_Left) {
+                if (m_columnOverride > 1) m_columnOverride--;
+                else m_columnOverride = 0;  // back to auto
+                parseChordProToGrid(m_rawSongContent);
+                event->accept(); return;
+            }
+        }
+
+        if (ctrl && shift) {
+            // Fine zoom in/out — re-render only, no column recalculation needed
+            if (key == Qt::Key_Plus || key == Qt::Key_Equal) {
+                if (m_zoomFine < 8) m_zoomFine++;
+                saveSongLayoutPreference(m_currentFilePath);
+                updatePlayAlongLayoutDensity();
+                event->accept(); return;
+            }
+            if (key == Qt::Key_Minus) {
+                if (m_zoomFine > -8) m_zoomFine--;
+                saveSongLayoutPreference(m_currentFilePath);
+                updatePlayAlongLayoutDensity();
+                event->accept(); return;
+            }
+        }
+    }
+    QMainWindow::keyPressEvent(event);
+}
+
+/* void MainWindow::keyPressEvent(QKeyEvent *event) {
     if (currentState == PlayAlong) {
         if (event->key() == Qt::Key_Space) {
             if (m_mediaPlayer->playbackState() == QMediaPlayer::PlayingState) {
@@ -1618,8 +1774,9 @@ void MainWindow::keyPressEvent(QKeyEvent *event) {
         }
     }
     QMainWindow::keyPressEvent(event);
-}
+} */
 
+/*
 void MainWindow::onZoomInTriggered() {
     if (m_zoomScaleLevel < 6) {
         m_zoomScaleLevel++;
@@ -1641,6 +1798,7 @@ void MainWindow::onZoomOutTriggered() {
         }
     }
 }
+*/
 
 void MainWindow::selectAudioTrack(QPushButton *clickedButton, const QString &trackPath, const QString &trackName) {
     // 1. If this button was already checked and is now being unchecked, stop playback
@@ -1715,7 +1873,9 @@ void MainWindow::analyzeChordProMetaData(const QString &rawInput) {
     }
 
     // Estimate character width in pixels for Consolas/Courier based on current zoom scale
-    int baseFontSize = 10 + (m_zoomScaleLevel * 2);
+//    int baseFontSize = 10 + (m_zoomScaleLevel * 2);
+//    double approxCharWidthPixels = baseFontSize * 0.62;
+    double baseFontSize = 10.0 + (m_zoomCoarse * 2.0) + (m_zoomFine * 0.5);
     double approxCharWidthPixels = baseFontSize * 0.62;
 
     // Determine how many characters can physically fit across one column safely
@@ -2111,14 +2271,43 @@ void MainWindow::saveSongLayoutPreference(const QString &filePath) {
     if (filePath.isEmpty()) return;
     QSettings settings;
     QString songKey = QFileInfo(filePath).fileName();
+    settings.beginGroup("SongLayouts/" + songKey);
+    settings.setValue("hasOverride",     true);
+    settings.setValue("zoomCoarse",      m_zoomCoarse);
+    settings.setValue("zoomFine",        m_zoomFine);
+    settings.setValue("columnOverride",  m_columnOverride);
+    settings.endGroup();
+}
+
+void MainWindow::loadSongLayoutPreference(const QString &filePath) {
+    if (filePath.isEmpty()) return;
+    QSettings settings;
+    QString songKey = QFileInfo(filePath).fileName();
+    settings.beginGroup("SongLayouts/" + songKey);
+    if (settings.value("hasOverride", false).toBool()) {
+        m_zoomCoarse     = settings.value("zoomCoarse",     0).toInt();
+        m_zoomFine       = settings.value("zoomFine",       0).toInt();
+        m_columnOverride = settings.value("columnOverride", 0).toInt();
+    } else {
+        m_zoomCoarse     = 0;
+        m_zoomFine       = 0;
+        m_columnOverride = 0;
+    }
+    settings.endGroup();
+}
+
+/* void MainWindow::saveSongLayoutPreference(const QString &filePath) {
+    if (filePath.isEmpty()) return;
+    QSettings settings;
+    QString songKey = QFileInfo(filePath).fileName();
 
     settings.beginGroup("SongLayouts/" + songKey);
     settings.setValue("hasOverride", true);
     settings.setValue("zoomScale", m_zoomScaleLevel);
     settings.endGroup();
-}
+} */
 
-void MainWindow::loadSongLayoutPreference(const QString &filePath) {
+/* void MainWindow::loadSongLayoutPreference(const QString &filePath) {
     if (filePath.isEmpty()) return;
     QSettings settings;
     QString songKey = QFileInfo(filePath).fileName();
@@ -2130,5 +2319,5 @@ void MainWindow::loadSongLayoutPreference(const QString &filePath) {
         m_zoomScaleLevel = 0; // Reset back to default scaling index if unconfigured
     }
     settings.endGroup();
-}
+} */
 
