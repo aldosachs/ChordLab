@@ -31,6 +31,13 @@
 static const QStringList NOTE_SCALE_SHARPS = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
 static const QStringList NOTE_SCALE_FLATS  = {"C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"};
 
+const QStringList MainWindow::AVAILABLE_FONTS = {
+    "Courier Prime",
+    "Libertinus Mono",
+    "Red Hat Mono",
+    "Cascadia Mono"
+};
+
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     // Core Hardware & Audio Engine Instantiation First
     m_mediaPlayer = new QMediaPlayer(this);
@@ -40,8 +47,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 
     connect(m_mediaPlayer, &QMediaPlayer::playbackStateChanged, this, &MainWindow::handlePlaybackStateChanged);
 
-    setWindowTitle("ChordLab V0.2beta");
-    QIcon icon(":/resources/icons/CL-Music-V0.2.ico");
+    setWindowTitle("ChordLab V0.3beta");
+    QIcon icon(":/resources/icons/CL-Music-CL.png");
     setWindowIcon(icon);
 
     QSettings::setDefaultFormat(QSettings::IniFormat);
@@ -103,6 +110,9 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 
     connect(m_setlistManager, &QStandardItemModel::rowsInserted, this, [this]() { m_isSetlistDirty = true; });
     connect(m_setlistManager, &QStandardItemModel::rowsRemoved, this, [this]() { m_isSetlistDirty = true; });
+
+//    QSettings settings;
+    m_currentFont = settings.value("display/font", "Courier Prime").toString();
 
     // Sequential UI Component Construction
     setupMenus();
@@ -209,6 +219,14 @@ void MainWindow::resizeEvent(QResizeEvent *event) {
     }
 }
 
+QString MainWindow::getResourcesPath() const {
+#ifdef Q_OS_MACOS
+    return QCoreApplication::applicationDirPath() + "/../Resources";
+#else
+    return QCoreApplication::applicationDirPath() + "/resources";
+#endif
+}
+
 void MainWindow::setupMenus() {
     // --- File Menu ---
     QMenu *fileMenu = menuBar()->addMenu("&File");
@@ -222,6 +240,43 @@ void MainWindow::setupMenus() {
     // Add sub-menus and SAVE THE POINTERS
     prefMenu->addMenu("Settings and Preferences");
     fileMenu->addSeparator();
+
+    QMenu *fontMenu = prefMenu->addMenu("Display Font");
+    QActionGroup *fontGroup = new QActionGroup(this);
+    fontGroup->setExclusive(true);
+
+    QSettings settings;
+    QString savedFont = settings.value("display/font", "Courier Prime").toString();
+    m_currentFont = savedFont;
+
+    for (const QString &fontName : AVAILABLE_FONTS) {
+        QAction *action = fontMenu->addAction(fontName);
+        action->setCheckable(true);
+        action->setActionGroup(fontGroup);
+        if (fontName == savedFont) action->setChecked(true);
+
+        connect(action, &QAction::triggered, this, [=]() {
+            m_currentFont = fontName;
+            QSettings s;
+            s.setValue("display/font", fontName);
+
+            // Update both editors immediately
+            QFont f(fontName, 10);
+            f.setStyleHint(QFont::TypeWriter);
+            originalEditor->setFont(f);
+            parsedEditor->setFont(f);
+
+            // Re-render with new font
+            if (currentState == PlayAlong) {
+                parseChordProToGrid(m_rawSongContent);
+            } else if (currentState == OpenEdit) {
+                parsedEditor->setHtml(runInitialParse(m_rawSongContent));
+            }
+
+            statusBar()->showMessage("Font changed to: " + fontName, 3000);
+        });
+    }
+
     QMenu *themeMenu = prefMenu->addMenu("Themes");
 
     QActionGroup *prefGroup = new QActionGroup(this);
@@ -239,7 +294,7 @@ void MainWindow::setupMenus() {
 
     helpMenu->addMenu("&Help");
     QAction *aboutAction = helpMenu->addAction(QIcon(":/resources/icons/about.png"), tr("About"), this, [this]() {
-        QMessageBox::about(this, "About QPlayer", "ChordLab\nVersion 0.2beta\n11-Jun-2026...\nA chordpro multimedia app \nfor musicians.");
+        QMessageBox::about(this, "About QPlayer", "ChordLab\nVersion 0.3beta\n11-Jun-2026...\nA chordpro multimedia app \nfor musicians.");
     });
 
     QSettings settings;
@@ -442,7 +497,8 @@ void MainWindow::handleSetlistItemClicked(const QModelIndex &index) {
     }
 
     // Reconstruct the base path matching your directory structure
-    QString fullPath = QCoreApplication::applicationDirPath() + "/resources/pieces/" + relativePath;
+//    QString fullPath = QCoreApplication::applicationDirPath() + "/resources/pieces/" + relativePath;
+    QString fullPath = getResourcesPath() + "/pieces/" + relativePath;
 
     // --- THE SMART RESOLVER ---
     QFileInfo fileInfo(fullPath);
@@ -511,9 +567,12 @@ QStringList MainWindow::getAvailableSetlists() {
 
 void MainWindow::onLoadSetlistTriggered() {
     qDebug() << "--> top of onLoadSetlistTriggered()";
+    qDebug() << "[Platform] Resources path:" << getResourcesPath();
     QStringList setlists = getAvailableSetlists();
 
-    QString setlistDir = QCoreApplication::applicationDirPath() + "/resources/setlists";
+//    QString setlistDir = QCoreApplication::applicationDirPath() + "/resources/setlists";
+    QString setlistDir = getResourcesPath() + "/setlists";
+
     QDir dir(setlistDir);
 
     // 2. Find the files (which your logs show is already working!)
@@ -566,7 +625,8 @@ void MainWindow::handleAddSongToSetlist() {
     newSong->setEditable(false);
 
     // Convert absolute path to a relative path based on your resources/pieces structure
-    QDir piecesDir(QCoreApplication::applicationDirPath() + "/resources/pieces");
+//    QDir piecesDir(QCoreApplication::applicationDirPath() + "/resources/pieces");
+    QDir piecesDir(getResourcesPath() + "/pieces");
     QString relativePath = piecesDir.relativeFilePath(filePath);
 
     // Assuming FilePathRole is Qt::UserRole + 1 as per standard practices
@@ -588,7 +648,8 @@ void MainWindow::handleSaveSetlist() {
 
     // We need to know where to save this.
     // Pro-tip: When you load the setlist, store the .set file path in the parent item's data!
-    QString setlistPath = QCoreApplication::applicationDirPath() + "/resources/setlists/" + parentSetlist->text();
+//    QString setlistPath = QCoreApplication::applicationDirPath() + "/resources/setlists/" + parentSetlist->text();
+    QString setlistPath = getResourcesPath() + "/setlists/" + parentSetlist->text();
 
     QFile file(setlistPath);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
@@ -636,8 +697,12 @@ void MainWindow::setupLayout() {
     // 1. Create your widgets FIRST (don't add to splitters yet)
     originalEditor = new QPlainTextEdit(this);
     originalEditor->setPlaceholderText("Original File Content...");
-    QFont monoFont("Consolas", 10);
+    QFont monoFont(m_currentFont, 10);
+    monoFont.setStyleHint(QFont::TypeWriter);
     originalEditor->setFont(monoFont);
+    parsedEditor->setFont(monoFont);
+//    QFont monoFont("Consolas", 10);
+//    originalEditor->setFont(monoFont);
 
     parsedEditor = new QTextEdit(this); // Create it here!
     parsedEditor->setPlaceholderText("Parsed & Standardized Output...");
@@ -879,9 +944,11 @@ void MainWindow::updateFunctionKeys() {
 
 void MainWindow::handleFileOpen() {
     // 1. Get the path
-    QString appDir = QCoreApplication::applicationDirPath();
-    QString initialPath = QDir(appDir + "/resources/pieces").exists() ?
-                              appDir + "/resources/pieces" : QDir::homePath();
+//    QString appDir = QCoreApplication::applicationDirPath();
+//    QString initialPath = QDir(appDir + "/resources/pieces").exists() ?
+//                              appDir + "/resources/pieces" : QDir::homePath();
+    QString initialPath = QDir(getResourcesPath() + "/pieces").exists() ?
+                              getResourcesPath() + "/pieces" : QDir::homePath();
 
     QString fileName = QFileDialog::getOpenFileName(
         this, tr("Open ChordPro File"), initialPath,
@@ -901,10 +968,13 @@ void MainWindow::handleFileOpen() {
 void MainWindow::handleFileSave() {
     if (m_currentFilePath.isEmpty()) {
         // 1. Determine the path to the running executable
-        QString appDir = QCoreApplication::applicationDirPath();
-
+//        QString appDir = QCoreApplication::applicationDirPath();
         // 2. Point to our standard user workspace folder
-        QString initialPath = appDir + "/resources/pieces";
+//        QString initialPath = appDir + "/resources/pieces";
+        QString initialPath = getResourcesPath() + "/pieces";
+        if (!QDir(initialPath).exists()) {
+            initialPath = QDir::homePath();
+        }
 
         // 3. Fallback safely if the workspace directory isn't deployed yet
         if (!QDir(initialPath).exists()) {

@@ -69,6 +69,11 @@ public:
 
     QToolBar *m_settingsToolBar; // Promote from local variable to member
 
+    // Font preference
+            QString m_currentFont = "Courier Prime";  // default
+
+    static const QStringList AVAILABLE_FONTS;  // defined in .cpp
+
 protected:
     // This allows intercepting the Spacebar and Zoom keys anywhere inside the window frame
     void keyPressEvent(QKeyEvent *event) override;
@@ -110,6 +115,8 @@ private:
     void loadSongQuietly(const QString &fileName);
 
     SongLayoutState loadLayoutPreference(const QString &filePath);
+
+    QString getResourcesPath() const;
 
     AudioTracks m_audioTracks;
     QString m_selectedAudioPath;
