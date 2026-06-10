@@ -370,7 +370,7 @@ void MainWindow::setupToolBar() {
     m_btnFn3->setStyleSheet(buttonStyle);
     m_btnFn4->setStyleSheet(buttonStyle);
 
-    layout->addWidget(m_btnFn1);
+    layout->addWidget(m_btnFn1);  // 🚀 reassignable, multi-function buttons...
     layout->addWidget(m_btnFn2);
     layout->addWidget(m_btnFn3);
     layout->addWidget(m_btnFn4);
