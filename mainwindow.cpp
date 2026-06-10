@@ -110,6 +110,11 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     m_setlistView->setDropIndicatorShown(true);
     m_setlistView->setDragDropMode(QAbstractItemView::InternalMove); // The magic flag...
 
+    connect(m_setlistView, &QTreeView::clicked, this, &MainWindow::handleSetlistItemClicked);
+
+    connect(m_setlistManager, &QStandardItemModel::rowsInserted, this, [this]() { m_isSetlistDirty = true; });
+    connect(m_setlistManager, &QStandardItemModel::rowsRemoved, this, [this]() { m_isSetlistDirty = true; });
+
     // Sequential UI Component Construction
     setupMenus();
     setupLayout(); // Prepares central widgets and splitters
@@ -421,73 +426,21 @@ void MainWindow::onHamburgerClicked() {
     }
 }
 
-/*
-void MainWindow::handleAddSongToSetlist() {
-    // 1. Find out which setlist is currently selected in the tree
-    QModelIndex currentIndex = m_setlistView->currentIndex();
+void MainWindow::handleSetlistItemClicked(const QModelIndex &index) {
+    // Safety check: If the user clicked a top-level Setlist file container, do nothing
+    if (!index.parent().isValid()) return;
 
-    if (!currentIndex.isValid()) {
-        qDebug() << "Please select a setlist first!";
-        return; // No setlist selected, abort.
-    }
+    // Extract the relative path we stored inside the item's custom data role [cite: 284]
+    QString relativePath = index.data(Qt::UserRole + 1).toString();
+    if (relativePath.isEmpty()) return;
 
-    // 2. If the user clicked a song instead of the parent setlist, get the parent
-    QStandardItem *selectedItem = m_setlistManager->itemFromIndex(currentIndex);
-    QStandardItem *parentSetlist = selectedItem->parent() ? selectedItem->parent() : selectedItem;
+    // Reconstruct the full absolute path matching your directory structure
+    QString fullPath = QCoreApplication::applicationDirPath() + "/resources/pieces/" + relativePath;
 
-    // 3. Open a File Dialog to pick a song from your resources/pieces folder
-    QString defaultDir = QCoreApplication::applicationDirPath() + "/resources/pieces";
-    QString newSongPath = QFileDialog::getOpenFileName(this, "Add Song to Setlist", defaultDir, "ChordPro Files (*.cho *.pro *.txt)");
-
-    if (!newSongPath.isEmpty()) {
-        // 4. Create the new child item
-        QFileInfo fileInfo(newSongPath);
-        QStandardItem *newSongItem = new QStandardItem(fileInfo.baseName());
-        newSongItem->setEditable(false);
-
-        // Secretly store the path just like you did in your loadSetFile function [cite: 372]
-        // Note: You might need to convert this to a relative path based on your setup
-        newSongItem->setData(newSongPath, Qt::UserRole + 1); // Assuming FilePathRole is Qt::UserRole + 1
-
-        // 5. Append it to the setlist
-        parentSetlist->appendRow(newSongItem);
-
-        // Expand the tree to show the newly added song
-        m_setlistView->expand(parentSetlist->index());
-    }
+    // Fire your existing parser/loader function!
+    // (Swap 'loadSongQuietly' out for your exact song loading method name if it differs)
+    this->loadSongQuietly(fullPath);
 }
-*/
-/*
-void MainWindow::onHamburgerClicked() {
-    if (m_setlistView->isHidden()) {
-        m_setlistView->show();
-        mainSplitter->setSizes({250, this->width() - 250});
-        m_btnToggleSetlist->setText("× Close Setlist"); // Change button text
-    } else {
-        m_setlistView->hide();
-        m_btnToggleSetlist->setText("≡ Setlist"); // Reset button text
-    }
-}
-*/
-
-/* void MainWindow::handleRemoveSongFromSetlist() {
-    QModelIndex currentIndex = m_setlistView->currentIndex();
-
-    if (!currentIndex.isValid()) {
-        return; // Nothing selected
-    }
-
-    QStandardItem *selectedItem = m_setlistManager->itemFromIndex(currentIndex);
-
-    // Check if it's a child (a song) and not a parent (a setlist)
-    if (selectedItem->parent()) {
-        // Remove the row from the parent
-        selectedItem->parent()->removeRow(selectedItem->row());
-    } else {
-        qDebug() << "Cannot remove a whole setlist from this button!";
-        // Optional: Add logic here if you DO want users to delete whole setlists.
-    }
-}*/
 
 QStringList MainWindow::getAvailableSetlists() {
 
@@ -598,45 +551,9 @@ void MainWindow::handleSaveSetlist() {
     }
 
     file.close();
+    m_isSetlistDirty = false; // The changes are safely on disk now!
     statusBar()->showMessage("Setlist saved successfully!", 3000);
 }
-
-
-/*
-void MainWindow::handleSaveSetlist() {
-    // 1. Get the currently active setlist
-    QModelIndex currentIndex = m_setlistView->currentIndex();
-    if (!currentIndex.isValid()) return;
-
-    QStandardItem *selectedItem = m_setlistManager->itemFromIndex(currentIndex);
-    QStandardItem *parentSetlist = selectedItem->parent() ? selectedItem->parent() : selectedItem;
-
-    // 2. Figure out the file path for this setlist
-    // (You might need to store the .set file path in the parent item's data role when you first load it)
-    QString setlistFileName = parentSetlist->text();
-    QString savePath = QCoreApplication::applicationDirPath() + "/resources/setlists/" + setlistFileName;
-
-    // 3. Open the file for writing
-    QFile file(savePath);
-    if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        QTextStream out(&file);
-
-        // 4. Loop through the children and write their secretly stored paths [cite: 372]
-        for (int i = 0; i < parentSetlist->rowCount(); ++i) {
-            QStandardItem *childSong = parentSetlist->child(i);
-            QString songPath = childSong->data(Qt::UserRole + 1).toString();
-
-            // Write the path wrapped in quotes to match your text file format [cite: 84]
-            out << "\"" << songPath << "\"\n";
-        }
-        file.close();
-        qDebug() << "Setlist saved successfully!";
-        statusBar()->showMessage("Setlist Saved.", 3000);
-    } else {
-        qDebug() << "Failed to save setlist!";
-    }
-}
-*/
 
 void MainWindow::loadStyleSheetFromFile(const QString &filePath) {
     QFile file(filePath);
@@ -755,6 +672,26 @@ void MainWindow::setAppState(AppState state) {
 
 void MainWindow::closeEvent(QCloseEvent *event) {
     QSettings settings;
+
+    if (m_isSetlistDirty) {
+        QMessageBox::StandardButton reply = QMessageBox::question(
+            this,
+            "Unsaved Changes",
+            "Your setlist has unsaved modifications. Would you like to save before exiting?",
+            QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel
+            );
+
+        if (reply == QMessageBox::Yes) {
+            handleSaveSetlist();
+            event->accept(); // Safe to close now
+        } else if (reply == QMessageBox::No) {
+            event->accept(); // User explicitly discards changes, proceed to close
+        } else {
+            event->ignore(); // Cancel button clicked! Halt exit and stay in ChordLab
+        }
+    } else {
+        event->accept(); // Nothing was changed, close immediately and cleanly
+    }
 
     // Save the window size and desktop location
     settings.setValue("window/geometry", saveGeometry());

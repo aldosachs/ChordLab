@@ -91,6 +91,7 @@ private slots:
     void handleAddSongToSetlist();
     void handleRemoveSongFromSetlist();
     void handleSaveSetlist();
+    void handleSetlistItemClicked(const QModelIndex &index);
 
 private:
     void setupMenus();
@@ -154,6 +155,7 @@ private:
     bool m_debugTelemetryEnabled;   // Toggles detailed string parsing dumps to Qt Console
     bool m_debugVerboseLevel;       // Toggles verbose administrative dumps to Qt Console
     bool m_debug_Setlist;
+    bool m_isSetlistDirty = false;
 
     // --- Advanced Sub-Parsing Engines ---
     QString transposeSingleNoteToken(const QString &noteToken, int semitones);

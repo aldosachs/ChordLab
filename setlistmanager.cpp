@@ -27,7 +27,7 @@ QString SetlistManager::getFilePath(const QModelIndex &index) const {
 }
 
 // 2. The flags() function tells the View that the items are draggable
-Qt::ItemFlags SetlistManager::flags(const QModelIndex &index) const {
+/* Qt::ItemFlags SetlistManager::flags(const QModelIndex &index) const {
     if (!index.isValid()) {
         // Allow dropping onto the empty background (root)
         return Qt::ItemIsDropEnabled;
@@ -44,7 +44,28 @@ void SetlistManager::markAsPlayed(const QModelIndex &index) {
         item->setForeground(QBrush(Qt::gray)); // Grey it out!
     }
 }
+*/
+Qt::ItemFlags SetlistManager::flags(const QModelIndex &index) const {
+    if (!index.isValid()) {
+        // Empty background area of the view frame
+        return Qt::NoItemFlags;
+    }
 
+    // Every item should be enabled and selectable
+    Qt::ItemFlags defaultFlags = Qt::ItemIsEnabled | Qt::ItemIsSelectable;
+
+    // LEVEL 0: Top-level item (This is a Setlist container node)
+    if (!index.parent().isValid()) {
+        // Setlists must be drop-enabled so songs can be dropped inside them
+        return defaultFlags | Qt::ItemIsDropEnabled;
+    }
+    // LEVEL 1: Child item (This is an individual Song node)
+    else {
+        // Songs can be dragged to reorder, but explicitly CANNOT accept drops onto themselves!
+        // This single line kills the accidental sub-nesting/child creation bug.
+        return defaultFlags | Qt::ItemIsDragEnabled;
+    }
+}
 void SetlistManager::loadSetFile(const QString &filePath) {
     // Save this path so we know what to reload later!
     m_currentLoadedSetlist = filePath;
