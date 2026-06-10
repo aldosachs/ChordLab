@@ -422,73 +422,6 @@ void MainWindow::onHamburgerClicked() {
     }
 }
 
-/* void MainWindow::onHamburgerClicked() {
-    if (m_setlistView->isHidden()) {
-        m_setlistView->show();
-
-        // 🚀 Allocate remaining width to the left side, and 250px to the right side (Setlist)
-        mainSplitter->setSizes({this->width() - 250, 250});
-        m_btnToggleSetlist->setText("× Close Setlist");
-
-            // Keep the expanding spacer to shove actions to the far right
-            QWidget* spacer = new QWidget();
-            spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-            m_spacerAction = m_settingsToolBar->addWidget(spacer); // Tracks spacer
-
-        // Add the setlist buttons after the spacer so they align on the right edge
-        m_settingsToolBar->addAction(m_actAddSong);
-            m_settingsToolBar->addAction(m_actRemoveSong);
-            m_settingsToolBar->addAction(m_actSaveSetlist);
-    } else {
-        m_setlistView->hide();
-            m_btnToggleSetlist->setText("≡ Setlist");
-
-            // Clean up the spacer and actions smoothly
-            if (m_spacerAction) {
-                m_settingsToolBar->removeAction(m_spacerAction);
-                delete m_spacerAction;
-                m_spacerAction = nullptr;
-        }
-        m_settingsToolBar->removeAction(m_actAddSong);
-            m_settingsToolBar->removeAction(m_actRemoveSong);
-            m_settingsToolBar->removeAction(m_actSaveSetlist);
-    }
-}
-*/
-/* void MainWindow::onHamburgerClicked() {
-    if (m_setlistView->isHidden()) {
-        m_setlistView->show();
-        mainSplitter->setSizes({250, this->width() - 250});
-        m_btnToggleSetlist->setText("× Close Setlist");
-
-        // 1. Create the expanding spacer
-        QWidget* spacer = new QWidget();
-        spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-
-        // 2. Add the spacer FIRST, tracking its action pointer
-        m_spacerAction = m_settingsToolBar->addWidget(spacer);
-
-        // 3. Add your buttons AFTER the spacer so they get pushed right
-        m_settingsToolBar->addAction(m_actAddSong);
-        m_settingsToolBar->addAction(m_actRemoveSong);
-        m_settingsToolBar->addAction(m_actSaveSetlist);
-    } else {
-        m_setlistView->hide();
-        m_btnToggleSetlist->setText("≡ Setlist");
-
-        // Remove the dynamically added elements
-        if (m_spacerAction) {
-            m_settingsToolBar->removeAction(m_spacerAction);
-            delete m_spacerAction; // Clean up the memory
-            m_spacerAction = nullptr;
-        }
-        m_settingsToolBar->removeAction(m_actAddSong);
-        m_settingsToolBar->removeAction(m_actRemoveSong);
-        m_settingsToolBar->removeAction(m_actSaveSetlist);
-    }
-}
-*/
-
 void MainWindow::handleSetlistItemClicked(const QModelIndex &index) {
     // Safety check: If the user clicked a top-level Setlist file container, do nothing
     if (!index.parent().isValid()) return;
@@ -544,10 +477,11 @@ void MainWindow::handleSetlistItemClicked(const QModelIndex &index) {
 void MainWindow::handleSetlistItemDoubleClicked(const QModelIndex &index) {
     // Safety check: Ignore double-clicks on the parent Setlist container
     if (!index.parent().isValid()) return;
-
+    qDebug() << "in handleSetlistItemDoubleClicked";
     // 1. Close the setlist gracefully by simulating a hamburger click
     // (Or manually hiding the view if you prefer to bypass the hamburger toggle logic)
     if (!m_setlistView->isHidden()) {
+        qDebug() << &"in handleSetlistItemDoubleClicked --> m_setlistView->isHidden = false";
         m_setlistView->hide();
         m_btnToggleSetlist->setText("≡ Setlist");
 
