@@ -279,8 +279,8 @@ void MainWindow::setupMenus() {
 }
 
 void MainWindow::setupToolBar() {
-    QToolBar *settingsToolBar = addToolBar("Critical Settings");
-//    settingsToolBar->setObjectName("criticalSettingsToolBar");
+//    QToolBar *settingsToolBar = addToolBar("Critical Settings");
+    m_settingsToolBar->setObjectName("criticalSettingsToolBar");
 
     m_settingsToolBar = addToolBar("Critical Settings");
     m_settingsToolBar->setObjectName("criticalSettingsToolBar");
@@ -390,7 +390,7 @@ void MainWindow::setupToolBar() {
     layout->addWidget(btnReset);
     layout->addWidget(m_btnTransposeUp);
 
-//    settingsToolBar->addWidget(container);
+//    m_settingsToolBar->addWidget(container); moved down to bottom - redundant now...
 
     m_viewToggleBtn = new QPushButton("ChordPro-CIL");
     m_viewToggleBtn->setStyleSheet("QPushButton { background-color: #0047AB; color: white; }");
@@ -400,6 +400,8 @@ void MainWindow::setupToolBar() {
     connect(m_btnTransposeUp, &QPushButton::clicked, this, [=](){ shiftTransposition(1); });
     connect(m_btnTransposeDown, &QPushButton::clicked, this, [=](){ shiftTransposition(-1); });
     connect(m_btnTheme, &QPushButton::clicked, this, &MainWindow::toggleTheme);
+
+    m_settingsToolBar->addWidget(container);
 }
 
 void MainWindow::onHamburgerClicked() {
