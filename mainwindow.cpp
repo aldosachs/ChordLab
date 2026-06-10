@@ -354,12 +354,12 @@ void MainWindow::setupToolBar() {
     QHBoxLayout *layout = new QHBoxLayout(container);
     layout->setContentsMargins(5, 2, 5, 2);
     layout->setSpacing(10);
-
-    QString style = "QPushButton { background-color: #004060; color: white; padding: 5px; min-width: 80px; }";
+                                                                                                // was 80px
+    QString style = "QPushButton { background-color: #004060; color: white; padding: 5px; min-width: 60px; }";
     m_btnTransposeUp->setStyleSheet(style);
     m_btnTransposeDown->setStyleSheet(style);
-
-    QString buttonStyle = "QPushButton { background-color: #555555; color: white; border-radius: 4px; padding: 5px; min-width: 65px; font-weight: bold; }";
+                                                                                                                        // was 65px
+    QString buttonStyle = "QPushButton { background-color: #555555; color: white; border-radius: 4px; padding: 5px; min-width: 40px; font-weight: bold; }";
     m_btnFn1 = new QPushButton("Fn-1");
     m_btnFn2 = new QPushButton("Fn-2");
     m_btnFn3 = new QPushButton("Fn-3");
@@ -375,7 +375,7 @@ void MainWindow::setupToolBar() {
     layout->addWidget(m_btnFn3);
     layout->addWidget(m_btnFn4);
                                                                                                                                                          // was 50px
-    QString audioBtnStyle = "QPushButton { background-color: #2D2D2D; color: #777777; border: 1px solid #444; border-radius: 4px; padding: 5px; min-width: 20px; font-weight: bold; }"
+    QString audioBtnStyle = "QPushButton { background-color: #2D2D2D; color: #777777; border: 1px solid #444; border-radius: 4px; padding: 5px; min-width: 30px; font-weight: bold; }"
                             "QPushButton:enabled { color: #E0E0E0; border-color: #555; }"
                             "QPushButton:checked { background-color: #006644; color: white; border-color: #00FF88; }";
     m_btnTrackFull = new QPushButton("Full");
