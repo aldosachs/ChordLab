@@ -40,7 +40,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 
     connect(m_mediaPlayer, &QMediaPlayer::playbackStateChanged, this, &MainWindow::handlePlaybackStateChanged);
 
-    setWindowTitle("ChordLab V001A");
+    setWindowTitle("ChordLab V002A");
     QIcon icon(":/resources/icons/CL-icon.ico");
     setWindowIcon(icon);
 
@@ -245,7 +245,7 @@ void MainWindow::setupMenus() {
 
     helpMenu->addMenu("&Help");
     QAction *aboutAction = helpMenu->addAction(QIcon(":/resources/icons/about.png"), tr("About"), this, [this]() {
-        QMessageBox::about(this, "About QPlayer", "ChordLab\nVersion 1a\n15-Jun-2026...\nA chordpro multimedia app \nfor musicians.");
+        QMessageBox::about(this, "About QPlayer", "ChordLab\nVersion 2a\n10-Jun-2026...\nA chordpro multimedia app \nfor musicians.");
     });
 
     QSettings settings;
@@ -1959,7 +1959,6 @@ MainWindow::SongLayoutState MainWindow::loadLayoutPreference(const QString &file
     settings.endGroup();
     return layout;
 }
-
 
 void MainWindow::saveSongLayoutPreference(const QString &filePath) {
     if (filePath.isEmpty()) return;

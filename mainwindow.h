@@ -149,6 +149,11 @@ private:
     bool m_debugVerboseLevel;       // Toggles verbose administrative dumps to Qt Console
     bool m_debug_Setlist;
 
+    QToolBar *m_settingsToolBar; // Promote from local variable to member
+    QAction *m_actAddSong;
+    QAction *m_actRemoveSong;
+    QAction *m_actSaveSetlist;
+
     // --- Advanced Sub-Parsing Engines ---
     QString transposeSingleNoteToken(const QString &noteToken, int semitones);
     QString transposeChord(const QString &chordText, int semitones);
