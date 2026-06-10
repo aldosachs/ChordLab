@@ -7,9 +7,6 @@
 #include <QStandardItem>
 #include <QAbstractListModel>
 
-/* SetlistManager::SetlistManager(QObject *parent) : QAbstractListModel(parent) {
-    // Initialization code (if any)
-}*/
 SetlistManager::SetlistManager(QObject *parent) : QStandardItemModel(parent) {
     // Initialization code (if any)
 }
@@ -17,7 +14,7 @@ SetlistManager::SetlistManager(QObject *parent) : QStandardItemModel(parent) {
 bool SetlistManager::dropMimeData(const QMimeData *data, Qt::DropAction action, int row, int column, const QModelIndex &parent) {
     if (action == Qt::IgnoreAction) return true;
 
-    // Logic to update your m_items vector:
+    // Logic to update:
     // 1. Capture the item currently at the drag source
     // 2. Remove it from the old position
     // 3. Insert it at the new 'row' position
@@ -62,62 +59,6 @@ void SetlistManager::markAsPlayed(const QModelIndex &index) {
     }
 }
 
-/*
-void SetlistManager::loadSetFile(const QString &filePath) {
-
-    beginResetModel(); // Tell the view the data is about to change
-    m_items.clear();
-
-    QFile file(filePath);
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        qDebug() << "Could not open setlist:" << filePath;
-        return;
-    }
-
-    // 1. Create the Setlist (Parent) Node
-    QFileInfo fileInfo(filePath);
-    QStandardItem *parentItem = new QStandardItem(fileInfo.fileName()); // e.g., "Monday Songbook 1.set"
-    parentItem->setEditable(false);
-
-    // Make the parent visually distinct (bold)
-    QFont parentFont = parentItem->font();
-    parentFont.setBold(true);
-    parentItem->setFont(parentFont);
-
-    // 2. Read the file and add Songs (Child Nodes)
-    QTextStream in(&file);
-    while (!in.atEnd()) {
-        QString line = in.readLine().trimmed();
-
-        // Skip headers/comments and empty lines
-        if (line.startsWith("##") || line.isEmpty()) continue;
-
-        // Clean up any quotes the user might have typed
-        line.remove('"');
-
-        // 3. Create the Song (Child) Node
-        // Extract just the filename from the path for the UI (split at slashes)
-        // e.g., "MSB 1\MSB 1.1 Yellow submarine" -> "MSB 1.1 Yellow submarine"
-        QString displayTitle = line.split(QRegularExpression("[/\\\\]")).last();
-        if (displayTitle.isEmpty()) displayTitle = line; // Fallback just in case
-
-        QStandardItem *childItem = new QStandardItem(displayTitle);
-        childItem->setEditable(false);
-
-        // 🤫 Secretly store the FULL relative path inside the item so ChordLab can open it
-        childItem->setData(line, FilePathRole);
-        qDebug() << "-->" << line;
-        // 4. Attach the song underneath the setlist parent
-        parentItem->appendRow(childItem);
-    }
-
-    // 5. Finally, attach the fully populated setlist to the main model
-    this->appendRow(parentItem);
-
-    file.close();
-    endResetModel();
-} */
-
 void SetlistManager::loadSetFile(const QString &filePath) {
     // 1. CLEAR the model, not an external list
     beginResetModel();
@@ -137,7 +78,7 @@ void SetlistManager::loadSetFile(const QString &filePath) {
     QStandardItem *parentItem = new QStandardItem(fileInfo.fileName());
     parentItem->setEditable(false);
 
-// ... [Your existing logic to parse lines and create childItem] ...
+    // parse lines
     // Make the parent visually distinct (bold)
     QFont parentFont = parentItem->font();
     parentFont.setBold(true);
@@ -163,13 +104,12 @@ void SetlistManager::loadSetFile(const QString &filePath) {
         QStandardItem *childItem = new QStandardItem(displayTitle);
         childItem->setEditable(false);
 
-        // 🤫 Secretly store the FULL relative path inside the item so ChordLab can open it
+        // store the FULL relative path inside the item so ChordLab can open it
         childItem->setData(line, FilePathRole);
         qDebug() << "-->" << line;
         // 4. Attach the song underneath the setlist parent
         parentItem->appendRow(childItem);
     }
-// existing...
 
     this->appendRow(parentItem); // Add the parent to the cleared model
     file.close();
@@ -195,33 +135,10 @@ bool SetlistManager::moveRows(const QModelIndex &sourceParent, int sourceRow, in
     return this->moveRow(sourceParent, sourceRow, destinationParent, destinationChild);
 }
 
-//void SetlistManager::createBackup() {
-//    m_originalItems = m_items; // QList assignment is deep, so this is safe!
-//}
-/*
- * 3. createBackup / revertToOriginal (The "Undo" logic)
-
-Since you are using a tree structure now, a simple list assignment won't work for backups. The cleanest way to implement "revert" is to re-read the original file or create a deep copy of the QStandardItem tree.
-
-Recommendation: Keep it simple. If the user wants to "revert," just call loadSetFile(currentFilePath) again, which will wipe the model and reload it fresh from the disk.
-Why this is better
-
-By removing m_items, you move from an imperative style (where you constantly tell the model "here is the list, update yourself") to a declarative style (where you build a tree structure and let the Model/View architecture handle the rendering and storage).
-
-Immediate Actions:
-
-    Search your header file (setlistmanager.h) and delete the declaration of m_items and m_originalItems.
-
-    Delete the SetItem struct if it is no longer used elsewhere.
-
-    Replace all m_items references in your .cpp file with this-> methods (like this->rowCount(), this->item(row), etc.).
-
-This will fix the "ghost data" issue where your logic was trying to update a list that the view was completely ignoring!
- */
 void SetlistManager::revertToOriginal() {
-//    beginResetModel(); // Tells the View to refresh entirely
-//    loadSetFile(currentFilePath); // add and use filepath variable to this function???
-//    endResetModel();
+    //    beginResetModel(); // Tells the View to refresh entirely
+    //    loadSetFile(currentFilePath); // add and use filepath variable to this function???
+    //    endResetModel();
 }
 
 // Allow the list to accept movement (reordering)
@@ -235,112 +152,5 @@ Qt::DropActions SetlistManager::supportedDragActions() const {
 }
 
 
-/* void SetlistManager::loadSetFile(const QString &filePath) {
-    QFile file(filePath);
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        qDebug() << "Could not open setlist:" << filePath;
-        return;
-    }
 
-    // 1. Create the Parent Item (The Setlist File)
-    QFileInfo fileInfo(filePath);
-    QStandardItem *parentItem = new QStandardItem(fileInfo.fileName()); // e.g., "Monday Songbook 1.set"
-    parentItem->setEditable(false);
-    // Make the parent look a bit different (e.g., bold)
-    QFont parentFont = parentItem->font();
-    parentFont.setBold(true);
-    parentItem->setFont(parentFont);
 
-    QTextStream in(&file);
-    while (!in.atEnd()) {
-        QString line = in.readLine().trimmed();
-
-        // Skip header lines or empty lines
-        if (line.startsWith("##") || line.isEmpty()) continue;
-
-        // Clean up any quotes the user might have typed
-        line.remove('"');
-
-        // 2. Create the Child Item (The Song)
-        // Extract just the song name for the UI by splitting at slashes
-        QString displayTitle = line.split(QRegularExpression("[/\\\\]")).last();
-        if (displayTitle.isEmpty()) displayTitle = line; // Fallback
-
-        QStandardItem *childItem = new QStandardItem(displayTitle);
-        childItem->setEditable(false);
-
-        // 🤫 Secretly store the actual relative path inside the item!
-        childItem->setData(line, FilePathRole);
-
-        // 3. Append the Song underneath the Setlist
-        parentItem->appendRow(childItem);
-    }
-
-    // 4. Append the fully loaded Setlist to the Model
-    this->appendRow(parentItem);
-
-    file.close();
-}
-/*
-/* void SetlistManager::loadSetFile(const QString &filePath) {
-    QFile file(filePath);
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        qDebug() << "Could not open setlist:" << filePath;
-        return;
-    }
-
-    m_items.clear(); // Clear existing
-    QTextStream in(&file);
-
-    while (!in.atEnd()) {
-        QString line = in.readLine().trimmed();
-        // Skip header lines or empty lines
-        if (line.startsWith("##") || line.isEmpty()) continue;
-
-        // Assuming your .set format is: "Path\Title [Metadata]"
-        SetItem item;
-        item.title = line; // Adjust this parsing logic to match your .set format exactly
-        item.filePath = line;
-
-        m_items.append(item);
-    }
-
-    // Crucial: Tell the view to refresh
-    beginResetModel();
-    endResetModel();
-
-    file.close();
-}
-
-void SetlistManager::setSetlists(const QStringList &files) {
-    // 1. Notify the View that the model is about to change
-    beginResetModel();
-
-    m_items.clear();
-    for (const QString &fileName : files) {
-        SetItem item;
-        item.title = fileName; // Use the filename as the display title
-        item.filePath = ":/resources/setlists/" + fileName;
-        m_items.append(item);
-    }
-
-    // 2. Notify the View that the change is finished
-    endResetModel();
-}
-
-bool SetlistManager::moveRows(const QModelIndex &parent, int sourceRow, int count,
-                              const QModelIndex &destinationParent, int destinationChild) {
-    // 1. Tell Qt we are about to change the model layout
-    beginMoveRows(parent, sourceRow, sourceRow + count - 1, destinationParent, destinationChild);
-
-    // 2. Move the actual data in our m_items list
-    for (int i = 0; i < count; ++i) {
-        SetItem item = m_items.takeAt(sourceRow);
-        m_items.insert(destinationChild, item);
-    }
-
-    // 3. Finalize the move
-    endMoveRows();
-    return true;
-}
-*/

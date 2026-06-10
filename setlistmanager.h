@@ -21,7 +21,6 @@ public:
     explicit SetlistManager(QObject *parent = nullptr);
 
     // Standard Model Overrides
-    int rowCount(const QModelIndex &parent = QModelIndex()) const override { return m_items.size(); }
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
     Qt::ItemFlags flags(const QModelIndex &index) const override;
 
@@ -48,8 +47,8 @@ public:
     void setSetlists(const QStringList &files);
 
 private:
-    QList<SetItem> m_items;
-    QList<SetItem> m_originalItems; // Backup for undo/revert
+
+//    QList<SetItem> m_originalItems; // Backup for undo/revert
 };
 
 #endif // SETLISTMANAGER_H

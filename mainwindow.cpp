@@ -1849,7 +1849,7 @@ MainWindow::SongLayoutState MainWindow::loadLayoutPreference(const QString &file
         layout.columnCount = settings.value("columns").toInt();
         layout.fontSize = settings.value("fontSize").toInt();
 
-        // Optionally load capo/transpose data here too
+        // Can load capo/transpose data here too
     }
 
     settings.endGroup();
