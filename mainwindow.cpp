@@ -1708,14 +1708,16 @@ void MainWindow::keyPressEvent(QKeyEvent *event) {
                 event->accept(); return;
             }
             // Column override — Ctrl+Right/Left
-            if (key == Qt::Key_Right) {
+            if (key == Qt::Key_Right || Qt::Key_2) {
+                qDebug() << "In column override right";
                 int current = (m_columnOverride > 0) ? m_columnOverride
                                                      : m_currentSongMetrics.targetColumns;
                 if (current < 4) m_columnOverride = current + 1;
                 parseChordProToGrid(m_rawSongContent);
                 event->accept(); return;
             }
-            if (key == Qt::Key_Left) {
+            if (key == Qt::Key_Left || Qt::Key_2) {
+                qDebug() << "In column override left";
                 if (m_columnOverride > 1) m_columnOverride--;
                 else m_columnOverride = 0;  // back to auto
                 parseChordProToGrid(m_rawSongContent);
