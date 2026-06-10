@@ -300,6 +300,10 @@ void MainWindow::setupToolBar() {
     m_btnRemoveSong->setStyleSheet(setlistBtnStyle);
     m_btnSaveSetlist->setStyleSheet(setlistBtnStyle);
 
+    m_btnAddSong->setFixedWidth(70);  // style, size & location checking...
+    m_btnRemoveSong->setFixedWidth(70);
+    m_btnSaveSetlist->setFixedWidth(70);
+
     slLayout->addWidget(m_btnAddSong);
     slLayout->addWidget(m_btnRemoveSong);
     slLayout->addWidget(m_btnSaveSetlist);
