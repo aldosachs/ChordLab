@@ -239,7 +239,7 @@ void MainWindow::setupMenus() {
 
     helpMenu->addMenu("&Help");
     QAction *aboutAction = helpMenu->addAction(QIcon(":/resources/icons/about.png"), tr("About"), this, [this]() {
-        QMessageBox::about(this, "About QPlayer", "ChordLab\nVersion 2a\n10-Jun-2026...\nA chordpro multimedia app \nfor musicians.");
+        QMessageBox::about(this, "About QPlayer", "ChordLab\nVersion 0.2beta\n11-Jun-2026...\nA chordpro multimedia app \nfor musicians.");
     });
 
     QSettings settings;
@@ -412,7 +412,7 @@ void MainWindow::onHamburgerClicked() {
     if (m_setlistView->isHidden()) {
         m_setlistView->show();
         mainSplitter->setSizes({250, this->width() - 250});
-        m_btnToggleSetlist->setText("× Close Sets");
+        m_btnToggleSetlist->setText("× Hide");
         m_btnAddSong->setEnabled(true);
         m_btnRemoveSong->setEnabled(true);
         m_btnSaveSetlist->setEnabled(true);
