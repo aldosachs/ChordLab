@@ -1447,15 +1447,19 @@ void MainWindow::parseChordProToGrid(const QString &rawInput) {
 
             if (!chordLine.trimmed().isEmpty()) {
                 lineBlockHtml += QString("<p style='margin: 0; padding: 0;' class='chord-line'>%1</p>").arg(chordLine);
-            } else {
-                lineBlockHtml += "<p style='margin: 0; padding: 0;' class='chord-line'>&nbsp;</p>";
             }
+//            else {     // No else — if there are no chords, don't waste the vertical space!
+//                lineBlockHtml += "<p style='margin: 0; padding: 0;' class='chord-line'>&nbsp;</p>";
+//            }
 
             if (showDiagnosticCheckline && !chordLine.trimmed().isEmpty()) {
                 lineBlockHtml += QString("<p style='margin: 0; padding: 0; color: #555555; font-size: 8pt;'>%1</p>").arg(dashLine);
             }
 
-            lineBlockHtml += QString("<p style='margin: 0 0 8px 0; padding: 0;' class='lyric-text'>%1</p>").arg(lyricLine.isEmpty() ? "&nbsp;" : lyricLine);
+            lineBlockHtml += QString("<p style='margin: 0 0 3px 0; padding: 0;' class='lyric-text'>%1</p>").arg(lyricLine.isEmpty() ? "&nbsp;" : lyricLine);
+            // This line added 8px below every lyric line --> relaxed versus tight spacing:
+//            "<p style='margin: 0 0 8px 0; padding: 0;' class='lyric-text'>"
+//            "<p style='margin: 0 0 3px 0; padding: 0;' class='lyric-text'>"
             lineBlockHtml += "</div>";
             currentSectionHtml += lineBlockHtml;
         }
@@ -1512,9 +1516,14 @@ void MainWindow::parseChordProToGrid(const QString &rawInput) {
 
 void MainWindow::updatePlayAlongLayoutDensity() {
     double baseFontSize       = 10.0 + (m_zoomCoarse * 2.0) + (m_zoomFine * 0.5);
-    double activeLineHeight   = 1.10 + (m_zoomCoarse * 0.03) + (m_zoomFine * 0.008);
-    int sectionMarginBottom   = 8    + (m_zoomCoarse * 2)    + m_zoomFine;
-    int headerMarginBottom    = 3    + (m_zoomCoarse / 2);
+    // can be a User-pref, or a song by song judgement?? ==> relax or tight line spacing
+//    double activeLineHeight   = 1.10 + (m_zoomCoarse * 0.03) + (m_zoomFine * 0.008);
+//    int sectionMarginBottom   = 8    + (m_zoomCoarse * 2)    + m_zoomFine;
+//    int headerMarginBottom    = 3    + (m_zoomCoarse / 2);
+    // Tighter — closer to SBPro density
+    double activeLineHeight  = 1.05 + (m_zoomCoarse * 0.03) + (m_zoomFine * 0.008);
+    int sectionMarginBottom  = 5    + (m_zoomCoarse * 2)    + m_zoomFine;
+    int headerMarginBottom   = 2    + (m_zoomCoarse / 2);
 
     parsedEditor->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     parsedEditor->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
@@ -1540,9 +1549,10 @@ void MainWindow::updatePlayAlongLayoutDensity() {
     }
 
     QString baseHtml = "<html><head><style>"
-                       "body { background-color: " + bgColor + "; color: " + txtColor + "; margin: 12px 18px; padding: 0;"
+                       "body { background-color: " + bgColor + "; color: " + txtColor + "; margin: 8px 10px; padding: 0;"
+//                        "body { background-color: " + bgColor + "; color: " + txtColor + "; margin: 12px 18px; padding: 0;"
                                                             "  font-family: '" + m_currentFont + "', 'Courier New', monospace; }"
-                                         "h1 { font-size: " + QString::number(baseFontSize + 4, 'f', 1) + "pt; font-weight: bold; font-family: sans-serif; margin: 0 0 4px 0; }"
+                                    "h1 { font-size: " + QString::number(baseFontSize + 4, 'f', 1) + "pt; font-weight: bold; font-family: sans-serif; margin: 0 0 4px 0; }"
                                                                      ".section-heading {"
                                                                      "  font-size: " + QString::number(baseFontSize + 1, 'f', 1) + "pt;"
                                                                      "  color: " + headColor + ";"
@@ -1564,7 +1574,8 @@ void MainWindow::updatePlayAlongLayoutDensity() {
                                                                  "  color: " + txtColor + ";"
                                     "  font-family: '" + m_currentFont + "', 'Courier New', monospace;"
                                          "  font-size: " + QString::number(baseFontSize, 'f', 1) + "pt;"
-                                                                 "  margin: 0 0 2px 0; padding: 0;"
+                                                                 "  margin: 0; padding: 0;"           // tighter lyric margin
+//                                                                 "  margin: 0 0 2px 0; padding: 0;"  // relaxed lyric margin
                                                                  "}"
                                                                  "</style></head><body>"
                                                                  "<div class='song-canvas' style='line-height: " + QString::number(activeLineHeight, 'f', 3) + ";'>"
