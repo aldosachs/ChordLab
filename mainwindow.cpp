@@ -773,6 +773,9 @@ void MainWindow::setAppState(AppState state) {
         originalEditor->show();
         parsedEditor->show();
         parsedEditor->setHtml(runInitialParse(m_rawSongContent));
+
+        parsedEditor->setFocusPolicy(Qt::StrongFocus);  // ← restore for editing
+
         break;
 
     case PlayAlong:
@@ -787,6 +790,8 @@ void MainWindow::setAppState(AppState state) {
 
         // Trigger multi-column generation specifically for performance tracking
         parseChordProToGrid(m_rawSongContent);
+        parsedEditor->setFocusPolicy(Qt::NoFocus);  // ← add this
+        this->setFocus();                            // ← ensure MainWindow has focus
         break;
     }
 }
@@ -1463,15 +1468,19 @@ void MainWindow::parseChordProToGrid(const QString &rawInput) {
 
     int numCols = (m_columnOverride > 0) ? m_columnOverride
                                          : m_currentSongMetrics.targetColumns;
-    if (m_zoomCoarse == 1 && numCols > 2) numCols = 2;
-    else if (m_zoomCoarse >= 2) numCols = 1;
+    if (m_columnOverride == 0) {
+        if (m_zoomCoarse == 1 && numCols > 2) numCols = 2;
+        else if (m_zoomCoarse >= 2) numCols = 1;
+    }
     if (numCols < 1) numCols = 1;
 
-    // establish dynamic column generation limits
-/*    int numCols = m_currentSongMetrics.targetColumns;
-    if (m_zoomScaleLevel == 1 && numCols > 2) numCols = 2;
-    else if (m_zoomScaleLevel >= 2) numCols = 1;
-    if (numCols < 1) numCols = 1; */
+    qDebug() << "Column decision: override=" << m_columnOverride
+             << "radar=" << m_currentSongMetrics.targetColumns
+             << "final=" << numCols;
+
+//    if (m_zoomCoarse == 1 && numCols > 2) numCols = 2;
+//    else if (m_zoomCoarse >= 2) numCols = 1;
+//    if (numCols < 1) numCols = 1;
 
     QString tableGridHtml = "";
     if (numCols <= 1 || gatheredSections.isEmpty()) {
@@ -1669,6 +1678,11 @@ void MainWindow::handlePlaybackStateChanged(QMediaPlayer::PlaybackState state) {
 }
 
 void MainWindow::keyPressEvent(QKeyEvent *event) {
+
+    qDebug() << "keyPressEvent key=" << event->key()
+    << "modifiers=" << event->modifiers()
+    << "state=" << currentState;
+
     if (currentState == PlayAlong) {
         bool ctrl  = event->modifiers() & Qt::ControlModifier;
         bool shift = event->modifiers() & Qt::ShiftModifier;
@@ -1708,7 +1722,7 @@ void MainWindow::keyPressEvent(QKeyEvent *event) {
                 event->accept(); return;
             }
             // Column override — Ctrl+Right/Left
-            if (key == Qt::Key_Right || Qt::Key_2) {
+            if (key == Qt::Key_Right) {
                 qDebug() << "In column override right";
                 int current = (m_columnOverride > 0) ? m_columnOverride
                                                      : m_currentSongMetrics.targetColumns;
@@ -1716,7 +1730,7 @@ void MainWindow::keyPressEvent(QKeyEvent *event) {
                 parseChordProToGrid(m_rawSongContent);
                 event->accept(); return;
             }
-            if (key == Qt::Key_Left || Qt::Key_2) {
+            if (key == Qt::Key_Left) {
                 qDebug() << "In column override left";
                 if (m_columnOverride > 1) m_columnOverride--;
                 else m_columnOverride = 0;  // back to auto
