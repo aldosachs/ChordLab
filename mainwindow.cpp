@@ -1968,10 +1968,10 @@ QString MainWindow::transposeSingleNoteToken(const QString &noteToken, int semit
 //    if (cleanNote.length() > 1 && (cleanNote[1] == '#' || cleanNote[1] == 'B')) {
 //        baseNote = cleanNote.left(2);
 //    }
+    // FLAT CHORDS to transpose >>> Change here...
     if (noteToken.length() > 1 && (noteToken[1] == '#' || noteToken[1] == 'b')) {
         baseNote = cleanNote.left(1) + noteToken[1];  // e.g. "Bb", "Eb", "C#"
     }
-// Change here...
 
     // remove modifiers from the ORIGINAL string so 'm7' doesn't become 'M7'
     QString trailingModifiers = noteToken.mid(baseNote.length());
