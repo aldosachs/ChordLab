@@ -32,10 +32,12 @@ static const QStringList NOTE_SCALE_SHARPS = {"C", "C#", "D", "D#", "E", "F", "F
 static const QStringList NOTE_SCALE_FLATS  = {"C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"};
 
 const QStringList MainWindow::AVAILABLE_FONTS = {
+    "Cascadia Mono",
     "Courier Prime",
+    "JetBrainsMono",
     "Libertinus Mono",
     "Red Hat Mono",
-    "Cascadia Mono"
+    "SixtyfourConvergence"
 };
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
@@ -48,7 +50,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     connect(m_mediaPlayer, &QMediaPlayer::playbackStateChanged, this, &MainWindow::handlePlaybackStateChanged);
 
     setWindowTitle("ChordLab V0.3beta");
-    QIcon icon(":/resources/icons/CL-Music-CL.png");
+    QIcon icon(":/resources/icons/CL-V003A.ico");
     setWindowIcon(icon);
 
     QSettings::setDefaultFormat(QSettings::IniFormat);

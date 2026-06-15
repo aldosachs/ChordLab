@@ -5,9 +5,6 @@
         <file>resources/icons/stop.png</file>
         <file>resources/icons/fastfwdtoend.png</file>
         <file>resources/icons/rewindtostart.png</file>
-        <file>resources/icons/add_sg.png</file>
-        <file>resources/icons/remove_sg.png</file>
-        <file>resources/icons/save_sl.png</file>
         <file>resources/styles/Adaptic(default).qss</file>
         <file>resources/styles/Darkeum(dark).qss</file>
         <file>resources/styles/Dtor(light).qss</file>
@@ -16,14 +13,19 @@
         <file>resources/styles/Irrorater(colourful).qss</file>
         <file>resources/setlists/Monday Songbook 1.set</file>
         <file>resources/setlists/Monday Songbook 2.set</file>
-        <file>resources/icons/CL-Music-V0.2.ico</file>
-        <file>resources/icons/CL-Music-CL.png</file>
-    	<file>resources/fonts/CourierPrime-Regular.ttf</file>
-    	<file>resources/fonts/CourierPrime-Bold.ttf</file>
-    	<file>resources/fonts/LibertinusMono-Regular.ttf</file>
-    	<file>resources/fonts/RedHatMono-Regular.ttf</file>
-   	 <file>resources/fonts/RedHatMono-Bold.ttf</file>
-    	<file>resources/fonts/CascadiaMono-Regular.ttf</file>
-    	<file>resources/fonts/CascadiaMono-Bold.ttf</file>
+        <file>resources/fonts/CourierPrime-Regular.ttf</file>
+        <file>resources/fonts/CourierPrime-Bold.ttf</file>
+        <file>resources/fonts/LibertinusMono-Regular.ttf</file>
+        <file>resources/fonts/RedHatMono-Regular.ttf</file>
+        <file>resources/fonts/RedHatMono-Bold.ttf</file>
+        <file>resources/fonts/CascadiaMono-Regular.ttf</file>
+        <file>resources/fonts/CascadiaMono-Bold.ttf</file>
+        <file>resources/icons/CL-V003A.ico</file>
+        <file>resources/icons/add_sg.png</file>
+        <file>resources/icons/remove_sg.png</file>
+        <file>resources/icons/save_sl.png</file>
+        <file>resources/fonts/JetBrainsMono-Bold.ttf</file>
+        <file>resources/fonts/JetBrainsMono-Regular.ttf</file>
+        <file>resources/fonts/SixtyfourConvergence-Regular-VariableFont_BLED,SCAN,XELA,YELA.ttf</file>
     </qresource>
 </RCC>
