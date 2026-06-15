@@ -1261,6 +1261,7 @@ void MainWindow::parseChordProToGrid(const QString &rawInput) {
             inGridBlock = true;
             if (!insideSectionBlock) {
                 insideSectionBlock = true;  // ← add this
+                qDebug() << "New sog GRID insideSectionBlock = true";
             }
             currentSectionHtml += "<div class='song-section'><div style='font-family: Consolas; white-space: pre; background: rgba(136, 0, 136, 0.1); padding: 5px; border-radius: 4px;'>";
             continue;
@@ -1274,6 +1275,7 @@ void MainWindow::parseChordProToGrid(const QString &rawInput) {
             inTabBlock = true;
             if (!insideSectionBlock) {
                 insideSectionBlock = true;  // ← add this
+                qDebug() << "New sot TAB insideSectionBlock = true";
             }
             currentSectionHtml += "<div class='song-section'><div style='font-family: Consolas; white-space: pre; background: rgba(0, 136, 0, 0.1); padding: 5px; border-radius: 4px;'>";
             continue;
@@ -1779,8 +1781,6 @@ void MainWindow::analyzeChordProMetaData(const QString &rawInput) {
     }
 
     // Estimate character width in pixels for Consolas/Courier based on current zoom scale
-//    int baseFontSize = 10 + (m_zoomScaleLevel * 2);
-//    double approxCharWidthPixels = baseFontSize * 0.62;
     double baseFontSize = 10.0 + (m_zoomCoarse * 2.0) + (m_zoomFine * 0.5);
     double approxCharWidthPixels = baseFontSize * 0.62;
 
@@ -1965,9 +1965,13 @@ QString MainWindow::transposeSingleNoteToken(const QString &noteToken, int semit
     QString cleanNote = noteToken.toUpper();
 
     QString baseNote = cleanNote.left(1);
-    if (cleanNote.length() > 1 && (cleanNote[1] == '#' || cleanNote[1] == 'B')) {
-        baseNote = cleanNote.left(2);
+//    if (cleanNote.length() > 1 && (cleanNote[1] == '#' || cleanNote[1] == 'B')) {
+//        baseNote = cleanNote.left(2);
+//    }
+    if (noteToken.length() > 1 && (noteToken[1] == '#' || noteToken[1] == 'b')) {
+        baseNote = cleanNote.left(1) + noteToken[1];  // e.g. "Bb", "Eb", "C#"
     }
+// Change here...
 
     // remove modifiers from the ORIGINAL string so 'm7' doesn't become 'M7'
     QString trailingModifiers = noteToken.mid(baseNote.length());
