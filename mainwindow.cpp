@@ -1597,77 +1597,6 @@ void MainWindow::updatePlayAlongLayoutDensity() {
         );
 }
 
-/* void MainWindow::updatePlayAlongLayoutDensity() {
-    // Standardizing baseline scale settings (Dropped to 10pt base down from 12pt to fix overflow issues)
-    int baseFontSize = 10 + (m_zoomScaleLevel * 2);
-    int headerMarginBottom = 4 + m_zoomScaleLevel;
-    int sectionMarginBottom = 12 + (m_zoomScaleLevel * 3);
-    double activeLineHeight = 1.15 + (m_zoomScaleLevel * 0.04);
-    bool hasPlayModeStyleOverride = true;
-
-    parsedEditor->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-    parsedEditor->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-
-    // future User preference override might go here...
-    QString bgColor = (m_currentTheme == Dark) ? "#20204f" : "#e0F0ff";
-    QString txtColor = (m_currentTheme == Dark) ? "#E0E0E0" : "#222222";
-    QString chordColor = (m_currentTheme == Dark) ? "#ffb060" : "#c22222";
-
-    // extract Metadata for the Play Along Header safely
-    QRegularExpression titleRx(R"(\{(?:title|t):\s*([^}]*)\})", QRegularExpression::CaseInsensitiveOption);
-    QRegularExpression artistRx(R"(\{(?:artist|st|subtitle):\s*([^}]*)\})", QRegularExpression::CaseInsensitiveOption);
-    QString title = titleRx.match(m_rawSongContent).captured(1).trimmed();
-    QString artist = artistRx.match(m_rawSongContent).captured(1).trimmed();
-
-    QString headerHtml = "";
-    if (!title.isEmpty()) {
-        headerHtml += "<div style='text-align: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid " + chordColor + ";'>";
-        headerHtml += "<h1 style='margin: 0; font-size: " + QString::number(baseFontSize + 8) + "pt; color: " + txtColor + ";'>" + title + "</h1>";
-        if (!artist.isEmpty()) {
-            headerHtml += "<h3 style='margin: 5px 0 0 0; font-size: " + QString::number(baseFontSize + 2) + "pt; color: #777; font-weight: normal;'>" + artist + "</h3>";
-        }
-        headerHtml += "</div>";
-    }
-
-    // Now build the base HTML
-    QString baseHtml = "<html><head><style>"
-                       "body { background-color: " + bgColor + "; color: " + txtColor + "; margin: 15px; padding: 0; }"
-                       "h1 { font-size: " + QString::number(baseFontSize + 4) + "pt; font-weight: bold; font-family: sans-serif; margin: 0 0 4px 0; }"
-                       ".section-heading {"
-                       "  font-size: " + QString::number(baseFontSize + 1) + "pt;"
-                       // next line
-                       "  color: #007acc;"
-                       "  font-weight: bold;"
-                       "  margin: 0 0 " + QString::number(headerMarginBottom) + "px 0;"
-                       "  border-bottom: 2px solid #eef;"
-                       "  font-family: sans-serif;"
-                       "}"
-                       ".song-section {"
-                       "  margin-bottom: " + QString::number(sectionMarginBottom) + "px;"
-                       "}"
-                       ".chord-line {"
-                       "  font-weight: bold;"
-                        // next line
-                       " color: " + chordColor + ";"
-                       "font-family: '" + m_currentFont + "', 'Courier New', monospace;"
-                       "  font-size: " + QString::number(baseFontSize) + "pt;"
-                       "}"
-                       ".lyric-text {"
-                        // next line
-                       "  color: " + txtColor + ";"
-                       "font-family: '" + m_currentFont + "', 'Courier New', monospace;"
-                       "  font-size: " + QString::number(baseFontSize) + "pt;"
-                       "}"
-                       "</style></head><body>"
-                       "<div class='song-canvas' style='line-height: " + QString::number(activeLineHeight) + ";'>"
-                       + headerHtml + m_parsedSongContentGrid +
-                       "</div></body></html>";
-
-//    hasPlayModeStyleOverride = false;
-
-    parsedEditor->setHtml(baseHtml);
-} */
-
 // Ensure missing helper hooks exist natively inside compilation unit
 void MainWindow::handlePlaybackStateChanged(QMediaPlayer::PlaybackState state) {
     switch (state) {
@@ -1768,64 +1697,6 @@ void MainWindow::keyPressEvent(QKeyEvent *event) {
     }
     QMainWindow::keyPressEvent(event);
 }
-
-/* void MainWindow::keyPressEvent(QKeyEvent *event) {
-    if (currentState == PlayAlong) {
-        if (event->key() == Qt::Key_Space) {
-            if (m_mediaPlayer->playbackState() == QMediaPlayer::PlayingState) {
-                m_mediaPlayer->pause();
-            } else {
-                if (!m_selectedAudioPath.isEmpty()) m_mediaPlayer->play();
-            }
-            event->accept();
-            return;
-        }
-
-        if (event->modifiers() & Qt::ControlModifier) {
-            if (event->key() == Qt::Key_Plus || event->key() == Qt::Key_Equal) {
-                onZoomInTriggered();
-                event->accept();
-                return;
-            }
-            if (event->key() == Qt::Key_Minus) {
-                onZoomOutTriggered();
-                event->accept();
-                return;
-            }
-            if (event->key() == Qt::Key_0) {
-                m_zoomScaleLevel = 0;
-                updatePlayAlongLayoutDensity();
-                event->accept();
-                return;
-            }
-        }
-    }
-    QMainWindow::keyPressEvent(event);
-} */
-
-/*
-void MainWindow::onZoomInTriggered() {
-    if (m_zoomScaleLevel < 6) {
-        m_zoomScaleLevel++;
-        // if User adjusts the scaling tracking index, ChordLab remembers it instantly
-        saveSongLayoutPreference(m_currentFilePath);
-        if (currentState == PlayAlong) {
-            parseChordProToGrid(m_rawSongContent); // Re-calculate target columns dynamically when zooming!
-        }
-    }
-}
-
-void MainWindow::onZoomOutTriggered() {
-    if (m_zoomScaleLevel > -4) {
-        m_zoomScaleLevel--;
-        // if User adjusts the scaling tracking index, ChordLab remembers it instantly
-        saveSongLayoutPreference(m_currentFilePath);
-        if (currentState == PlayAlong) {
-            parseChordProToGrid(m_rawSongContent);
-        }
-    }
-}
-*/
 
 void MainWindow::selectAudioTrack(QPushButton *clickedButton, const QString &trackPath, const QString &trackName) {
     // 1. If this button was already checked and is now being unchecked, stop playback
@@ -2227,7 +2098,7 @@ QString MainWindow::parseTabLine(const QString &line, int chordDelta, int instru
         return result;
     }
     else {
-        // --- ROUTINE B: This is a floating chord line above tabs ---
+        // --- This is a floating chord line above tabs ---
         // Keeps spacing intervals intact while transposing musical chords cleanly
         QString result = "";
         QString currentToken = "";
@@ -2323,28 +2194,4 @@ void MainWindow::loadSongLayoutPreference(const QString &filePath) {
     settings.endGroup();
 }
 
-/* void MainWindow::saveSongLayoutPreference(const QString &filePath) {
-    if (filePath.isEmpty()) return;
-    QSettings settings;
-    QString songKey = QFileInfo(filePath).fileName();
-
-    settings.beginGroup("SongLayouts/" + songKey);
-    settings.setValue("hasOverride", true);
-    settings.setValue("zoomScale", m_zoomScaleLevel);
-    settings.endGroup();
-} */
-
-/* void MainWindow::loadSongLayoutPreference(const QString &filePath) {
-    if (filePath.isEmpty()) return;
-    QSettings settings;
-    QString songKey = QFileInfo(filePath).fileName();
-
-    settings.beginGroup("SongLayouts/" + songKey);
-    if (settings.value("hasOverride", false).toBool()) {
-        m_zoomScaleLevel = settings.value("zoomScale", 0).toInt();
-    } else {
-        m_zoomScaleLevel = 0; // Reset back to default scaling index if unconfigured
-    }
-    settings.endGroup();
-} */
 
