@@ -1259,6 +1259,9 @@ void MainWindow::parseChordProToGrid(const QString &rawInput) {
         // 2. Grid & Tab State Toggles (Keep your existing {sog}/{sot} blocks here)
         if (line.startsWith("{start_of_grid}") || line.startsWith("{sog}")) {
             inGridBlock = true;
+            if (!insideSectionBlock) {
+                insideSectionBlock = true;  // ← add this
+            }
             currentSectionHtml += "<div class='song-section'><div style='font-family: Consolas; white-space: pre; background: rgba(136, 0, 136, 0.1); padding: 5px; border-radius: 4px;'>";
             continue;
         }
@@ -1269,6 +1272,9 @@ void MainWindow::parseChordProToGrid(const QString &rawInput) {
         }
         if (line.startsWith("{start_of_tab}") || line.startsWith("{sot}")) {
             inTabBlock = true;
+            if (!insideSectionBlock) {
+                insideSectionBlock = true;  // ← add this
+            }
             currentSectionHtml += "<div class='song-section'><div style='font-family: Consolas; white-space: pre; background: rgba(0, 136, 0, 0.1); padding: 5px; border-radius: 4px;'>";
             continue;
         }
@@ -2005,6 +2011,22 @@ QString MainWindow::transposeChord(const QString &chordText, int semitones) {
 QString MainWindow::parseGridLine(const QString &line, int delta) {
     if (line.trimmed().isEmpty()) return line;
 
+    // Handle [chord] bracket notation (e.g. || [D]/// | [Bm]/// ||)
+    if (line.contains('[')) {
+        QString result = "";
+        int lastPos = 0;
+        QRegularExpression bracketRegex("\\[([^\\]]+)\\]");
+        auto matches = bracketRegex.globalMatch(line);
+        while (matches.hasNext()) {
+            auto match = matches.next();
+            result += line.mid(lastPos, match.capturedStart() - lastPos);
+            result += "[" + transposeChord(match.captured(1), delta) + "]";
+            lastPos = match.capturedEnd();
+        }
+        result += line.mid(lastPos);
+        return result;
+    }
+
     QString result = "";
     QString currentToken = "";
 
@@ -2100,10 +2122,25 @@ QString MainWindow::parseTabLine(const QString &line, int chordDelta, int instru
         return result;
     }
     else {
-        // --- This is a floating chord line above tabs ---
+        // --- Routine B: floating chord line above tabs ---
         // Keeps spacing intervals intact while transposing musical chords cleanly
         QString result = "";
         QString currentToken = "";
+
+        // Handle [chord] bracket notation
+        if (line.contains('[')) {
+            int lastPos = 0;
+            QRegularExpression bracketRegex("\\[([^\\]]+)\\]");
+            auto matches = bracketRegex.globalMatch(line);
+            while (matches.hasNext()) {
+                auto match = matches.next();
+                result += line.mid(lastPos, match.capturedStart() - lastPos);
+                result += "[" + transposeChord(match.captured(1), chordDelta) + "]";
+                lastPos = match.capturedEnd();
+            }
+            result += line.mid(lastPos);
+            return result;
+        }
 
         for (int i = 0; i < line.length(); ++i) {
             QChar ch = line[i];
