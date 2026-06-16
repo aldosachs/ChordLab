@@ -1500,10 +1500,6 @@ void MainWindow::parseChordProToGrid(const QString &rawInput) {
              << "radar=" << m_currentSongMetrics.targetColumns
              << "final=" << numCols;
 
-//    if (m_zoomCoarse == 1 && numCols > 2) numCols = 2;
-//    else if (m_zoomCoarse >= 2) numCols = 1;
-//    if (numCols < 1) numCols = 1;
-
     QString tableGridHtml = "";
     if (numCols <= 1 || gatheredSections.isEmpty()) {
         for (const QString &section : gatheredSections) {
