@@ -59,13 +59,30 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow() = default;
 
-    // ChoPro file metrics storage module
+    // REPLACE the existing SongLayoutMetrics struct with this:
     struct SongLayoutMetrics {
+
+        // NEW: per-section breakdown (mirrors what parseChordProToGrid() actually gathers)
+        struct SectionInfo {
+            QString name;
+            int lineCount  = 0;      // number of chord/lyric line pairs inside this section
+            bool hasHeader = false;  // true if section has a visible heading row
+        };
+
+        int totalLines        = 0;  // cil_lof: total content lines
+        int maxLineCharacters = 0;  // cil_wll: widest lyric-only line width in chars
+        int sectionCount      = 0;  // total gatheredSections count (matches parseChordProToGrid)
+        int targetColumns     = 1;  // result from autoOptimizeLayout() or legacy Radar
+
+        QVector<SectionInfo> sections;  // NEW: populated by analyzeChordProMetaData()
+    };
+    // ChoPro file metrics storage module
+/*    struct SongLayoutMetrics {
         int totalLines = 0;          // cil_lof: Chords-in-line total line count of the file
         int maxLineCharacters = 0;   // cil_wll: Character width of the single longest line
         int sectionCount = 0;        // Total number of sections (Verses, Choruses, etc.)
         int targetColumns = 1;       // Auto-calculated initial columns layout rule (1, 2, or 3)
-    };
+    }; */
 
     QToolBar *m_settingsToolBar; // Promote from local variable to member
 
@@ -143,12 +160,20 @@ private:
     void parseChordProToGrid(const QString &rawText);
     void updatePlayAlongLayoutDensity();
 
+    void autoOptimizeLayout();
+    QString getSongLayoutJsonPath(const QString &chordProPath) const;
+    void saveSongLayoutToJson(const QString &chordProPath);
+    void loadSongLayoutFromJson(const QString &chordProPath);
+
     QString m_parsedSongContentGrid;
 
 //    int m_zoomScaleLevel;
     int m_zoomCoarse = 0;      // Ctrl+/-         coarse zoom, steps of 2pt
     int m_zoomFine   = 0;      // Ctrl+Shift+/-   fine zoom, steps of 0.5pt
     int m_columnOverride = 0;  // 0=auto (Radar), 1-4=manual lock
+
+    int  m_sectionSpacingBonus = 0;   // Ctrl+Shift+Up/Down: extra px between sections (0–20)
+    bool m_useAutoLayout       = true; // false = user has manually tuned this song's layout
 
     // --- Transposition & Instrument Mapping Matrix ---
     int m_transposeShift = 0;           // Concert Pitch / Singer shift (Key Up/Down)

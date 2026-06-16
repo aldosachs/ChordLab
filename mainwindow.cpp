@@ -27,6 +27,8 @@
 #include <QHeaderView>
 #include <QInputDialog>
 #include <qapplication.h>
+#include <QJsonDocument>
+#include <QJsonObject>
 
 static const QStringList NOTE_SCALE_SHARPS = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
 static const QStringList NOTE_SCALE_FLATS  = {"C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"};
@@ -825,6 +827,11 @@ void MainWindow::closeEvent(QCloseEvent *event) {
     settings.setValue("window/geometry", saveGeometry());
     settings.setValue("window/state", saveState());
 
+    // Save current song's layout to JSON on close
+    if (!m_currentFilePath.isEmpty()) {
+        saveSongLayoutToJson(m_currentFilePath);
+    }
+
     // NEW: Save the active song file path!
     if (!m_currentFilePath.isEmpty()) {
         settings.setValue("app/lastOpenedFile", m_currentFilePath);
@@ -842,7 +849,8 @@ void MainWindow::loadSongQuietly(const QString &filePath) {
 
     // --- 🚀 RECALL PER-SONG TRACKING PREFERENCE ---
     // Read the song's specific layout preference block before generating the display data
-    loadSongLayoutPreference(filePath);
+//    loadSongLayoutPreference(filePath);
+    loadSongLayoutFromJson(filePath);
 
     QFile file(filePath);
     if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
@@ -858,7 +866,7 @@ void MainWindow::loadSongQuietly(const QString &filePath) {
     m_instrumentTuningOffset = 0;
 
     // Apply layout preference
-    loadSongLayoutPreference(filePath);
+//    loadSongLayoutPreference(filePath);
 
     // Trigger UI state
     setAppState(OpenEdit);
@@ -1526,13 +1534,13 @@ void MainWindow::parseChordProToGrid(const QString &rawInput) {
 
 void MainWindow::updatePlayAlongLayoutDensity() {
     double baseFontSize       = 10.0 + (m_zoomCoarse * 2.0) + (m_zoomFine * 0.5);
-    // can be a User-pref, or a song by song judgement?? ==> relax or tight line spacing
-//    double activeLineHeight   = 1.10 + (m_zoomCoarse * 0.03) + (m_zoomFine * 0.008);
-//    int sectionMarginBottom   = 8    + (m_zoomCoarse * 2)    + m_zoomFine;
-//    int headerMarginBottom    = 3    + (m_zoomCoarse / 2);
+    // could be a future User-pref, or a song by song judgement?? ==> relax or tight line spacing
     // Tighter — closer to SBPro density
     double activeLineHeight  = 1.05 + (m_zoomCoarse * 0.03) + (m_zoomFine * 0.008);
-    int sectionMarginBottom  = 5    + (m_zoomCoarse * 2)    + m_zoomFine;
+
+    //    int sectionMarginBottom  = 5    + (m_zoomCoarse * 2)    + m_zoomFine;
+    int sectionMarginBottom = 5 + (m_zoomCoarse * 2) + m_zoomFine + m_sectionSpacingBonus;
+
     int headerMarginBottom   = 2    + (m_zoomCoarse / 2);
 
     parsedEditor->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
@@ -1638,6 +1646,12 @@ void MainWindow::keyPressEvent(QKeyEvent *event) {
         bool shift = event->modifiers() & Qt::ShiftModifier;
         int  key   = event->key();
 
+        // marks that the user has manually tuned layout for this song
+        auto markManualOverride = [&]() {
+            m_useAutoLayout = false;
+            saveSongLayoutToJson(m_currentFilePath);
+        };
+
         // Spacebar — play/pause
         if (key == Qt::Key_Space && !ctrl && !shift) {
             if (m_mediaPlayer->playbackState() == QMediaPlayer::PlayingState) {
@@ -1652,13 +1666,15 @@ void MainWindow::keyPressEvent(QKeyEvent *event) {
             // Coarse zoom in/out
             if (key == Qt::Key_Plus || key == Qt::Key_Equal) {
                 if (m_zoomCoarse < 6) m_zoomCoarse++;
-                saveSongLayoutPreference(m_currentFilePath);
+//                saveSongLayoutPreference(m_currentFilePath);
+                markManualOverride();   // ← ADD
                 parseChordProToGrid(m_rawSongContent);
                 event->accept(); return;
             }
             if (key == Qt::Key_Minus) {
                 if (m_zoomCoarse > -4) m_zoomCoarse--;
-                saveSongLayoutPreference(m_currentFilePath);
+//                saveSongLayoutPreference(m_currentFilePath);
+                markManualOverride();   // ← ADD
                 parseChordProToGrid(m_rawSongContent);
                 event->accept(); return;
             }
@@ -1667,7 +1683,10 @@ void MainWindow::keyPressEvent(QKeyEvent *event) {
                 m_zoomCoarse = 0;
                 m_zoomFine   = 0;
                 m_columnOverride = 0;
-                saveSongLayoutPreference(m_currentFilePath);
+                m_sectionSpacingBonus = 0;
+                m_useAutoLayout       = true;  // ← re-enable optimizer
+                saveSongLayoutToJson(m_currentFilePath);
+//                saveSongLayoutPreference(m_currentFilePath);
                 parseChordProToGrid(m_rawSongContent);
                 event->accept(); return;
             }
@@ -1677,6 +1696,7 @@ void MainWindow::keyPressEvent(QKeyEvent *event) {
                 int current = (m_columnOverride > 0) ? m_columnOverride
                                                      : m_currentSongMetrics.targetColumns;
                 if (current < 4) m_columnOverride = current + 1;
+                markManualOverride();   // ← ADD
                 parseChordProToGrid(m_rawSongContent);
                 event->accept(); return;
             }
@@ -1684,6 +1704,7 @@ void MainWindow::keyPressEvent(QKeyEvent *event) {
                 qDebug() << "In column override left";
                 if (m_columnOverride > 1) m_columnOverride--;
                 else m_columnOverride = 0;  // back to auto
+                markManualOverride();   // ← ADD
                 parseChordProToGrid(m_rawSongContent);
                 event->accept(); return;
             }
@@ -1693,14 +1714,34 @@ void MainWindow::keyPressEvent(QKeyEvent *event) {
             // Fine zoom in/out — re-render only, no column recalculation needed
             if (key == Qt::Key_Plus || key == Qt::Key_Equal) {
                 if (m_zoomFine < 8) m_zoomFine++;
-                saveSongLayoutPreference(m_currentFilePath);
+//                saveSongLayoutPreference(m_currentFilePath);
+                markManualOverride();   // ← ADD
                 updatePlayAlongLayoutDensity();
                 event->accept(); return;
             }
             if (key == Qt::Key_Minus) {
                 if (m_zoomFine > -8) m_zoomFine--;
-                saveSongLayoutPreference(m_currentFilePath);
+//                saveSongLayoutPreference(m_currentFilePath);
+                markManualOverride();   // ← ADD
                 updatePlayAlongLayoutDensity();
+                event->accept(); return;
+            }
+
+            // NEW: Section spacing (graphic design white-space control)
+            if (key == Qt::Key_Up) {
+                if (m_sectionSpacingBonus < 20) m_sectionSpacingBonus++;
+                markManualOverride();
+                updatePlayAlongLayoutDensity();
+                statusBar()->showMessage(
+                    QString("Section spacing: +%1px  (Ctrl+0 to reset)").arg(m_sectionSpacingBonus), 2000);
+                event->accept(); return;
+            }
+            if (key == Qt::Key_Down) {
+                if (m_sectionSpacingBonus > 0) m_sectionSpacingBonus--;
+                markManualOverride();
+                updatePlayAlongLayoutDensity();
+                statusBar()->showMessage(
+                    QString("Section spacing: +%1px  (Ctrl+0 to reset)").arg(m_sectionSpacingBonus), 2000);
                 event->accept(); return;
             }
         }
@@ -1734,6 +1775,142 @@ void MainWindow::selectAudioTrack(QPushButton *clickedButton, const QString &tra
 }
 
 void MainWindow::analyzeChordProMetaData(const QString &rawInput) {
+
+    // --- Reset all metrics ---
+    m_currentSongMetrics.totalLines        = 0;
+    m_currentSongMetrics.maxLineCharacters = 0;
+    m_currentSongMetrics.sectionCount      = 0;
+    m_currentSongMetrics.targetColumns     = 1;
+    m_currentSongMetrics.sections.clear();
+
+    QStringList lines      = rawInput.split('\n');
+    bool insideSectionBlock = false;
+    bool inGridBlock        = false;
+    bool inTabBlock         = false;
+
+    SongLayoutMetrics::SectionInfo currentSection;
+
+    // Lambda: close the in-progress section and bank it
+    auto closeSection = [&]() {
+        if (insideSectionBlock) {
+            m_currentSongMetrics.sections.append(currentSection);
+            m_currentSongMetrics.sectionCount++;
+            insideSectionBlock = false;
+            currentSection = {};
+        }
+    };
+
+    for (const QString &rawLine : lines) {
+        QString line = rawLine.trimmed();
+
+        // Empty line closes unstructured text sections (matches parseChordProToGrid behaviour)
+        if (line.isEmpty()) {
+            if (insideSectionBlock && !inGridBlock && !inTabBlock)
+                closeSection();
+            continue;
+        }
+
+        // --- Grid / Tab block toggles ---
+        if (line.startsWith("{start_of_grid}") || line.startsWith("{sog}")) { inGridBlock = true;  continue; }
+        if (line.startsWith("{end_of_grid}")   || line.startsWith("{eog}")) { inGridBlock = false; continue; }
+        if (line.startsWith("{start_of_tab}")  || line.startsWith("{sot}")) { inTabBlock  = true;  continue; }
+        if (line.startsWith("{end_of_tab}")    || line.startsWith("{eot}")) { inTabBlock  = false; continue; }
+
+        // --- Named section headers (mirrors parseChordProToGrid logic exactly) ---
+        bool isChorusStart  = line.startsWith("{soc",           Qt::CaseInsensitive)
+                             || line.startsWith("{start_of_chorus", Qt::CaseInsensitive);
+        bool isCommentStart = line.startsWith("{c:",            Qt::CaseInsensitive)
+                              || line.startsWith("{comment:",      Qt::CaseInsensitive);
+        bool isInformalHdr  = line.startsWith("#");
+
+        if (isChorusStart || isCommentStart || isInformalHdr) {
+            closeSection();
+            QString name = "Section";
+            if      (isChorusStart)  name = "Chorus";
+            else if (isInformalHdr)  name = line.mid(1).trimmed();
+            else {
+                QRegularExpression rx(R"(\{c(?:omment)?:?\s*([^}]*)\}?)",
+                                      QRegularExpression::CaseInsensitiveOption);
+                auto m = rx.match(line);
+                if (m.hasMatch() && !m.captured(1).trimmed().isEmpty())
+                    name = m.captured(1).trimmed();
+            }
+            currentSection = {name, 0, true};
+            insideSectionBlock = true;
+            continue;
+        }
+
+        // Explicit chorus close
+        if (line.startsWith("{eoc", Qt::CaseInsensitive) ||
+            line.startsWith("{end_of_chorus", Qt::CaseInsensitive)) {
+            closeSection();
+            continue;
+        }
+
+        // Skip metadata directives
+        if (line.startsWith("{t:")     || line.startsWith("{title:")    ||
+            line.startsWith("{st:")    || line.startsWith("{subtitle:") ||
+            line.startsWith("{key:")   || line.startsWith("{tempo:")    ||
+            line.startsWith("{capo:")  || line.startsWith("{artist:"))   { continue; }
+
+        // Other unrecognised directives
+        if (line.startsWith("{")) continue;
+
+        // --- Unstructured text → auto-start anonymous section (mirrors parseChordProToGrid) ---
+        if (!insideSectionBlock) {
+            currentSection = {"", 0, false};
+            insideSectionBlock = true;
+        }
+
+        // Content line — accumulate metrics
+        if (insideSectionBlock) {
+            m_currentSongMetrics.totalLines++;
+            currentSection.lineCount++;
+
+            QString lyricOnly = line;
+            lyricOnly.remove(QRegularExpression("\\[.*?\\]"));
+            int len = lyricOnly.length();
+            if (len > m_currentSongMetrics.maxLineCharacters)
+                m_currentSongMetrics.maxLineCharacters = len;
+        }
+    }
+
+    closeSection(); // Flush any trailing open section
+
+    // --- Logging ---
+    if (m_debugVerboseLevel) {
+        qDebug() << "=== CHORDLAB ELASTIC GEOMETRY RADAR ===";
+        qDebug() << "Sections parsed:" << m_currentSongMetrics.sections.size();
+        for (const auto &s : m_currentSongMetrics.sections)
+            qDebug() << "  [" << (s.name.isEmpty() ? "(anon)" : s.name)
+                     << "] lines=" << s.lineCount << " header=" << s.hasHeader;
+        qDebug() << "Max lyric line width:" << m_currentSongMetrics.maxLineCharacters << "chars";
+    }
+
+    // --- Column + zoom decision ---
+    if (m_columnOverride == 0 && m_useAutoLayout) {
+        // NEW: Two-axis optimizer (horizontal + vertical fit)
+        autoOptimizeLayout();
+    } else if (m_columnOverride == 0) {
+        // Legacy Radar: used when user has manually set zoom but not columns
+        int displayWidth = parsedEditor->viewport()->width();
+        if (displayWidth <= 0) {
+            QScreen *screen = QGuiApplication::primaryScreen();
+            displayWidth = screen ? (int)(screen->availableGeometry().width() * 0.6) : 800;
+        }
+        double baseFontSize          = 10.0 + (m_zoomCoarse * 2.0) + (m_zoomFine * 0.5);
+        double approxCharWidthPixels = baseFontSize * 0.62;
+        int allocationWidthPerCol    = qMin(m_currentSongMetrics.maxLineCharacters, 48) + 2;
+        int calculatedCols           = displayWidth / (allocationWidthPerCol * approxCharWidthPixels);
+        m_currentSongMetrics.targetColumns = qBound(1, calculatedCols, 4);
+        if (m_currentSongMetrics.sectionCount < m_currentSongMetrics.targetColumns)
+            m_currentSongMetrics.targetColumns = qMax(1, m_currentSongMetrics.sectionCount);
+    }
+    // Note: if m_columnOverride > 0, targetColumns is not used — parseChordProToGrid reads
+    // m_columnOverride directly, so we intentionally do nothing here in that case.
+}
+
+/* void MainWindow::analyzeChordProMetaData(const QString &rawInput) {
     // Reset metrics before scanning
     m_currentSongMetrics.totalLines = 0;
     m_currentSongMetrics.maxLineCharacters = 0;
@@ -1811,6 +1988,118 @@ void MainWindow::analyzeChordProMetaData(const QString &rawInput) {
         qDebug() << "Max Song Line Width:" << m_currentSongMetrics.maxLineCharacters << "chars";
         qDebug() << "Calculated Optimal Columns:" << m_currentSongMetrics.targetColumns;
     }
+} */
+
+void MainWindow::autoOptimizeLayout() {
+
+    // Prefer viewport() dimensions — excludes scrollbars and gives the true drawable area
+    int displayWidth  = parsedEditor->viewport()->width();
+    int displayHeight = parsedEditor->viewport()->height();
+
+    if (displayWidth <= 0 || displayHeight <= 0) {
+        // Widget not yet fully rendered — fall back to screen geometry
+        QScreen *screen = QGuiApplication::primaryScreen();
+        if (screen) {
+            displayWidth  = (int)(screen->availableGeometry().width()  * 0.6);
+            displayHeight = (int)(screen->availableGeometry().height() * 0.6);
+        } else {
+            displayWidth = 1024; displayHeight = 768;
+        }
+    }
+
+    // Layout constants (pixels)
+    const int titleAreaPx   = 80;   // title + subtitle + divider
+    const int bodyMarginPx  = 24;   // 12px top + 12px bottom body padding
+    const int interColPadPx = 35;   // right-padding inserted between columns
+    const int minFontSizePt = 8;    // absolute floor — below this is unreadable on stage
+
+    int availableHeight = displayHeight - titleAreaPx - bodyMarginPx;
+    if (availableHeight < 100) availableHeight = 100; // sanity floor
+
+    const auto &sections = m_currentSongMetrics.sections;
+    int numSections = sections.isEmpty()
+                          ? qMax(1, m_currentSongMetrics.sectionCount)
+                          : (int)sections.size();
+
+    // -----------------------------------------------------------------------
+    // Outer loop: fewest columns first  (1 → 4)
+    // Inner loop: largest font first    (zoomCoarse 4 → -2  ==  18pt → 6pt)
+    // Accept immediately on first passing combination → maximises font/minimises cols
+    // -----------------------------------------------------------------------
+    for (int cols = 1; cols <= 4; ++cols) {
+
+        if (cols > numSections) break; // pointless to have more cols than sections
+
+        int interColTotalPad = interColPadPx * (cols - 1);
+        int availColWidth    = (displayWidth - interColTotalPad - bodyMarginPx) / cols;
+        if (availColWidth < 80) continue;  // column too narrow to display anything useful
+
+        int sectionsPerCol = (int)qCeil((double)numSections / cols);
+
+        for (int zc = 4; zc >= -2; --zc) {
+
+            double fontSize        = 10.0 + (zc * 2.0);
+            if (fontSize < minFontSizePt) continue;
+
+            double charWidthPx     = fontSize * 0.62;    // empirical monospace ratio
+            double pairHeightPx    = fontSize * 2.35;    // chord row + lyric row (with line-height 1.05)
+            double headerHeightPx  = (fontSize + 2.0) * 1.9; // section heading row
+            double sectionGapPx    = 5.0 + qMax(0, zc) * 1.5 + (double)m_sectionSpacingBonus;
+
+            // === Horizontal check ===
+            // The widest lyric line must fit inside one column (5% tolerance for HTML)
+            int maxCharsPerCol = (int)((double)availColWidth / charWidthPx);
+            if (m_currentSongMetrics.maxLineCharacters > (int)(maxCharsPerCol * 1.05))
+                continue;  // this font is too large for this column width → try smaller
+
+            // === Vertical check ===
+            // Estimate the pixel height of the tallest column
+            int maxColHeightPx = 0;
+
+            for (int col = 0; col < cols; ++col) {
+                int startSec = col * sectionsPerCol;
+                int endSec   = qMin(startSec + sectionsPerCol, numSections);
+                double colHeight = 0.0;
+
+                for (int s = startSec; s < endSec; ++s) {
+                    if (s < (int)sections.size()) {
+                        if (sections[s].hasHeader) colHeight += headerHeightPx;
+                        colHeight += sections[s].lineCount * pairHeightPx;
+                    } else {
+                        // Fallback estimate when section detail not available
+                        colHeight += headerHeightPx + 4.0 * pairHeightPx;
+                    }
+                    colHeight += sectionGapPx;
+                }
+                maxColHeightPx = qMax(maxColHeightPx, (int)colHeight);
+            }
+
+            if (maxColHeightPx <= availableHeight) {
+                // ✅ Both checks pass — commit this layout
+                m_currentSongMetrics.targetColumns = cols;
+                m_zoomCoarse = zc;
+                m_zoomFine   = 0;  // Fine zoom stays as whatever was loaded from JSON
+
+                if (m_debugVerboseLevel) {
+                    qDebug() << "[AutoLayout] ✅" << cols << "col(s) @"
+                             << fontSize << "pt  (zc=" << zc << ")"
+                             << " | col h:" << maxColHeightPx << "/" << availableHeight << "px"
+                             << " | col w:" << availColWidth << "px"
+                             << " | max chars/col:" << maxCharsPerCol;
+                }
+                return;
+            }
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Total fallback: 4 columns at minimum zoom
+    // Means the song is genuinely too large to fit — user should use fine zoom
+    // -----------------------------------------------------------------------
+    m_currentSongMetrics.targetColumns = qMin(4, numSections);
+    m_zoomCoarse = -2;
+    m_zoomFine   = 0;
+    qDebug() << "[AutoLayout] ⚠️ Fallback: 4-col / minimum zoom — song may need scrolling";
 }
 
 QString MainWindow::getThemeStyles() {
@@ -2237,4 +2526,66 @@ void MainWindow::loadSongLayoutPreference(const QString &filePath) {
     settings.endGroup();
 }
 
+QString MainWindow::getSongLayoutJsonPath(const QString &chordProPath) const {
+    // Stores alongside the .cho/.pro file
+    // e.g. "resources/pieces/Yesterday.cho" → "resources/pieces/Yesterday.layout.json"
+    // This means layout preferences travel with the song files (great for network shares).
+    QFileInfo fi(chordProPath);
+    return fi.dir().absoluteFilePath(fi.completeBaseName() + ".layout.json");
+}
 
+void MainWindow::saveSongLayoutToJson(const QString &chordProPath) {
+    if (chordProPath.isEmpty()) return;
+    QString jsonPath = getSongLayoutJsonPath(chordProPath);
+
+    QJsonObject obj;
+    obj["zoomCoarse"]          = m_zoomCoarse;
+    obj["zoomFine"]            = m_zoomFine;
+    obj["columnOverride"]      = m_columnOverride;
+    obj["sectionSpacingBonus"] = m_sectionSpacingBonus;
+    obj["useAutoLayout"]       = m_useAutoLayout;
+    // Store schema version for future compatibility
+    obj["schemaVersion"]       = 1;
+
+    QFile file(jsonPath);
+    if (file.open(QIODevice::WriteOnly)) {
+        file.write(QJsonDocument(obj).toJson(QJsonDocument::Indented));
+        if (m_debugVerboseLevel)
+            qDebug() << "[Layout JSON] Saved:" << jsonPath;
+    } else {
+        // Song may be in a read-only directory (e.g. app bundle on macOS)
+        // Silently fall back to QSettings for this path
+        saveSongLayoutPreference(chordProPath);
+        qDebug() << "[Layout JSON] ⚠️ Write failed — falling back to QSettings for:" << jsonPath;
+    }
+}
+
+void MainWindow::loadSongLayoutFromJson(const QString &chordProPath) {
+    if (chordProPath.isEmpty()) return;
+    QString jsonPath = getSongLayoutJsonPath(chordProPath);
+
+    QFile file(jsonPath);
+    if (!file.exists() || !file.open(QIODevice::ReadOnly)) {
+        // No JSON file — first time this song has been opened, let optimizer run fresh
+        m_zoomCoarse          = 0;
+        m_zoomFine            = 0;
+        m_columnOverride      = 0;
+        m_sectionSpacingBonus = 0;
+        m_useAutoLayout       = true;
+        if (m_debugVerboseLevel) qDebug() << "[Layout JSON] No layout file — auto-layout enabled";
+        return;
+    }
+
+    QJsonObject obj = QJsonDocument::fromJson(file.readAll()).object();
+    m_zoomCoarse          = obj.value("zoomCoarse").toInt(0);
+    m_zoomFine            = obj.value("zoomFine").toInt(0);
+    m_columnOverride      = obj.value("columnOverride").toInt(0);
+    m_sectionSpacingBonus = obj.value("sectionSpacingBonus").toInt(0);
+    m_useAutoLayout       = obj.value("useAutoLayout").toBool(true);
+
+    if (m_debugVerboseLevel)
+        qDebug() << "[Layout JSON] Loaded — zc=" << m_zoomCoarse
+                 << "zf=" << m_zoomFine << "cols=" << m_columnOverride
+                 << "spacing=" << m_sectionSpacingBonus
+                 << "autoLayout=" << m_useAutoLayout;
+}
