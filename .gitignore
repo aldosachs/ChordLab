@@ -1,86 +1,83 @@
-# This file is used to ignore files which are generated
+# ----------------------------------------------------------------------------
+# Qt / C++ Project .gitignore
 # ----------------------------------------------------------------------------
 
+# Temporary files
 *~
 *.autosave
-*.a
-*.core
-*.moc
-*.o
-*.obj
 *.orig
 *.rej
-*.so
-*.so.*
-*_pch.h.cpp
-*_resource.rc
-*.qm
 .#*
 *.*#
-core
-!core/
-tags
 .DS_Store
 .directory
-*.debug
-Makefile*
-*.prl
-*.app
+Thumbs.db
+
+# Compiled objects
+*.o
+*.obj
+*.a
+*.so
+*.so.*
+*.dll
+*.exe
+*.pdb
+*.ilk
+*.idb
+*.lib
+*.core
+
+# Qt-generated files
+*.moc
 moc_*.cpp
 ui_*.h
 qrc_*.cpp
-Thumbs.db
-*.res
-*.rc
-/.qmake.cache
-/.qmake.stash
-**/.qmlls.ini
+*.qrc.dep
+*.qm
+*.qmake.stash
+*.qmake.cache
 
-# qtcreator generated files
+# QtCreator user/session files
 *.pro.user*
 *.qbs.user*
 CMakeLists.txt.user*
 
-# xemacs temporary files
-*.flc
+# Build directories (IMPORTANT)
+build*/
+*/build*/
+.debug/
+.release/
 
-# Vim temporary files
-.*.swp
-
-# Visual Studio generated files
-*.ib_pdb_index
-*.idb
-*.ilk
-*.pdb
+# Visual Studio
 *.sln
 *.suo
 *.vcproj
 *vcproj.*.*.user
+*.vcxproj
+*vcxproj.*
 *.ncb
 *.sdf
 *.opensdf
-*.vcxproj
-*vcxproj.*
 
-# MinGW generated files
+# MinGW
 *.Debug
 *.Release
 
-# Python byte code
+# Python bytecode
 *.pyc
 
-# Binaries
-# --------
-*.dll
-*.exe
+# Misc
+tags
+core
+!core/
 
-# Directories with generated files
-.moc/
-.obj/
-.pch/
-.rcc/
-.uic/
-/build*/
-/.qtcreator/
+# Qt Creator internal dirs
+.qtcreator/
+.backup*/
+
+# deploy and backup folers and subfolders
 /backup*/
+*/backup*/
+/deploy*/
+*/deploy*/
 

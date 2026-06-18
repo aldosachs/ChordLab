@@ -117,7 +117,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     connect(m_setlistManager, &QStandardItemModel::rowsInserted, this, [this]() { m_isSetlistDirty = true; });
     connect(m_setlistManager, &QStandardItemModel::rowsRemoved, this, [this]() { m_isSetlistDirty = true; });
 
-//    QSettings settings;
+    //    QSettings settings;
     m_currentFont = settings.value("display/font", "Courier Prime").toString();
 
     // Sequential UI Component Construction
@@ -303,7 +303,7 @@ void MainWindow::setupMenus() {
         QMessageBox::about(this, "About QPlayer", "ChordLab\nVersion 0.3beta\n11-Jun-2026...\nA chordpro multimedia app \nfor musicians.");
     });
 
-//    QSettings settings;
+    //    QSettings settings;
     QString currentPath = settings.value("theme/lastStyle").toString();
     qDebug() << "Available resources at :/resources/styles:" << themeDir.entryList();
     for (const QString &themeFile : themes) {
@@ -983,9 +983,6 @@ void MainWindow::handleFileOpen() {
 void MainWindow::handleFileSave() {
     if (m_currentFilePath.isEmpty()) {
         // 1. Determine the path to the running executable
-//        QString appDir = QCoreApplication::applicationDirPath();
-        // 2. Point to our standard user workspace folder
-//        QString initialPath = appDir + "/resources/pieces";
         QString initialPath = getResourcesPath() + "/pieces";
         if (!QDir(initialPath).exists()) {
             initialPath = QDir::homePath();
@@ -1340,7 +1337,6 @@ void MainWindow::parseChordProToGrid(const QString &rawInput) {
             continue;
         }
 
-        // 6. 🚀 THE UNSTRUCTURED AUTOLOADER
         // If we hit standard text/chords but aren't in a section block, start one automatically!
         if (!insideSectionBlock && !inGridBlock && !inTabBlock && !line.startsWith("{")) {
             currentSectionHtml += "<div class='song-section'>";
@@ -1348,7 +1344,7 @@ void MainWindow::parseChordProToGrid(const QString &rawInput) {
             insideSectionBlock = true;
         }
 
-        // 2. Specialized Block Routing (Bypass standard lyric logic)
+        // Specialized Block Routing (Bypass standard lyric logic)
         if (inGridBlock) {
             currentSectionHtml += parseGridLine(line, m_transposeShift) + "<br>";
             continue;
@@ -1359,7 +1355,7 @@ void MainWindow::parseChordProToGrid(const QString &rawInput) {
             continue;
         }
 
-        // 3. Standard Section Headers
+        // Standard Section Headers
         if (line.startsWith('{') && (line.startsWith("{c:") || line.startsWith("{comment") || line.startsWith("{c}"))) {
             if (insideSectionBlock) {
                 currentSectionHtml += "</div>";
@@ -1435,7 +1431,7 @@ void MainWindow::parseChordProToGrid(const QString &rawInput) {
                 linePos = match.capturedEnd(); // Step past closing bracket
             }
 
-            // 3. Process remaining trailing lyric strings
+            // Process remaining trailing lyric strings
             while (linePos < line.length()) {
                 QChar ch = line[linePos++];
                 if (ch == ' ') lyricLine += "&nbsp;"; else lyricLine += ch;
@@ -1447,13 +1443,13 @@ void MainWindow::parseChordProToGrid(const QString &rawInput) {
                 }
             }
 
-            // 4. Equalize tail-end balance (handles trailing chords that extend past short lyric fragments)
+            // Equalize tail-end balance (handles trailing chords that extend past short lyric fragments)
             while (visualLyricCursor < visualChordCursor) {
                 lyricLine += "&nbsp;";
                 visualLyricCursor++;
             }
 
-            // 5. Generate the User's Spacing Checkline
+            // Generate the User's Spacing Checkline
             if (showDiagnosticCheckline) {
                 for (int d = 0; d < visualChordCursor; ++d) {
                     dashLine += "-";
@@ -1466,9 +1462,6 @@ void MainWindow::parseChordProToGrid(const QString &rawInput) {
             if (!chordLine.trimmed().isEmpty()) {
                 lineBlockHtml += QString("<p style='margin: 0; padding: 0;' class='chord-line'>%1</p>").arg(chordLine);
             }
-//            else {     // No else — if there are no chords, don't waste the vertical space!
-//                lineBlockHtml += "<p style='margin: 0; padding: 0;' class='chord-line'>&nbsp;</p>";
-//            }
 
             if (showDiagnosticCheckline && !chordLine.trimmed().isEmpty()) {
                 lineBlockHtml += QString("<p style='margin: 0; padding: 0; color: #555555; font-size: 8pt;'>%1</p>").arg(dashLine);
@@ -1476,8 +1469,9 @@ void MainWindow::parseChordProToGrid(const QString &rawInput) {
 
             lineBlockHtml += QString("<p style='margin: 0 0 3px 0; padding: 0;' class='lyric-text'>%1</p>").arg(lyricLine.isEmpty() ? "&nbsp;" : lyricLine);
             // This line added 8px below every lyric line --> relaxed versus tight spacing:
-//            "<p style='margin: 0 0 8px 0; padding: 0;' class='lyric-text'>"
-//            "<p style='margin: 0 0 3px 0; padding: 0;' class='lyric-text'>"
+            //            "<p style='margin: 0 0 8px 0; padding: 0;' class='lyric-text'>"
+            //            "<p style='margin: 0 0 3px 0; padding: 0;' class='lyric-text'>"
+
             lineBlockHtml += "</div>";
             currentSectionHtml += lineBlockHtml;
         }
@@ -1534,7 +1528,6 @@ void MainWindow::updatePlayAlongLayoutDensity() {
     // Tighter — closer to SBPro density
     double activeLineHeight  = 1.05 + (m_zoomCoarse * 0.03) + (m_zoomFine * 0.008);
 
-    //    int sectionMarginBottom  = 5    + (m_zoomCoarse * 2)    + m_zoomFine;
     int sectionMarginBottom = 5 + (m_zoomCoarse * 2) + m_zoomFine + m_sectionSpacingBonus;
 
     int headerMarginBottom   = 2    + (m_zoomCoarse / 2);
@@ -1564,7 +1557,6 @@ void MainWindow::updatePlayAlongLayoutDensity() {
 
     QString baseHtml = "<html><head><style>"
                        "body { background-color: " + bgColor + "; color: " + txtColor + "; margin: 8px 10px; padding: 0;"
-//                        "body { background-color: " + bgColor + "; color: " + txtColor + "; margin: 12px 18px; padding: 0;"
                                                             "  font-family: '" + m_currentFont + "', 'Courier New', monospace; }"
                                     "h1 { font-size: " + QString::number(baseFontSize + 4, 'f', 1) + "pt; font-weight: bold; font-family: sans-serif; margin: 0 0 4px 0; }"
                                                                      ".section-heading {"
@@ -1662,14 +1654,12 @@ void MainWindow::keyPressEvent(QKeyEvent *event) {
             // Coarse zoom in/out
             if (key == Qt::Key_Plus || key == Qt::Key_Equal) {
                 if (m_zoomCoarse < 6) m_zoomCoarse++;
-//                saveSongLayoutPreference(m_currentFilePath);
                 markManualOverride();   // ← ADD
                 parseChordProToGrid(m_rawSongContent);
                 event->accept(); return;
             }
             if (key == Qt::Key_Minus) {
                 if (m_zoomCoarse > -4) m_zoomCoarse--;
-//                saveSongLayoutPreference(m_currentFilePath);
                 markManualOverride();   // ← ADD
                 parseChordProToGrid(m_rawSongContent);
                 event->accept(); return;
@@ -1682,7 +1672,6 @@ void MainWindow::keyPressEvent(QKeyEvent *event) {
                 m_sectionSpacingBonus = 0;
                 m_useAutoLayout       = true;  // ← re-enable optimizer
                 saveSongLayoutToJson(m_currentFilePath);
-//                saveSongLayoutPreference(m_currentFilePath);
                 parseChordProToGrid(m_rawSongContent);
                 event->accept(); return;
             }
@@ -1710,20 +1699,18 @@ void MainWindow::keyPressEvent(QKeyEvent *event) {
             // Fine zoom in/out — re-render only, no column recalculation needed
             if (key == Qt::Key_Plus || key == Qt::Key_Equal) {
                 if (m_zoomFine < 8) m_zoomFine++;
-//                saveSongLayoutPreference(m_currentFilePath);
                 markManualOverride();   // ← ADD
                 updatePlayAlongLayoutDensity();
                 event->accept(); return;
             }
             if (key == Qt::Key_Minus) {
                 if (m_zoomFine > -8) m_zoomFine--;
-//                saveSongLayoutPreference(m_currentFilePath);
                 markManualOverride();   // ← ADD
                 updatePlayAlongLayoutDensity();
                 event->accept(); return;
             }
 
-            // NEW: Section spacing (graphic design white-space control)
+            // Section spacing (graphic design white-space control)
             if (key == Qt::Key_Up) {
                 if (m_sectionSpacingBonus < 20) m_sectionSpacingBonus++;
                 markManualOverride();

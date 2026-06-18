@@ -62,7 +62,7 @@ public:
     // REPLACE the existing SongLayoutMetrics struct with this:
     struct SongLayoutMetrics {
 
-        // NEW: per-section breakdown (mirrors what parseChordProToGrid() actually gathers)
+        // Per-section breakdown (mirrors what parseChordProToGrid() actually gathers)
         struct SectionInfo {
             QString name;
             int lineCount  = 0;      // number of chord/lyric line pairs inside this section
@@ -76,19 +76,11 @@ public:
 
         QVector<SectionInfo> sections;  // NEW: populated by analyzeChordProMetaData()
     };
-    // ChoPro file metrics storage module
-/*    struct SongLayoutMetrics {
-        int totalLines = 0;          // cil_lof: Chords-in-line total line count of the file
-        int maxLineCharacters = 0;   // cil_wll: Character width of the single longest line
-        int sectionCount = 0;        // Total number of sections (Verses, Choruses, etc.)
-        int targetColumns = 1;       // Auto-calculated initial columns layout rule (1, 2, or 3)
-    }; */
 
     QToolBar *m_settingsToolBar; // Promote from local variable to member
 
     // Font preference
-            QString m_currentFont = "Courier Prime";  // default
-
+    QString m_currentFont = "Courier Prime";  // default
     static const QStringList AVAILABLE_FONTS;  // defined in .cpp
 
 protected:
@@ -167,7 +159,6 @@ private:
 
     QString m_parsedSongContentGrid;
 
-//    int m_zoomScaleLevel;
     int m_zoomCoarse = 0;      // Ctrl+/-         coarse zoom, steps of 2pt
     int m_zoomFine   = 0;      // Ctrl+Shift+/-   fine zoom, steps of 0.5pt
     int m_columnOverride = 0;  // 0=auto (Radar), 1-4=manual lock
@@ -225,7 +216,8 @@ private:
     QPushButton *m_btnFn3;
     QPushButton *m_btnFn4;
 
-    QPushButton *m_btnAddSong;  // setlist operations
+    // Setlist operations
+    QPushButton *m_btnAddSong;
     QPushButton *m_btnRemoveSong;
     QPushButton *m_btnSaveSetlist;
 
