@@ -44,7 +44,7 @@ public:
         bool hasUserOverride = false;
         bool hasPlayModeStyleOverride = false;
 
-        int columnCount;      // 1, 2, 4, etc. (Handles your "Quadrant" idea)
+        int columnCount;      // 1, 2, 4, etc. (Uses "Quadrant" idea)
         int fontSize;
         int capoShift;
         int savedColumns = 1;
